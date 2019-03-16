@@ -1,0 +1,41 @@
+BM Bench v0.06 (Kotlin) -- (short:15 int:31 long:63 float:24 double:53) java.version=1.8.0_112, java.vendor=Oracle Corporationos.name=Windows 10, os.arch=amd64, os.version=10.0
+(c) Marco Vieth, 2006
+Date: 07.06.2017 16:31:46
+Calibrating benchmark 0 with n=1000000
+   250.000/s (time=    4 ms, loops=      1, delta=    4 ms, x=10528
+  1073.930/s (time=  257 ms, loops=    276, delta=  847 ms, x=10528
+  1067.290/s (time= 1293 ms, loops=   1380, delta=    8 ms, x=10528
+Benchmark 0 (Kotlin): 1067.290/s (time=1293 ms, loops=1380, delta=8 ms)
+Calibrating benchmark 1 with n=1000000
+   333.330/s (time=    3 ms, loops=      1, delta=    3 ms, x=10528
+  2920.630/s (time=  126 ms, loops=    368, delta=  978 ms, x=10528
+  2994.580/s (time= 1106 ms, loops=   3312, delta=   28 ms, x=10528
+Benchmark 1 (Kotlin): 2994.580/s (time=1106 ms, loops=3312, delta=28 ms)
+Calibrating benchmark 2 with n=1000000
+   100.000/s (time=   10 ms, loops=      1, delta=   10 ms, x=10528
+   909.840/s (time=  122 ms, loops=    111, delta=  988 ms, x=10528
+  1060.170/s (time= 1047 ms, loops=   1110, delta=  173 ms, x=10528
+  1068.330/s (time= 2078 ms, loops=   2220, delta=   16 ms, x=10528
+Benchmark 2 (Kotlin): 1068.330/s (time=2078 ms, loops=2220, delta=16 ms)
+Calibrating benchmark 3 with n=1000000
+   100.000/s (time=   10 ms, loops=      1, delta=   10 ms, x=41538
+   470.340/s (time=  236 ms, loops=    111, delta=  874 ms, x=41538
+   470.740/s (time= 1179 ms, loops=    555, delta=    1 ms, x=41538
+Benchmark 3 (Kotlin): 470.740/s (time=1179 ms, loops=555, delta=1 ms)
+Calibrating benchmark 4 with n=1000000
+    83.330/s (time=   12 ms, loops=      1, delta=   12 ms, x=1227283347
+    97.250/s (time=  946 ms, loops=     92, delta=  158 ms, x=1227283347
+   174.740/s (time= 1053 ms, loops=    184, delta=  839 ms, x=1227283347
+   171.720/s (time= 2143 ms, loops=    368, delta=   37 ms, x=1227283347
+Benchmark 4 (Kotlin): 171.720/s (time=2143 ms, loops=368, delta=37 ms)
+Calibrating benchmark 5 with n=1000000
+   111.110/s (time=    9 ms, loops=      1, delta=    9 ms, x=27200
+  1294.740/s (time=   95 ms, loops=    123, delta= 1012 ms, x=27200
+   530.360/s (time= 2783 ms, loops=   1476, delta= 1643 ms, x=27200
+   530.080/s (time= 5569 ms, loops=   2952, delta=    3 ms, x=27200
+Benchmark 5 (Kotlin): 530.080/s (time=5569 ms, loops=2952, delta=3 ms)
+
+Throughput for all benchmarks (loops per sec):
+BMR (Kotlin)
+    :   1067.29   2994.58   1068.33    470.74    171.72    530.08 
+Total elapsed time: 20482 ms

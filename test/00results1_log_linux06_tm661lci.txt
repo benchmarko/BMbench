@@ -1,0 +1,113 @@
+Using osdir='linux/i586-linux-thread-multi'.
+Execute 'mono linux/i586-linux-thread-multi/bmbench.boo_booc_0.8.1.2865.exe': OUT=...
+
+Execute ' linux/i586-linux-thread-multi/bmbench.cob_htcobol_0.63.0': OUT=...
+
+Execute 'mono linux/i586-linux-thread-multi/bmbench.cs_mcs_2.0.0.0.exe': OUT=...
+
+Execute ' linux/i586-linux-thread-multi/bmbench.c_gcc_4.3_O0': OUT=...
+undef
+Execute ' linux/i586-linux-thread-multi/bmbench.c_gcc_4.3_O2': OUT=...
+undef
+Execute ' linux/i586-linux-thread-multi/bmbench.cpp_g__4.3_O0': OUT=...
+undef
+Execute ' linux/i586-linux-thread-multi/bmbench.cpp_g__4.3_O2': OUT=...
+undef
+Execute 'java linux/i586-linux-thread-multi/bmbench.java_javac_1.6.0_07': OUT=...
+
+Execute 'ds bmbench.js': OUT=...
+BM Bench v0.06 (JavaScript) -- (int:53 double:53) DMDScript Version 5.5.1
+(c) Marco Vieth, 2006
+07.11.2008 22:47:57
+Calibrating benchmark 0 with n=1000000
+     1.980/s (time=  504 ms, loops=      1, delta=  504 ms, x=10528
+     2.600/s (time= 1155 ms, loops=      3, delta=  357 ms, x=10528
+     2.780/s (time= 2162 ms, loops=      6, delta=  148 ms, x=10528
+     2.820/s (time= 4261 ms, loops=     12, delta=   63 ms, x=10528
+Benchmark 0 (JavaScript): 2.820/s (time=4261 ms, loops=12, delta=63 ms)
+Calibrating benchmark 1 with n=1000000
+     2.130/s (time=  469 ms, loops=      1, delta=  469 ms, x=10528
+     2.390/s (time= 1254 ms, loops=      3, delta=  153 ms, x=10528
+     2.490/s (time= 2406 ms, loops=      6, delta=  102 ms, x=10528
+     2.510/s (time= 4785 ms, loops=     12, delta=   27 ms, x=10528
+Benchmark 1 (JavaScript): 2.510/s (time=4785 ms, loops=12, delta=27 ms)
+Calibrating benchmark 2 with n=1000000
+     2.100/s (time=  477 ms, loops=      1, delta=  477 ms, x=10528
+     2.410/s (time= 1246 ms, loops=      3, delta=  185 ms, x=10528
+     2.470/s (time= 2430 ms, loops=      6, delta=   62 ms, x=10528
+Benchmark 2 (JavaScript): 2.470/s (time=2430 ms, loops=6, delta=62 ms)
+Calibrating benchmark 3 with n=1000000
+     0.520/s (time= 1929 ms, loops=      1, delta= 1929 ms, x=41538
+     0.500/s (time= 4006 ms, loops=      2, delta=  148 ms, x=41538
+     0.530/s (time= 7540 ms, loops=      4, delta=  472 ms, x=41538
+     0.640/s (time=12474 ms, loops=      8, delta= 2606 ms, x=41538
+Benchmark 3 (JavaScript): Time already > 10000 ms. No measurement possible.
+Calibrating benchmark 4 with n=1000000
+     0.360/s (time= 2769 ms, loops=      1, delta= 2769 ms, x=1227283347
+     0.360/s (time= 5523 ms, loops=      2, delta=   15 ms, x=1227283347
+Benchmark 4 (JavaScript): 0.360/s (time=5523 ms, loops=2, delta=15 ms)
+Calibrating benchmark 5 with n=1000000
+     0.340/s (time= 2964 ms, loops=      1, delta= 2964 ms, x=27200
+     0.360/s (time= 5518 ms, loops=      2, delta=  410 ms, x=27200
+     0.360/s (time=11118 ms, loops=      4, delta=   82 ms, x=27200
+Benchmark 5 (JavaScript): 0.360/s (time=11118 ms, loops=4, delta=82 ms)
+
+Throughput for all benchmarks (loops per sec):
+BMR (JavaScript):      2.82      2.51      2.47     -1.00      0.36      0.36 
+
+Total elapsed time: 74999 ms
+
+Execute 'js_ngs linux/i586-linux-thread-multi/bmbench.js_js_ngs_0.2.5.jsc': OUT=...
+BM Bench v0.06 (JavaScript) -- (int:31 double:53) Interpreter: i686-pc-linux-gnu, VM.version=0.2.5
+(c) Marco Vieth, 2006
+07.11.2008 22:49:12
+Calibrating benchmark 0 with n=1000000
+     0.000/s (time=    0 ms, loops=      1, delta=    0 ms, x=10528
+     0.000/s (time=    0 ms, loops=      2, delta=    0 ms, x=10528
+     4.000/s (time= 1000 ms, loops=      4, delta= 1000 ms, x=10528
+     8.000/s (time= 1000 ms, loops=      8, delta= 1000 ms, x=10528
+     8.000/s (time= 2000 ms, loops=     16, delta=    0 ms, x=10528
+Benchmark 0 (JavaScript): 8.000/s (time=2000 ms, loops=16, delta=0 ms)
+Calibrating benchmark 1 with n=1000000
+     0.000/s (time=    0 ms, loops=      1, delta=    0 ms, x=10528
+     0.000/s (time=    0 ms, loops=      2, delta=    0 ms, x=10528
+     4.000/s (time= 1000 ms, loops=      4, delta= 1000 ms, x=10528
+     8.000/s (time= 1000 ms, loops=      8, delta= 1000 ms, x=10528
+     8.000/s (time= 2000 ms, loops=     16, delta=    0 ms, x=10528
+Benchmark 1 (JavaScript): 8.000/s (time=2000 ms, loops=16, delta=0 ms)
+Calibrating benchmark 2 with n=1000000
+     0.000/s (time=    0 ms, loops=      1, delta=    0 ms, x=10528
+     0.000/s (time=    0 ms, loops=      2, delta=    0 ms, x=10528
+     0.000/s (time=    0 ms, loops=      4, delta=    0 ms, x=10528
+     8.000/s (time= 1000 ms, loops=      8, delta= 1000 ms, x=10528
+     5.330/s (time= 3000 ms, loops=     16, delta= 1000 ms, x=10528
+    10.670/s (time= 3000 ms, loops=     32, delta= 3000 ms, x=10528
+     7.110/s (time= 9000 ms, loops=     64, delta= 3000 ms, x=10528
+     8.000/s (time=16000 ms, loops=    128, delta= 2000 ms, x=10528
+Benchmark 2 (JavaScript): Time already > 10000 ms. No measurement possible.
+Calibrating benchmark 3 with n=1000000
+     0.000/s (time=    0 ms, loops=      1, delta=    0 ms, x=41538
+     2.000/s (time= 1000 ms, loops=      2, delta= 1000 ms, x=41538
+     4.000/s (time= 1000 ms, loops=      4, delta= 1000 ms, x=41538
+     2.670/s (time= 3000 ms, loops=      8, delta= 1000 ms, x=41538
+     3.200/s (time= 5000 ms, loops=     16, delta= 1000 ms, x=41538
+     2.910/s (time=11000 ms, loops=     32, delta= 1000 ms, x=41538
+Benchmark 3 (JavaScript): Time already > 10000 ms. No measurement possible.
+Calibrating benchmark 4 with n=1000000
+     0.000/s (time=    0 ms, loops=      1, delta=    0 ms, x=1227283347
+     2.000/s (time= 1000 ms, loops=      2, delta= 1000 ms, x=1227283347
+     2.000/s (time= 2000 ms, loops=      4, delta=    0 ms, x=1227283347
+Benchmark 4 (JavaScript): 2.000/s (time=2000 ms, loops=4, delta=0 ms)
+Calibrating benchmark 5 with n=1000000
+     0.000/s (time=    0 ms, loops=      1, delta=    0 ms, x=27200
+     2.000/s (time= 1000 ms, loops=      2, delta= 1000 ms, x=27200
+     2.000/s (time= 2000 ms, loops=      4, delta=    0 ms, x=27200
+Benchmark 5 (JavaScript): 2.000/s (time=2000 ms, loops=4, delta=0 ms)
+
+Throughput for all benchmarks (loops per sec):
+BMR (JavaScript):      8.00      8.00     -0.99     -0.99      2.00      2.00 
+
+Total elapsed time: 67000 ms
+
+Execute 'clisp linux/i586-linux-thread-multi/bmbench.lisp_clisp_2.44.1.fas': OUT=...
+

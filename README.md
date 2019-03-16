@@ -1,7 +1,7 @@
 # BMbench - BM Benchmark Suite
 
-Version: 0.61
-Date: 01.05.2008
+Version: 0.62
+Date: 07.06.2017
 
 BMbench is a collection of simple benchmarks in different programming languages.
 It is a synthetic benchmark which means that it does not represent real workload.
@@ -10,6 +10,10 @@ different implementations of the same language and maybe
 the same language on different operating systems.
 
 ## Changes
+
+### 0.62 (07.06.20177)
+
+- Adapted scripts: kt (Kotlin)
 
 ### 0.61 (01.05.2008)
 
@@ -103,6 +107,7 @@ bmbench.hs     |   ......  | ?????? | Haskell (experimenting with ghc)
 bmbench.html   |           | ?????? | HTML page to start JavaScript from browser
 bmbench.java   |   ++++++  | SIDTII | Java
 bmbench.js     |   ++++++  | IIDIII | JavaScript for Browsers, Rhino, NGS (has integer), JScript, DMDscript
+bmbench.kt     |   ......  | ?????? | Kotlin
 bmbench.lisp   |   ++++++  | IIDIII | Lisp for clisp
 bmbench.mi     |   ++++++  | SIDTII | Modula-2 for mocka
 bmbench.p      |   ++++++  | SIDTII | Pascal for gpc, p2c
@@ -157,4 +162,4 @@ test/run_bench_browser1.sh |   |  | Shell script to run browser tests under UNIX
 
 - [BMbench documentation on benchmarko.de](http://www.benchmarko.de/software/bmbench/index_e.html)
 
-### **Marco Vieth, 2006**
+### **Marco Vieth, 2017**
