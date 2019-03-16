@@ -1,10 +1,11 @@
 #!/usr/bin/bash -f
-# BM Bench - bmbench.bash (bash or zsh)
-# (c) Marco Vieth, 2002
+# BM Bench - bmbench.bash (bash or zsh) # TTT not ok for bash since it canno do math?
+# (c) Marco Vieth, 2002-2006
 # http://www.benchmarko.de
 #
-# 05.09.2003  0.01
-# 06.09.2003  0.05 all benchmark tests 0..5 implemented but arrays are very slow...
+# 05.09.2003 0.01
+# 06.09.2003 0.05  all benchmark tests 0..5 implemented but arrays are very slow...
+# 30.04.2008 0.06  based on version 0.05
 #
 #
 # Usage:
@@ -56,6 +57,8 @@
 #
 #
 
+PRG_VERSION="0.06";
+PRG_LANGUAGE="bash";
 
 ####################################
 
@@ -70,7 +73,6 @@
 #
 # loops may be increased to produce a longer runtime without changing the result.
 #
-
 
 #
 # bench00 (Integer 16 bit)
@@ -190,7 +192,7 @@ bench02_bash() {
 }
 
 
-g_fact_bench03=20 # benchmark reduction factor
+g_fact_bench03=20;     # benchmark reduction factor
 g_result_bench03=2762; #result for factor 20 (for factor 1 it would be 41538)
 
 # bench03 (Integer)
@@ -504,41 +506,7 @@ checkbits_double1_zsh() {
 }
 
 
-
-main() {
-  typeset -i argc n min_ms;
-  typeset -i start_t bench1 bench2 bench loops x t1;
-  local argc=$#;
-  #local argv2=$@;
-
-  local start_t=0;      # memorize start time
-  local bench1=0;       # first benchmark to test
-  local bench2=5;       # last benchmark to test
-  local n=1000000;      # maximum number
-  local min_ms=10000;   # minimum runtime for measurement in ms
-  local bench=0;
-  local loops=0 x=0 t1=0;
-  typeset -a bench_res1;
-
-  #typeset -a g_bench_facts; # benchmark simplification factors
-  #typeset -a g_bench_results; # benchmark simplificatiopn factors
-
-
-  get_ms; start_t=$get_ms;
-
-  if [ "$argc" -ge 1 ]; then
-    bench1=$1; #$argv2[0];
-    bench2=$bench1; # set also last benchmark
-  fi;
-  if [ "$argc" -ge 2 ]; then
-    bench2=$2; #${argv2[1]};
-  fi;
-  if [ "$argc" -ge 3 ]; then
-    n=$3; #${argv2[2]};
-  fi;
-
-  #echo "DEBUG: bench1=$bench1, bench2=$bench2, n=$n";
-
+print_info() {
   if [ "$ZSH_VERSION" ]; then
     g_sh='zsh';
     g_sh_version="$ZSH_NAME $ZSH_VERSION $MACHTYPE";
@@ -553,15 +521,154 @@ main() {
   checkbits_int1;
   checkbits_double1_$g_sh; # bash or zsh
 
-  echo "BM Bench v0.5 ($g_sh) -- (int:$checkbits_int1 double:$checkbits_double1) $g_sh_version";
-  echo "(c) Marco Vieth, 2002";
+  echo "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:$checkbits_int1 double:$checkbits_double1) $g_sh_version";
+  echo "(c) Marco Vieth, 2006";
   echo "Date:" `date`; # call external date
+}
+
+
+print_results() {
+  #local bench1=$1 bench2=$2 bench_res1=$3;
+  local bench1=$1 bench2=$2;
+  echo "";
+  echo "Throughput for all benchmarks (loops per sec):";
+#TTT
+  echo -n "BMR ($PRG_LANGUAGE) : ";
+  for (( bench = bench1; bench <= bench2; bench++ )); do
+    echo -n "${bench_res1[bench]} ";
+    #printf "%9.2f " $((${bench_res1[$bench]}/10)); #TTT
+  done;
+  echo "";
+  echo "";
+}
+
+
+
+start_bench() {
+#(bench1, bench2, n,    cali_ms, delta_ms, max_ms, bench, loops, x, t1, t2, t_delta, loops_p_sec, scale_fact) {
+  local bench1=$1 bench2=$2 n=$3;
+
+  typeset -i cali_ms delta_ms max_ms;
+  typeset -i loops x t1 t2 t_delta formatted_bench_res;
+  #loops_p_sec scale_fact
+
+  local cali_ms=1001; # const
+  local delta_ms=100; # const
+  local max_ms=10000; # const
+
+  print_info;
+  
+
+
+#    if [ "$g_sh" = 'zsh' ]; then
+#     echo "DDD: yes";
+#   else
+#     echo "DDD: no: $g_sh";
+#   fi
+
+  
+  typeset -a bench_res1;
+
+#    bench_res1[$bench1]=5.4; #0.654;
+#    echo "DDD: ${bench_res1[$bench1]}";
+#    print_results $bench1 $bench2; # $bench_res1;
+#    return 0;
+
+
+  #typeset -a g_bench_facts; # benchmark simplification factors
+  #typeset -a g_bench_results; # benchmark simplificatiopn factors
+
+  #echo "DEBUG: bench1=$bench1, bench2=$bench2, n=$n";
 
   for (( bench = bench1; bench2 + 1 - bench; bench++ )); do
-    loops=1;   # number of loops
-    x=0;     # result from benchmark
-    t1=0; # timestamp
+    local loops=1; # number of loops
+    local x=0;     # result from benchmark
+    local t1=0;    # measured time
+    local t2=0;    # estimated time
+
+    echo "Calibrating benchmark $bench with n=$n";
+    while [ 1 ]; do
+      get_ms; t1=$get_ms;
+      run_bench $bench $loops $n;
+      get_ms; ((t1=get_ms-t1));
+
+      local t_delta=0;
+      # compute difference abs(measures-estimated)
+      if [ "$t2" -gt "$t1" ]; then
+        ((t_delta = t2 - t1));
+      else
+        ((t_delta = t1 - t2));
+      fi;
+
+      local loops_p_sec=0;
+      if [ "$t1" -gt 0 ]; then
+        if [ "$g_sh" = 'zsh' ]; then
+          ((loops_p_sec = (loops * 1000.0) / t1));
+        else
+          #((loops_p_sec = (loops * 1000 * 1000) / t1)); #TTT
+          #loops_p_sec=$(echo -e "scale=3\n$loops*1000/$t1\nquit" | bc); #TTT
+          loops_p_sec=$(echo "scale=3; $loops * 1000 / $t1" | bc); #TTT
+          loops_p_sec="0$loops_p_sec"; #TTT
+        fi
+#      else
+#        loops_p_sec=0;
+      fi;
+
+      printf "%10.3f/s (time=%5d ms, loops=%7d, delta=%5d ms, x=$x)\n" $loops_p_sec $t1 $loops $t_delta;
+      if [ "$x" -eq -1 ]; then # some error?
+        bench_res1[$bench]=-1;
+        break; # (check: can only exit while, if not in sub block?)
+      fi;
+      if [ "$t2" -gt 0 ]; then # do we have some estimated/expected time? 
+        if [ "$t_delta" -lt "$delta_ms" ]; then # smaller than delta_ms=100? 
+          bench_res1[$bench]=$loops_p_sec; # set loops per sec
+          #printf -v formatted_bench_res "%.3f" bench_res1[$bench];
+          echo -n "Benchmark $bench ($PRG_LANGUAGE): ";
+          printf "%.3f" ${bench_res1[$bench]};
+          echo "/s (time=$t1 ms, loops=$loops, delta=$t_delta ms)";
+          break;
+        fi;
+      fi;
+
+      if [ "$t1" -gt $max_ms ]; then 
+        echo "Benchmark $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
+        bench_res1[$bench]=-1;
+        break;
+      fi;
+
+      if [ "$t1" -lt "$cali_ms" ] && [ "$t1" -gt 0 ]; then
+        ((scale_fact = ((cali_ms + 100) / t1) + 1)); # '/' is integer division!
+      else
+        scale_fact=2;
+      fi;
+        # scale a bit up to 1100 ms (cali_ms+100)
+      ((loops *= scale_fact));
+      ((t2 = t1 * scale_fact));
+    done;
+  done;
+
+  # correct fact... TTT
+  for (( bench = bench1; bench <= bench2; bench++ )); do
+    if [ "$bench" -ge 3 ]; then # starting with benchmark 3
+      ((i=g_fact_bench0${bench})); # get simplification factor
+        echo "bench=$bench, i=$i";
+      if [ "$i" -gt 1 ]; then
+        ((bench_res1[bench] *= i));
+        echo "Note: Estimated runtime for benchmark $bench corrected by factor $i: ${bench_res1[bench]}";
+      fi;
+    fi;
+  done;
+
+  #print_results $bench1 $bench2 $bench_res1;
+  print_results $bench1 $bench2; # $bench_res1;
+  return 0;
+}
+
+###
+
+muell() {
     # calibration
+  for (( bench = bench1; bench2 + 1 - bench; bench++ )); do
     while [ "$t1" -lt 1001 ]; do # we want at least 1 sec calibration time
       echo "Calibrating benchmark $bench with loops=$loops, n=$n";
       get_ms; t1=$get_ms;
@@ -611,6 +718,39 @@ main() {
   get_ms; ((start_t=get_ms - start_t));
   echo "Total elapsed time: $start_t ms";
   return 0;
+}
+
+
+main() {
+  typeset -i argc;
+  typeset -i start_t bench1 bench2 n rc;
+  local argc=$#;
+  #local argv2=$@;
+
+  local start_t=0;      # memorize start time
+  local bench1=0;       # first benchmark to test
+  local bench2=5;       # last benchmark to test
+  local n=1000000;      # maximum number
+
+  get_ms; start_t=$get_ms;
+
+  if [ "$argc" -ge 1 ]; then
+    bench1=$1; #$argv2[0];
+    bench2=$bench1; # set also last benchmark
+  fi;
+  if [ "$argc" -ge 2 ]; then
+    bench2=$2; #${argv2[1]};
+  fi;
+  if [ "$argc" -ge 3 ]; then
+    n=$3; #${argv2[2]};
+  fi;
+
+  local rc;
+  start_bench $bench1 $bench2 $n;  rc=$start_bench;
+
+  get_ms; ((start_t=get_ms - start_t));
+  echo "Total elapsed time: $start_t ms";
+  return $rc;
 }
 
 #######################################

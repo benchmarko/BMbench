@@ -4,12 +4,13 @@
  DATE-WRITTEN. 05.04.2003.
 
 * BM Bench - bmbench.cob (Cobol)
-* (c) Marco Vieth, 2002
+* (c) Marco Vieth, 2002-2006
 * http://www.benchmarko.de
 *
-* 05.04.2003 0.01 first tests
-* 06.04.2003 0.02 bench01 = (sum 1..n) mod 65536 (integer)
-* 11.04.2003 0.05 other benchmark tests
+* 05.04.2003 0.01  first tests
+* 06.04.2003 0.02  bench01 = (sum 1..n) mod 65536 (integer)
+* 11.04.2003 0.05  other benchmark tests
+* 01.05.2008 0.06  based on version 0.05
 *
 *
 *
@@ -18,16 +19,17 @@
 *   They are twice as fast for bench02!
 * (0.58 uses static, 0.60 uses dynamic as default)
 * - (Dynamic libraries are used first if available.
-*    export LD_LIBRARY_PATH=$HOME/bin ...)
+*    export LD_LIBRARY_PATH=$HOME/usr/lib ...)
 * - htcobol -L$LD_LIBRARY_PATH -F bmbench.cob
 * - ./bmbench [bench1] [bench2] [n]
 *
 *
 * Hints to compile TinyCobol (http://www.tinycobol.org/):
-* - TinyCobol (needs flex, ncurses, ncurses_devel, db-devel)
+* - TinyCobol (needs flex, ncurses, ncurses_devel, db-devel/libdb-4_5-devel)
 * - ./configure --prefix=/home/ali/usr; make
 *
-* Hints to compile OpenCobol:
+* Hints to compile OpenCobol (http://www.opencobol.org/):
+* - OpenCobol (needs libgmp/gmp-devel 4.1.2, ...)
 * ./configure --prefix=/home/ali/usr
 * make
 * ...
@@ -330,12 +332,12 @@ bench03.
     END-IF
   END-PERFORM.
   MOVE bench03-save-n TO n.
-  MOVE bench03-x TO x
+  MOVE bench03-x TO x.
 
 
 *
 *
-* we need 10 digits for x, check1...
+* we need 10 digits for x, check1
 bench04.
   MOVE 1 TO x.
 * DISPLAY "DEBUG: bench04: TT0: x=" x ", n=" n
@@ -358,7 +360,7 @@ bench04.
       END-IF
       ADD 1 TO x
     END-IF
-  END-PERFORM
+  END-PERFORM.
 
 
 *
@@ -493,7 +495,7 @@ checkbits-short1.
     COMPUTE num-s = num-s * 2
     COMPUTE num-s = num-s + 1
     COMPUTE bits = bits + 1
-  END-PERFORM
+  END-PERFORM.
 
 checkbits-int1.
   MOVE 1 TO num.
@@ -504,7 +506,7 @@ checkbits-int1.
     COMPUTE num = num * 2
     COMPUTE num = num + 1
     COMPUTE bits = bits + 1
-  END-PERFORM
+  END-PERFORM.
 
 checkbits-float1.
   MOVE 1 TO num-f.
@@ -515,7 +517,7 @@ checkbits-float1.
     COMPUTE num-f = num-f * 2
     COMPUTE num-f = num-f + 1
     COMPUTE bits = bits + 1
-  END-PERFORM
+  END-PERFORM.
 
 checkbits-double1.
   MOVE 1 TO num-d.
@@ -526,7 +528,7 @@ checkbits-double1.
     COMPUTE num-d = num-d * 2
     COMPUTE num-d = num-d + 1
     COMPUTE bits = bits + 1
-  END-PERFORM
+  END-PERFORM.
 
 *
 *

@@ -1,9 +1,11 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>BM Bench</title>
-<script language="JavaScript" src="bmbench.js" type="text/javascript"></script>
-<script language="JavaScript" type="text/javascript">
+<script src="bmbench.js" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
 <!--
 //
 function run_bmbench(frm) {
@@ -12,35 +14,35 @@ function run_bmbench(frm) {
     args[0] = frm.bench1.value;
     args[1] = frm.bench2.value;
     args[2] = frm.n.value;
-    return bmbench(args);
+    return main(args);
   } else {
     return 1;
   }
 }
-// -->
+//-->
+//]]>
 </script>
-
 </head>
 <body>
-  <h1>BM Bench1</h1>
+<h1>BM Bench06</h1>
 
-<hr>
+<hr />
 
-<form name="BM_form">
+<form action="">
   <table border="0" summary="">
-    <tr><td>bench1</td> <td><input type="text" size="4" name="bench1" value="0"></td></tr>
-    <tr><td>bench2</td> <td><input type="text" size="4" name="bench2" value="5"></td></tr>
-    <tr><td>n</td>      <td><input type="text" size="8" name="n" value="1000000"></td></tr>
+    <tr><td>bench1</td> <td><input type="text" size="4" name="bench1" value="0" /></td></tr>
+    <tr><td>bench2</td> <td><input type="text" size="4" name="bench2" value="5" /></td></tr>
+    <tr><td>n</td>      <td><input type="text" size="8" name="n" value="1000000" /></td></tr>
   </table>
-  <input type="button" value="Run Benchmark" onclick="run_bmbench(this.form)" name="BENCH001">
+  <input type="button" value="Run Benchmark" onclick="run_bmbench(this.form)" name="BENCH06" />
 </form>
 
-<br>
-<hr>
+<br />
+<hr />
 <noscript>
 <b>Please activate JavaScript to use the functionality of this page!</b>
 </noscript>
 
-<address><font size="-1">&copy; <a href="http://www.benchmarko.de">Marco Vieth</a>, 11.05.2002</font></address>
+<address><font size="-1">&copy; <a href="http://www.benchmarko.de">Marco Vieth</a>, 03.12.2006</font></address>
 </body>
 </html>

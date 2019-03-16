@@ -1,18 +1,18 @@
 //
 // BM Bench - bmbench.js (JavaScript)
-// (c) Marco Vieth, 2002
+// (c) Marco Vieth, 2002-2006
 // http://www.benchmarko.de
 //
-// 06.05.2002  0.01
-// 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
-// 30.05.2002  0.03
-// 18.06.2002  0.031 adapted for standalone JS engines (NSG JS Engine, Rhino, ...)
-// 20.07.2002  0.04  some errors corrected
-// 24.01.2003  0.05  output format changed
-// 04.04.2003        navigator platform corrected; use args[0] as first element (as in Java)
-// 18.07.2004        added support for JScript (Windows Scripting Host, cscript.exe)
-// 17.01.2006        added support for DMDscript
-//
+// 06.05.2002 0.01
+// 11.05.2002 0.02  bench01 = (sum 1..n) mod 65536 (integer)
+// 30.05.2002 0.03
+// 18.06.2002 0.031 adapted for standalone JS engines (NSG JS Engine, Rhino, ...)
+// 20.07.2002 0.04  some errors corrected
+// 24.01.2003 0.05  output format changed
+// 04.04.2003       navigator platform corrected; use args[0] as first element (as in Java)
+// 18.07.2004       added support for JScript (Windows Scripting Host, cscript.exe)
+// 17.01.2006       added support for DMDscript
+// 30.11.2006 0.06  based on version 0.05
 //
 // Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
@@ -24,7 +24,7 @@
 //
 // Tested with the following JS engines:
 // 1. Stand alone NGS JS Engine:
-// Usage: js bmbench.js [bench1] [bench2] [n]  (or use compiler: js -c -O2 bmbench.js, js bmbench.jsc)
+// Usage: js bmbench.js [bench1] [bench2] [n]  (or use compiler: js -c -O2 bmbench1.js, js bmbench1.jsc)
 // - Has no windows, navigator object, but System, System.stdout.writeln, ...
 // - Allows integer arithmetic (int(), isInt()), but Math.floor(), division results float
 // - Does not allow object function syntax  f1 = function() { blabla; };
@@ -37,7 +37,7 @@
 //   Correct line 259: js_vm_to_number (vm, &args[1], &cvt);  =>  js_vm_to_number (vm, &args[i+1], &cvt);
 //
 // 2. Rhino (JS Engine written in JAVA; http://www.mozilla.org/js)
-// Usage: java -jar js.jar bmbench.js (or: java -classpath js.jar org.mozilla.javascript.tools.shell.Main bmbench.js)
+// Usage: java -jar js.jar bmbench.js (or: java -classpath js.jar org.mozilla.javascript.tools.shell.Main bmbench1.js)
 // Compiler: [export CLASSPATH=js.jar]
 //           java -classpath js.jar org.mozilla.javascript.tools.jsc.Main -opt 0 bmbench.js
 //           java -classpath js.jar bmbench
@@ -59,290 +59,293 @@
 
 var myint = Math.floor; // cast to integer
 
-
-  //
-  // General description for benchmark test functions
-  // benchxx - benchmark
-  // <description>
-  // in: loops = number of loops
-  //         n = maximum number (assumed even, normally n=1000000)
-  // out:    x = <output decription>
-  //
-  // loops may be increased to produce a longer runtime without changing the result.
-  //
+var prg_version = "0.06";
+var prg_language = "JavaScript";
 
 
-  //
-  // bench00 (Integer 16 bit)
-  // (sum of 1..n) mod 65536
-  //
-  function bench00(loops, n) {
-    var x = 0;
-    var sum1 = myint(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
-    // do not use '& 0xffff' since this converts sum1 to 0 for stand alone engine
-    var n_div_65536 = (n >> 16);
-    var n_mod_65536 = (n & 0xffff);
-    //window.document.writeln("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
-    while (loops-- > 0) {
-      for (var i = n_div_65536; i > 0; i--) {
-        for (var j = 32767; j > 0; j--) {
-          x += j;
-        }
-        //var j; // already declared
-        for (j = -32768; j < 0; j++) {
-          x += j;
-        }
-      }
-      //var j; // already declared
-      for (j = n_mod_65536; j > 0; j--) {
+//
+// General description for benchmark test functions
+// benchxx - benchmark
+// <description>
+// in: loops = number of loops
+//         n = maximum number (assumed even, normally n=1000000)
+// out:    x = <output decription>
+//
+// loops may be increased to produce a longer runtime without changing the result.
+//
+
+
+//
+// bench00 (Integer 16 bit)
+// (sum of 1..n) mod 65536
+//
+function bench00(loops, n) {
+  var x = 0;
+  var sum1 = myint(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
+  // do not use '& 0xffff' since this converts sum1 to 0 for stand alone engine
+  var n_div_65536 = (n >> 16);
+  var n_mod_65536 = (n & 0xffff);
+  //window.document.writeln("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
+  while (loops-- > 0) {
+    for (var i = n_div_65536; i > 0; i--) {
+      for (var j = 32767; j > 0; j--) {
         x += j;
       }
-      if (loops > 0) {   // some more loops left?
-        x %= 65536;      // (do not use &= 0xffff)
-        x -= sum1;       // yes, set x back to 0
-        if (x != 0) {    // now x must be 0 again
-          x++;           // force error for many wrong computations
-          break;         // Error   //alert("Error(bench01): x="+ x);
+      //var j; // already declared
+      for (j = -32768; j < 0; j++) {
+        x += j;
+      }
+    }
+    //var j; // already declared
+    for (j = n_mod_65536; j > 0; j--) {
+      x += j;
+    }
+    if (loops > 0) {   // some more loops left?
+      x %= 65536;      // (do not use &= 0xffff)
+      x -= sum1;       // yes, set x back to 0
+      if (x != 0) {    // now x must be 0 again
+        x++;           // force error for many wrong computations
+        break;         // Error   //alert("Error(bench01): x="+ x);
+      }
+    }
+  }
+  //if (isInt(x)) { System.stdout.writeln("Yes, it is integer!"); }
+  return x % 65536;
+}
+
+//
+// bench01 (Integer 16/32 bit)
+// (sum of 1..n) mod 65536
+// (Javascript seems to have no Integer arithmetic, so same as bench02...)
+function bench01(loops, n) {
+  var x = 0;
+  var sum1 = myint(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
+  // do not use '& 0xffff' since this converts sum1 to 0 for stand alone engine
+  while (loops-- > 0) {
+    for (var i = n; i > 0; i--) {
+      x += i;
+    }
+    if (loops > 0) {   // some more loops left?
+      x %= 65536;      // (do not use &= 0xffff)
+      x -= sum1;       // yes, set x back to 0
+      if (x != 0) {    // now x must be 0 again
+        x++;           // force error for many wrong computations
+        break;         // Error   //alert("Error(bench01): x="+ x);
+      }
+    }
+  }
+  //if (isInt(x)) { System.stdout.writeln("Yes, it is integer!"); }
+  return x % 65536;
+}
+
+
+//
+// bench02 (Floating Point, normally 64 bit)
+// (sum of 1..n) mod 65536
+//
+function bench02(loops, n) {
+  var x = 0.0;
+  var sum1 = (n / 2.0) * (n + 1.0); // assuming n even! (sum should be 5.000005E11)
+  while (loops-- > 0) {
+    for (var i = n; i > 0; i--) {
+      x += i;
+    }
+    if (loops > 0) {   // some more loops left?
+      x -= sum1;       // yes, set x back to 0
+      if (x != 0.0) {    // now x must be 0 again
+        x++;
+        break;         // Error   //alert("Error(bench01): x="+ x);
+      }
+    }
+  }
+  return x % 65536;
+}
+
+
+//
+// bench03 (Integer)
+// number of primes below n (Sieve of Eratosthenes)
+// Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
+// (No bit array in Javascript available, String is also not cheaper, so...)
+function bench03(loops, n) {
+  n >>= 1; // compute only up to n/2
+
+  var x = 0; // number of primes below n
+  var sieve1 = new Array(n + 1); // boolean[n + 1];??
+  sieve1[0] = 0;
+  sieve1[1] = 0;
+  while (loops-- > 0) {
+    // initialize sieve
+    for (var i = 2; i <= n; i++) {
+      sieve1[i] = 1;
+    }
+    // compute primes
+    //var i; // already declared
+    for (i = 2; (i * i) <= n; i++) {
+      if (sieve1[i]) {
+        for (var j = i * i; j <= n; j += i) {
+          sieve1[j] = 0;
         }
       }
     }
-    //if (isInt(x)) { System.stdout.writeln("Yes, it is integer!"); }
-    return x % 65536;
+    // count primes
+    //var i; // already declared
+    for (i = 0; i <= n; i++) {
+      if (sieve1[i]) {
+        x++;
+      }
+    }
+    // check prime count
+    if (loops > 0) {  // some more loops left?
+      x -= 41538;     // yes, set x back to 0 (number of primes below 1000000)
+      if (x != 0) {   // now x must be 0 again
+        x++;
+        break;        // Error
+      }
+    }
+  }
+  return x;
+}
+
+
+//
+// bench04 (Integer 32 bit)
+// nth random number number
+// Random number generator taken from
+// Raj Jain: The Art of Computer Systems Performance Analysis, John Wiley & Sons, 1991, page 442-444.
+// It needs longs with at least 32 bit.
+// Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
+//
+function bench04(loops, n) {
+  var m = 2147483647; // modulus, do not change!
+  var a = 16807;      // multiplier
+  var q = 127773;     // m div a
+  var r = 2836;       // m mod a
+  var x = 1;                // last random value
+  while (loops-- > 0) {
+    for (var i = n; i > 0; i--) {
+      var x_div_q = myint(x / q); // Math.floor(x / q);
+      //if (isInt(x_div_q)) { System.stdout.writeln("Yes, it is integer!"); }
+      var x_mod_q = x - q * x_div_q;
+      x = a * x_mod_q - r * x_div_q;
+      if (x <= 0) {
+        x += m; // x is new random number
+      }
+    }
+    if (loops > 0) {
+      x -= 1227283347;
+      if (x != 0) {   // now x must be 0 again
+        x++;
+        break;        // Error
+      }
+      x++; // start with 1 again
+    }
+  }
+  return x;
+}
+
+
+//
+// bench05 (Integer 32 bit)
+// n over n/2 mod 65536 (Pascal's triangle)
+//
+function bench05(loops, n) {
+  var x = 0;
+  n = myint(n / 500);
+  var k = n >> 1; // div 2
+
+  if ((n - k) < k) {
+    k = n - k; // keep k minimal with  n over k  =  n over n-k
   }
 
-  //
-  // bench01 (Integer 16/32 bit)
-  // (sum of 1..n) mod 65536
-  // (Javascript seems to have no Integer arithmetic, so same as bench02...)
-  function bench01(loops, n) {
-    var x = 0;
-    var sum1 = myint(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
-    // do not use '& 0xffff' since this converts sum1 to 0 for stand alone engine
-    while (loops-- > 0) {
-      for (var i = n; i > 0; i--) {
-        x += i;
+  // allocate memory...
+  var pas1 = new Array(2);
+  pas1[0] = new Array(k + 1);
+  pas1[1] = new Array(k + 1);
+  pas1[0][0] = 1; pas1[1][0] = 1; // set first column
+
+  while (loops-- > 0) {
+    for (var i = 3; i <= n; i++) {
+      var i_mod_2 = i & 1;
+      var i1_mod_2 = i_mod_2 ^ 1;
+      var min1 = (i_mod_2 == 0) ? ((i - 2) >> 1) : ((i - 1) >> 1); // Math.floor((i - 1) / 2);
+      if (k < min1) {
+        min1 = k;
       }
-      if (loops > 0) {   // some more loops left?
-        x %= 65536;      // (do not use &= 0xffff)
-        x -= sum1;       // yes, set x back to 0
-        if (x != 0) {    // now x must be 0 again
-          x++;           // force error for many wrong computations
-          break;         // Error   //alert("Error(bench01): x="+ x);
-        }
+      pas1[i_mod_2][1] = i; // second column is i
+      for (var j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
+        pas1[i_mod_2][j] = (pas1[i_mod_2 ^ 1][j - 1] + pas1[i_mod_2 ^ 1][j]) & 0xffff; // % 65536 -- we need mod here to avoid overflow
+      }
+      if ((min1 < k) && (i_mod_2 == 0)) { // new element
+        //pas1[i_mod_2][Math.floor(i / 2)] = 2 * pas1[i_mod_2 ^ 1][Math.floor((i - 1) / 2)];
+        pas1[i_mod_2][min1 + 1] = 2 * pas1[i_mod_2 ^ 1][min1];
       }
     }
-    //if (isInt(x)) { System.stdout.writeln("Yes, it is integer!"); }
-    return x % 65536;
+    x += pas1[n & 1][k] & 0xffff; // % 65536
+    if (loops > 0) {
+      x -= 27200;
+      if (x != 0) {   // now x must be 0 again
+        x++;
+        break;        // Error
+      }
+    }
   }
+  return x;
+}
 
 
-  //
-  // bench02 (Floating Point, normally 64 bit)
-  // (sum of 1..n) mod 65536
-  //
-  function bench02(loops, n) {
-    var x = 0.0;
-    var sum1 = (n / 2.0) * (n + 1.0); // assuming n even! (sum should be 5.000005E11)
-    while (loops-- > 0) {
-      for (var i = n; i > 0; i--) {
-        x += i;
-      }
-      if (loops > 0) {   // some more loops left?
-        x -= sum1;       // yes, set x back to 0
-        if (x != 0.0) {    // now x must be 0 again
-          x++;
-          break;         // Error   //alert("Error(bench01): x="+ x);
-        }
-      }
-    }
-    return x % 65536;
+//
+// run a benchmark
+// in: bench = benchmark to use
+//     loops = number of loops
+//         n = maximum number (used in some benchmarks to define size of workload)
+// out:    x = result
+//
+function run_bench(bench, loops, n) {
+  var x = 0;
+  var check1 = 0;
+  switch(bench) {
+    case 0:
+      x = bench00(loops, n);
+      check1 = 10528;
+    break;
+
+    case 1:
+      x = bench01(loops, n);
+      check1 = 10528;
+    break;
+
+    case 2:
+      x = bench02(loops, n);
+      check1 = 10528;
+    break;
+
+    case 3:
+      x = bench03(loops, n);
+      check1 = 41538;
+    break;
+
+    case 4:
+      x = bench04(loops, n);
+      check1 = 1227283347;
+    break;
+
+    case 5:
+      x = bench05(loops, n);
+      check1 = 27200;
+    break;
+
+    default:
+      window.alert("Error: Unknown benchmark "+ bench);
+      check1 = x + 1;
+    break;
   }
-
-
-  //
-  // bench03 (Integer)
-  // number of primes below n (Sieve of Eratosthenes)
-  // Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
-  // (No bit array in Javascript available, String is also not cheaper, so...)
-  function bench03(loops, n) {
-    n >>= 1; // compute only up to n/2
-
-    var x = 0; // number of primes below n
-    var sieve1 = new Array(n + 1); // boolean[n + 1];??
-    sieve1[0] = 0;
-    sieve1[1] = 0;
-    while (loops-- > 0) {
-      // initialize sieve
-      for (var i = 2; i <= n; i++) {
-        sieve1[i] = 1;
-      }
-      // compute primes
-      //var i; // already declared
-      for (i = 2; (i * i) <= n; i++) {
-        if (sieve1[i]) {
-          for (var j = i * i; j <= n; j += i) {
-            sieve1[j] = 0;
-          }
-        }
-      }
-      // count primes
-      //var i; // already declared
-      for (i = 0; i <= n; i++) {
-        if (sieve1[i]) {
-          x++;
-        }
-      }
-      // check prime count
-      if (loops > 0) {  // some more loops left?
-        x -= 41538;     // yes, set x back to 0 (number of primes below 1000000)
-        if (x != 0) {   // now x must be 0 again
-          x++;
-          break;        // Error
-        }
-      }
-    }
-    return x;
+  if (check1 != x) {
+    window.alert("Error(bench"+ bench +"): x="+ x);
+    x = -1; //exit;
   }
-
-
-  //
-  // bench04 (Integer 32 bit)
-  // nth random number number
-  // Random number generator taken from
-  // Raj Jain: The Art of Computer Systems Performance Analysis, John Wiley & Sons, 1991, page 442-444.
-  // It needs longs with at least 32 bit.
-  // Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
-  //
-  function bench04(loops, n) {
-    var m = 2147483647; // modulus, do not change!
-    var a = 16807;      // multiplier
-    var q = 127773;     // m div a
-    var r = 2836;       // m mod a
-    var x = 1;                // last random value
-    while (loops-- > 0) {
-      for (var i = n; i > 0; i--) {
-        var x_div_q = myint(x / q); // Math.floor(x / q);
-        //if (isInt(x_div_q)) { System.stdout.writeln("Yes, it is integer!"); }
-        var x_mod_q = x - q * x_div_q;
-        x = a * x_mod_q - r * x_div_q;
-        if (x <= 0) {
-          x += m; // x is new random number
-        }
-      }
-      if (loops > 0) {
-        x -= 1227283347;
-        if (x != 0) {   // now x must be 0 again
-          x++;
-          break;        // Error
-        }
-        x++; // start with 1 again
-      }
-    }
-    return x;
-  }
-
-
-  //
-  // bench05 (Integer 32 bit)
-  // n over n/2 mod 65536 (Pascal's triangle)
-  //
-  function bench05(loops, n) {
-    var x = 0;
-    n = myint(n / 500);
-    var k = n >> 1; // div 2
-
-    if ((n - k) < k) {
-      k = n - k; // keep k minimal with  n over k  =  n over n-k
-    }
-
-    // allocate memory...
-    var pas1 = new Array(2);
-    pas1[0] = new Array(k + 1);
-    pas1[1] = new Array(k + 1);
-    pas1[0][0] = 1; pas1[1][0] = 1; // set first column
-
-    while (loops-- > 0) {
-      for (var i = 3; i <= n; i++) {
-        var i_mod_2 = i & 1;
-        var i1_mod_2 = i_mod_2 ^ 1;
-        var min1 = (i_mod_2 == 0) ? ((i - 2) >> 1) : ((i - 1) >> 1); // Math.floor((i - 1) / 2);
-        if (k < min1) {
-          min1 = k;
-        }
-        pas1[i_mod_2][1] = i; // second column is i
-        for (var j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
-          pas1[i_mod_2][j] = (pas1[i_mod_2 ^ 1][j - 1] + pas1[i_mod_2 ^ 1][j]) & 0xffff; // % 65536 -- we need mod here to avoid overflow
-        }
-        if ((min1 < k) && (i_mod_2 == 0)) { // new element
-          //pas1[i_mod_2][Math.floor(i / 2)] = 2 * pas1[i_mod_2 ^ 1][Math.floor((i - 1) / 2)];
-          pas1[i_mod_2][min1 + 1] = 2 * pas1[i_mod_2 ^ 1][min1];
-        }
-      }
-      x += pas1[n & 1][k] & 0xffff; // % 65536
-      if (loops > 0) {
-        x -= 27200;
-        if (x != 0) {   // now x must be 0 again
-          x++;
-          break;        // Error
-        }
-      }
-    }
-    return x;
-  }
-
-
-  //
-  // run a benchmark
-  // in: bench = benchmark to use
-  //     loops = number of loops
-  //         n = maximum number (used in some benchmarks to define size of workload)
-  // out:    x = result
-  //
-  function run_bench(bench, loops, n) {
-    var x = 0;
-    var check1 = 0;
-    switch(bench) {
-      case 0:
-        x = bench00(loops, n);
-        check1 = 10528;
-      break;
-
-      case 1:
-        x = bench01(loops, n);
-        check1 = 10528;
-      break;
-
-      case 2:
-        x = bench02(loops, n);
-        check1 = 10528;
-      break;
-
-      case 3:
-        x = bench03(loops, n);
-        check1 = 41538;
-      break;
-
-      case 4:
-        x = bench04(loops, n);
-        check1 = 1227283347;
-      break;
-
-      case 5:
-        x = bench05(loops, n);
-        check1 = 27200;
-      break;
-
-      default:
-        window.alert("Error: Unknown benchmark "+ bench);
-        check1 = x + 1;
-      break;
-    }
-    if (check1 != x) {
-      window.alert("Error(bench"+ bench +"): x="+ x);
-      x = -1; //exit;
-    }
-    return(x);
-  }
+  return(x);
+}
 
 
 //
@@ -358,42 +361,58 @@ function get_ms() {
 }
 
 
-function getdate1() {
-  var dt = new Date();
-  return(dt.toLocaleString());
+
+function str_zeroformat(str, clen) {
+  for (var i = str.length; i < clen; i++) {
+    str = '0' + str;
+  }
+  return(str);
 }
 
 
-  // Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
-  function checkbits_int1() {
-    var num = 1;
-    var last_num = 0;
-    var bits = 0;
-    do {
-      last_num = num;
-      num *= 2;
-      num++;
-      bits++;
-    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
-    return bits;
-  }
-
-  function checkbits_double1() {
-    var num = 1.0;
-    var last_num = 0.0;
-    var bits = 0;
-    do {
-      last_num = num;
-      num *= 2.0;
-      num++;
-      bits++;
-      //window.document.writeln("DEBUG: bits="+ bits +", num="+ num);
-    } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
-    return bits;
-  }
+function getdate1() {
+  var dt = new Date();
+  //return(dt.toLocaleString()); // not always same format!
+  var str = str_zeroformat(String(dt.getDate()), 2) +'.'+ str_zeroformat(String(dt.getMonth() + 1), 2)
+      +'.'+ ((dt.getFullYear) ? dt.getFullYear() : dt.getYear())
+  // NSG JS engine has no dt.getFullYear()
+      +' '+ str_zeroformat(String(dt.getHours()), 2) +':'+ str_zeroformat(String(dt.getMinutes()), 2)
+      +':'+ str_zeroformat(String(dt.getSeconds()), 2);
+  return(str);
+}
 
 
-function mynumformat1(val, digits) {
+
+// Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
+function checkbits_int1() {
+  var num = 1;
+  var last_num = 0;
+  var bits = 0;
+  do {
+    last_num = num;
+    num *= 2;
+    num++;
+    bits++;
+  } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+  return bits;
+}
+
+function checkbits_double1() {
+  var num = 1.0;
+  var last_num = 0.0;
+  var bits = 0;
+  do {
+    last_num = num;
+    num *= 2.0;
+    num++;
+    bits++;
+    //window.document.writeln("DEBUG: bits="+ bits +", num="+ num);
+  } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+  return bits;
+}
+
+
+function mynumformat1_i(val, digits) {
   var str = String(val);
   var spaces = "";
   for (var i = str.length; i < digits; i++) {
@@ -403,36 +422,32 @@ function mynumformat1(val, digits) {
 }
 
 
-// main
-function bmbench(args) {
-  var start_t = get_ms();  // memorize start time
-  var bench1 = 0;          // first benchmark to test
-  var bench2 = 5;          // last benchmark to test
-  var n = 1000000;         // maximum number
-  var min_ms = 10000;      // minimum runtime for measurement in ms
+function mynumformat1_d(val, digits, prec) {
+  var str = ''; // buffer for one formatted value
+  var displ_prec_after = Math.pow(10, 2);  // display precision after decimal point
+  str += String(Math.round(val * displ_prec_after) / (displ_prec_after * 1.0));
 
-  if (args) {
-    if (args.length > 0) {
-      bench1 = parseInt(args[0]);
-      bench2 = bench1;
-    }
-    if (args.length > 1) {
-      bench2 = parseInt(args[1]);
-    }
-    if (args.length > 2) {
-      n = parseInt(args[2]);
-    }
+  // integers do not have a dot yet...
+  if (str.indexOf('.') < 0) {
+    str += '.';
   }
 
-  var bench_res1 = new Array(bench2 - bench1 + 1);
+  // format to prec digits after comma
+  while ((str.length <= prec) || (str.charAt(str.length - (prec + 1)) != '.')) {
+    //WScript.Echo("DEBUG: '" + str + "'");
+    str += '0';
+  }
+  
+  for (var i = str.length; i < digits; i++) {
+    str = ' ' + str;
+  }
+  return str;
+}
 
-  var win = window.open("","Result","width=640,height=300,resizable=yes,scrollbars=yes,dependent=yes");
-  if (win.focus) { win.focus(); }
-  win.document.open("text/html", "reuse");
 
+function print_info(win) {
   var js_version = "";
   if (typeof navigator != "undefined") { // only in browsers...
-    win.document.writeln("<pre>\n");
     js_version += " appCodeName="+ navigator.appCodeName +", appName="+ navigator.appName
       +", appVersion="+ navigator.appVersion +", platform="+ navigator.platform +", userAgent="+ navigator.userAgent;
   }
@@ -451,62 +466,123 @@ function bmbench(args) {
     }
   }
 
-  win.document.writeln("BM Bench v0.5 (JavaScript) -- (int:"+ checkbits_int1() +" double:"+checkbits_double1() +")"+ js_version);
-  win.document.writeln("(c) Marco Vieth, 2002");
+  win.document.writeln("BM Bench v"+ prg_version +" ("+ prg_language +") -- (int:"+ checkbits_int1() +" double:"+checkbits_double1() +")"+ js_version);
+  win.document.writeln("(c) Marco Vieth, 2006");
   win.document.writeln(getdate1());
+}
+
+
+function print_results(bench1, bench2, bench_res1, win) {
+  var max_language_len1 = 10;        
+  win.document.writeln("\nThroughput for all benchmarks (loops per sec):");
+  var str = "BMR (" + prg_language + ")";
+  for (var i = prg_language.length; i < max_language_len1; i++) {
+    str += " ";
+  }
+  str += ": ";        
+        
+  for (var bench = bench1; bench <= bench2; bench++) {
+    str += mynumformat1_d(bench_res1[bench], 9, 2) + ' ';
+    // normally we also have win.document.write() but for NGS we would need to define it.
+  }
+  win.document.writeln(str);
+  win.document.writeln("");
+}
+
+
+
+function start_bench(bench1, bench2, n, win) {
+  var cali_ms = 1001;
+  var delta_ms = 100;
+  var max_ms = 10000;  
+
+  print_info(win);
+
+  var bench_res1 = new Array(bench2); //new Array(bench2 - bench1 + 1);
 
   for (var bench = bench1; bench <= bench2; bench++) {
     var loops = 1; // number of loops
     var x = 0;     // result from benchmark
-    var t1 = 0;    // timestamp
-    // calibration
-    while (t1 < 1001) { // we want at least 1 sec calibration time
-      win.document.writeln("Calibrating benchmark "+ bench +" with loops="+ loops +", n="+ n);
+    var t1 = 0;    // measured time
+    var t2 = 0;    // estimated time
+    win.document.writeln("Calibrating benchmark " + bench + " with n=" + n);
+    while(true) {
       t1 = get_ms();
       x = run_bench(bench, loops, n);
       t1 = get_ms() - t1;
-      win.document.writeln("x="+ x +" (time: "+ t1 +" ms)");
-      loops *= 2;
-      if (x == -1) {
+
+      var t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); // compute difference abs(measures-estimated)
+      var loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
+      win.document.writeln(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_i(myint(t1), 5) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_i(myint(t_delta), 5) + " ms, x=" + x);
+      if (x == -1) { // some error?
+        bench_res1[bench] = -1;
         break;
       }
-    }
-    if (x != -1) {
-      loops >>= 1; // div 2
-      loops *= myint(min_ms / t1) + 1; // integer division!
-      win.document.writeln("Calibration done. Starting measurement with "+ loops +" loops to get >="+ min_ms +" ms");
+      if (t2 > 0) { // do we have some estimated/expected time?
+        if (t_delta < delta_ms) { // smaller than delta_ms=100?
+          bench_res1[bench] = loops_p_sec; // set loops per sec
+          win.document.writeln("Benchmark " + bench + " ("+ prg_language +"): " + mynumformat1_d(bench_res1[bench], 0, 3) + "/s (time=" + t1 + " ms, loops=" + loops + ", delta=" + t_delta + " ms)");
+          break;
+        }
 
-      // measurement
-      t1 = get_ms();
-      x = run_bench(bench, loops, n);
-      t1 = get_ms() - t1;
-      win.document.writeln("x="+ x +" (time: "+ t1 +" ms)");
-      bench_res1[bench] = myint(t1 * 10 / loops);
-      win.document.writeln("Elapsed time for "+ loops +" loops: "+ t1 +" ms; estimation for 10 loops: "+ bench_res1[bench] +" ms\n");
-    } else {
-      bench_res1[bench] = -1;
+      }
+      if (t1 > max_ms) {
+        win.document.writeln("Benchmark " + bench + " ("+ prg_language +"): Time already > " + max_ms + " ms. No measurement possible.");
+        bench_res1[bench] = -1;
+        break;
+      }
+      {
+        var scale_fact = ((t1 < cali_ms) && (t1 > 0)) ? myint((cali_ms + 100) / t1) + 1 : 2;
+        // scale a bit up to 1100 ms (cali_ms+100)
+        loops *= scale_fact;
+        t2 = t1 * scale_fact;
+      }
+
     }
   }
-  win.document.writeln("Times for all benchmarks (10 loops, ms):");
-  var str = "BM Results (JavaScript): ";
-  //var bench; // already declared
-  for (bench = bench1; bench <= bench2; bench++) {
-    str += mynumformat1(bench_res1[bench], 7) +" ";
-    // normally we also have win.document.write() but for NGS we need to define it.
-  }
-  win.document.writeln(str);
-  win.document.writeln("Total elapsed time: "+ (get_ms() - start_t) +" ms");
-  if (typeof navigator != "undefined") { // only in browsers...
-    win.document.writeln("</pre>\n");
-  }
-  win.document.close();
+
+  print_results(bench1, bench2, bench_res1, win);
 
   return true;
 }
 
 
 function main(args) {
-  return bmbench(args);
+  var start_t = get_ms();  // memorize start time
+  var bench1 = 0;          // first benchmark to test
+  var bench2 = 5;          // last benchmark to test
+  var n = 1000000;         // maximum number
+
+  var win = window.open("","Result","width=640,height=300,resizable=yes,scrollbars=yes,dependent=yes");
+  if (win.focus) { win.focus(); }
+  win.document.open("text/html", "reuse");
+
+  if (typeof navigator != "undefined") { // only in browsers...
+    win.document.writeln("<html><head><title>BM Results</title></head><body><pre>");
+  }
+
+  if (args) {
+    if (args.length > 0) {
+      bench1 = parseInt(args[0]);
+      bench2 = bench1;
+    }
+    if (args.length > 1) {
+      bench2 = parseInt(args[1]);
+    }
+    if (args.length > 2) {
+      n = parseInt(args[2]);
+    }
+  }
+          
+  var rc = start_bench(bench1, bench2, n, win);
+
+  win.document.writeln("Total elapsed time: "+ (get_ms() - start_t) +" ms");
+  if (typeof navigator != "undefined") { // only in browsers...
+    win.document.writeln("</pre></body></html>");
+  }
+  win.document.close();
+
+  return rc;
 }
 
 // ---------------------------------------

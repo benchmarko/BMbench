@@ -1,63 +1,83 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>BM Bench</title>
+<title>BM Bench06</title>
 
-<script language="JavaScript" type="text/javascript">
+<script type="text/javascript">
+//<![CDATA[
 <!--
-function list_applets() {
-  var out = "";
-  if(navigator.javaEnabled()) {
-    out += "Java is enabled.<br>";
+//
+//http://www.hunlock.com/blogs/Ten_Javascript_Tools_Everyone_Should_Have
+function htmlEntities(str) {
+  //return str;
+  if (str && typeof str == 'string') {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  } else {
+    return str;
   }
+};
+
+function list_applets() {
+  var win = window.open("","Result","width=640,height=300,resizable=yes,scrollbars=yes,dependent=yes");
+  if (win.focus) { win.focus(); }
+  win.document.open("text/html", "reuse");
+
+  win.document.writeln("<html><head><title>Applet List</title></head><body><pre>");
+  win.document.writeln("Java is "+ ((navigator.javaEnabled()) ? '' : 'not ') +"enabled.<br />");
 
   if (!document.applets) {
     window.alert("Warning: documents.applets not available!");
     return 1;
   }
+
   for (var app1 = 0; app1 < document.applets.length; app1++) {
-    out += "---> document.applets["+ app1 +"]<br>";
+    var out = "---> document.applets["+ app1 +"]" + "\n";
     for (var prop1 in document.applets[app1]) {
-      out += "document.applets["+ app1 +"]."+ prop1 +": "+ document.applets[app1][prop1] +"<br>";
+      out += "document.applets["+ app1 +"]."+ prop1 +": "+ htmlEntities(document.applets[app1][prop1]) +"\n";
     }
-    document.write(out);
+    win.document.writeln(out); //document.write(out);
   }
-  //document.write("<h1>Eigenschaften des Objekts <i> document.applets[0] <\/i><\/h1>")
-  //document.write(Ausgabe);
-  document.close();
-  //for (i = 0; i < document.applets.length; i++) {
-  //  window.alert("applet: "+ i +": "+ document.applets[i]);
-  //}
+  win.document.writeln("</pre></body></html>");
+  win.document.close();
 }
-// -->
+
+function run_applet(idx) {
+  //document.applets[0].simbench();
+  document.applets[idx].simbench();
+}
+//-->
+//]]>
 </script>
 </head>
 <body>
-  <h1>BM Bench</h1>
+<h1>BM Bench</h1>
 
-<hr>
+<hr />
 
-<b>Java Applet</b><br>
+<b>Java Applet</b>
+<br />
 <applet codebase="." code="bmbench.class" name="bmbench" width="100" height="100">
-  <param name="bench1" value="0">
-  <param name="bench2" value="5">
-  <param name="n" value="1000000">
+  <param name="bench1" value="0" />
+  <param name="bench2" value="5" />
+  <param name="n" value="1000000" />
   alt="Your browser understands the &lt;APPLET&gt; tag but isn't running the applet, for some reason."
   Your browser is completely ignoring the &lt;APPLET&gt; tag!
 </applet>
 
-
-<form name="BM_form">
-  <input type="button" value="Bench001_java" onclick="document.applets[0].simbench()" name="BENCH001">
-  <input type="button" value="Test" onclick="list_applets()" name="Test">
+<form action="">
+  <!-- <input type="button" id="bench06" name="bench06" value="bench06_java" onclick="document.applets[0].simbench()" /> -->
+  <input type="button" id="bench06" name="bench06" value="bench06_java" onclick="run_applet(0)" />
+  <input type="button" id="list_applets1" name="list_applets1" value="List Applets" onclick="list_applets()" />
 </form>
 
-<br>
-<hr>
+<br />
+<hr />
 <noscript>
 <b>Please activate JavaScript to use the functionality of this page!</b>
 </noscript>
 
-<address><font size="-1">&copy; <a href="http://www.benchmarko.de">Marco Vieth</a>, 11.05.2002</font></address>
+<address><font size="-1">&copy; <a href="http://www.benchmarko.de">Marco Vieth</a>, 01.12.2006</font></address>
+
 </body>
 </html>

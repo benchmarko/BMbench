@@ -1,15 +1,18 @@
-#!/usr/bin/clisp
-;; BM Bench - bmbench.c (Lisp)
-;; (c) Marco Vieth, 2002
+;#!/usr/bin/clisp
+;Cannot compile with clisp 2.41 when starting with shebang line.
+;
+;; BM Bench - bmbench1.lisp (Lisp)
+;; (c) Marco Vieth, 2002-2006
 ;; http://www.benchmarko.de
 ;;
-;; 24.01.2003  0.05  output format changed
+;; 24.01.2003 0.05  output format changed
+;; 01.05.2008 0.06  based on version 0.05
 ;;
 ;; Usage:
 ;; clisp bmbench.lisp [bench1] [bench2] [n]
 ;;
 ;; Compile (clisp):
-;; - clisp -c bmbench.lisp   => bmbench.fas
+;; - clisp -c bmbench.lisp -o bmbench.fas
 ;; - clisp bmbench.fas
 ;;
 ;; cmucl: ...
@@ -45,9 +48,16 @@
 ; (loop for i fixnum from 1 upto n do
 ; (dotimes (i n)   count 0..n-1 !
 
+;
+; format: output strings: ~S with surrounding quotes, ~A without
+;
+
 
 (declaim (optimize (speed 3) (debug 0) (safety 0) (space 0) (compilation-speed 0)))
 
+
+(defconstant PRG_VERSION "0.06")
+(defconstant PRG_LANGUAGE "Lisp")
 
 ;;
 ;; bench00 (Integer 16/32 bit)
@@ -255,23 +265,115 @@
     x
   ))
 
-
+;; (maybe to improve...)
+;; bench05 (Integer 32 bit)
+;; n over n/2 mod 65536 (Pascal's triangle)
+;; (we just need to store the last 2 lines of computation)
+;;
 (defun bench05 (loops n)
+  (declare (fixnum loops n))
+  (setq n (floor (/ n 500)))
   (let (
-      (x 0))
-  x
+      (x 0)
+      (k 0)
+      ;(pas1 (make-array (+ n 1) :element-type 'fixnum :initial-element 1))
+      (pas1_a 0) ;array
+      (pas2_a 0)
+      (pas1 0)   ;array pointer
+      (pas2 0)
+      (min1 0)
+      )
+
+    (declare (fixnum k min1 pas1 pas2))
+
+    (setq k (floor (/ n 2)))
+
+    (if (< (- n k) k)
+      (setq k (- n k)) ;keep k minimal with  n over k  =  n over n-k
+    )
+
+    (setq pas1_a (make-array (+ k 1) :element-type 'fixnum :initial-element 0))
+    (setq pas2_a (make-array (+ k 1) :element-type 'fixnum :initial-element 0))
+    (setf (aref pas1_a 0) 1)
+    (setf (aref pas2_a 0) 1)
+
+    ;(setq pas1 nil)
+    ;(setq pas2 nil)
+
+    ;(format t "DEBUG0: ~A ~A ~A ~A~%" n k pas1 (type-of pas1) )
+
+    (dotimes (loop loops)
+      ;(setq pas1 (list 1))
+      (loop for i fixnum from 2 to n do
+        ;(format t "DEBUG1: ~A ~A ~A ~A i=~A~%" n k pas1 pas2 i )
+        ;(setq pas2 pas1) ;get last line to pas2 (for array point to same array, do not use!
+
+        ;set array pointer...
+        (if (= (mod i 2) 0)
+          (progn
+            (setq pas1 pas1_a)
+            (setq pas2 pas2_a)
+          )
+          (progn
+            (setq pas1 pas2_a)
+            (setq pas2 pas1_a)
+          )
+        )
+
+        ;(setq pas1 (list 1)) ;and restart with new list
+
+        (setq min1 (floor (/ (- i 1) 2)))
+        (if (< k min1)
+          (setq min1 k)
+        )
+
+        ;(push i pas1) ;second column is i
+        (setf (aref pas1 1) i)
+
+        ;(format t "DEBUGx: n=~A k=~A min1=~A pas1=~A pas2=~A~%" n k min1 pas1 pas2 )
+
+        (loop for j fixnum from 2 to min1 do  ;up to min((i-1)/2, k)
+          ;(format t "DEBUG3: n=~A k=~A min1=~A pas1=~A pas2=~A j=~A~%" n k min1 pas1 pas2 j )
+          ;(push (+ (nth (- j 1) pas2) (nth j pas2)) pas1)
+          ;(setf (aref pas1 j) (+ (aref pas2 (- j 1)) (aref pas2 j)))
+          (setf (aref pas1 j) (logand (+ (aref pas2 (- j 1)) (aref pas2 j)) 65535)) ; use and to get small numbers
+          ;(format t "DEBUGy: n=~A k=~A min1=~A pas1=~A pas2=~A j=~A~%" n k min1 pas1 pas2 j )
+        )
+
+        (if (and (< min1 k) (= (mod i 2) 0)) ;new element
+          ;(push (* 2 (nth min1 pas2)) pas1)
+          (setf (aref pas1 (+ min1 1)) (* 2 (aref pas2 min1)))
+          ;(format t "DEBUG4: n=~A k=~A min1=~A pas1=~A pas2=~A new~%" n k min1 pas1 pas2 )
+        )
+      )
+
+      ;(format t "DEBUG5: ~A ~A ~A ~A~%" n k pas1 pas2 )
+      ;(setq x (logand (+ x (nth k pas1)) 65535))
+      (setq x (logand (+ x (aref pas1 k)) 65535))
+
+      (if (< loop (- loops 1)) ;some more loops left?
+        (progn (setq x (- x 27200)) ;yes, set x back to 0 (assuming n even)
+          (if (/= x 0)
+            (progn (incf x) ;force error
+              (return x))
+          )
+        )
+      )
+    )
+    x
   ))
 
 
 ;;
 ;;
 ;;
-(defun current-date-string ()
-  "Returns current date as a string."
-  (multiple-value-bind (sec min hr day mon yr dow dst-p tz)
-                       (get-decoded-time)
-    (declare (ignore sec min hr dow dst-p tz))
-    (format nil "~A-~A-~A" yr mon day)))
+;; (defun current-date-string ()
+;;   "Returns current date as a string."
+;;   (multiple-value-bind (sec min hr day mon yr dow dst-p tz)
+;;                        (get-decoded-time)
+;;     (declare (ignore sec min hr dow dst-p tz))
+;;     (format nil "~A-~A-~A" yr mon day)))
+
 
 ;; run a benchmark
 ;; in: bench = benchmark to use
@@ -332,18 +434,24 @@
 ;;
 ;;
 (defun checkbits_short1 ()
-  (let ((num 1)
-    (last_num 0)
-    (bits 0)
+  (let ((num 2) ; start with 2 because 1 is type BIT
+    (last_num 1)
+    (bits 1)
     (last_type 0))
 
     (setq last_type (type-of num))
+    ;(format t "DEBUG: ~S~%" (type-of num) )
+
     (loop
       (setq last_num num)
       (setq num (* num 2))
       (incf num)
       (incf bits)
-      (if (string/= last_type (type-of num))
+      ;(format t "DEBUG: ~S~%" (type-of num) )
+      ;(if (string/= last_type (type-of num)) ; comparison does not work for type tupels
+      ;  (return bits)
+      ;)
+      (if (not (eq last_type (type-of num))) ; type changed?
         (return bits)
       )
       (if (not (and (= (/ (- num 1) 2) last_num) (< bits 101) ))
@@ -412,6 +520,149 @@
     )
     bits
   ))
+
+
+
+;rfc 1945, 1123?
+(defun get_current_time ()
+  (defvar wkdays '("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"))
+  (defvar months '("Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct" "Nov" "Dec"))
+  (multiple-value-bind
+      (second minute hour day month year wkday)
+      (decode-universal-time (get-universal-time))
+    (format nil "~a, ~2,'0d ~a ~a ~2,'0d:~2,'0d:~2,'0d GMT"
+      (nth wkday wkdays) day (nth (1- month) months)
+      year hour minute second)))
+
+;;
+;;
+;;
+(defun print_info ()
+  (format t "BM Bench v~A (~A) -- (short:~D int:~D float:~D double:~D) -- ~A~%" PRG_VERSION PRG_LANGUAGE (checkbits_short1)
+    (checkbits_int1) (checkbits_float1) (checkbits_double1) (lisp-implementation-version))
+  (princ "(c) Marco Vieth, 2006") (terpri)
+  (format t "Date: ~A~%" (get_current_time))
+  ;(format t "Date: ~A~%" (current-time) ) ;TTT
+  )
+
+
+
+(defun print_results (bench1 bench2 bench_res1)
+  (declare (fixnum bench1 bench2))
+  (let (
+    (max_language_len1 10))
+  ;(format t "DEBUG: ~S~%" (type-of PRG_LANGUAGE) )
+  (terpri)
+  (princ "Throughput for all benchmarks (loops per sec):") (terpri)
+
+  (format t "BMR (~A)~VA: " PRG_LANGUAGE (- max_language_len1 (length PRG_LANGUAGE)) "")
+  (loop for bench fixnum from bench1 to bench2 do
+    (format t "~9,2F" (aref bench_res1 bench)))
+  (format t "~%")
+  (format t "~%")
+  ))
+
+;;
+;;
+;;
+(defun start_bench (bench1 bench2 n)
+  (declare (fixnum bench1 bench2 n))
+  (let (
+    (cali_ms 1001)
+    (delta_ms 100)
+    (max_ms 10000)
+    (bench_res1))
+
+;    (declare (fixnum n)
+;             (fixnum x)
+;             (optimize (speed 3) (debug 0) (safety 0)))
+
+    (declare (fixnum cali_ms delta_ms max_ms x t1 t2 t_delta scale_fact))
+
+    (print_info)
+
+    ;(setq bench_res1 (make-array (+ bench2 1) :element-type 'fixnum))
+    (setq bench_res1 (make-array (+ bench2 1) :element-type 'single-float))
+
+    (loop for bench fixnum from bench1 to bench2 do
+      (let ((loops 1) ;number of loops
+        (x 0)         ;result from benchmark
+        (t1 0)        ;measured time
+        (t2 0))       ;estimated time
+
+      (format t "Calibrating benchmark ~D with n=~D~%" bench n)
+
+      (loop
+        (let (
+          (t_delta 0)
+          (loops_p_sec 0)
+          (scale_fact 0)
+        )
+
+        (progn
+          (setq t1 (get_ms))
+          (setq x (run_bench bench loops n))
+          (setq t1 (- (get_ms) t1))
+          ;(format t "DEBUG: x=~D (time: ~D ms)~%" x t1)
+        )
+
+        (progn
+          (setq t_delta 
+            (if (> t2 t1)
+              (- t2 t1)
+              (- t1 t2)))
+
+          (setq loops_p_sec
+            (if (> t1 0)
+              (/ (* loops 1000.0) t1)
+              0))
+
+          (format t "~10,3F/s (time=~5D ms, loops=~7D, delta=~5D ms, x=~D)~%" loops_p_sec t1 loops t_delta x)
+        )
+
+        (if (= x -1)
+          (progn
+            (setf (aref bench_res1 bench) -1)
+            (return) ;last
+          )
+        )
+
+        (if (> t2 0) ;do we have some estimated/expected time?
+          (if (< t_delta delta_ms) (progn ;smaller than delta_ms=100?
+            (setf (aref bench_res1 bench) loops_p_sec)
+            (format t "Benchmark ~D (~A): ~,3F/s (time=~D ms, loops=~D, delta=~D ms)~%" bench PRG_LANGUAGE (aref bench_res1 bench) t1 loops t_delta)
+            (return) ;last
+          ))
+        )
+
+        (if (> t1 max_ms)
+          (progn
+            (format t "Benchmark ~D (~A): Time already > ~D ms. No measurement possible.~%" bench PRG_LANGUAGE max_ms)
+            (setf (aref bench_res1 bench) -1)
+            (return) ;last
+          )
+        )
+
+        ; scale a bit up to 1100 ms (cali_ms+100)
+        (setq scale_fact
+          (if (and (< t1 cali_ms) (> t1 0))
+            (floor (+ (/ (+ cali_ms 100) t1) 1))
+            2
+          )
+        )
+
+        (setq loops (* loops scale_fact))
+        (setq t2 (* t1 scale_fact))
+
+        )
+
+      )
+    ))
+
+    (print_results bench1 bench2 bench_res1)
+    0
+  ))
+
 ;;
 ;;
 ;;
@@ -419,14 +670,8 @@
   (let ((start_t (get_ms)) ;memorize start time
     (bench1 0)      ;first benchmark to test
     (bench2 5)      ;last benchmark to test
-    (n 1000000)     ;maximum number
-    (min_ms 10000)  ;minimum runtime for measurement in ms
-    (x 0)
-    (bench_res1))
-
-;    (declare (fixnum n)
-;             (fixnum x)
-;             (optimize (speed 3) (debug 0) (safety 0)))
+    (n 1000000)
+    (rc 0))    ;maximum number
 
     (if (> argc 0)
       (setq bench1 (parse-integer (nth 0 argv)))
@@ -438,65 +683,13 @@
       (setq n (parse-integer (nth 2 argv)))
     )
 
-    (setq bench_res1 (make-array (+ bench2 1) :element-type 'fixnum))
-
-    (format t "BM Bench v0.5 (Lisp) -- (short:~D int:~D float:~D double:~D) -- ~S~%" (checkbits_short1)
-      (checkbits_int1) (checkbits_float1) (checkbits_double1) (lisp-implementation-version))
-    (princ "(c) Marco Vieth, 2002") (terpri)
-    (format t "~A~%" (current-time) )
-
-
-    (loop for bench fixnum from bench1 to bench2 do
-      (let ((loops 1) ;number of loops
-        (x 0) ;result from benchmark
-        (t1 0)) ;timestamp
-
-      ;calibration
-      ;This is: (loop while (and (< t1 1001) (/= x -1)) ;we want at least 1001 ms calibration time
-      (do ((i 2 (1+ i))
-          )
-          ((or (>= t1 1001) (= x -1)))
-      (progn
-        (format t "Calibrating benchmark ~D with loops=~D, n=~D~%" bench loops n)
-        (setq t1 (get_ms))
-        (setq x (run_bench bench loops n))
-        (setq t1 (- (get_ms) t1))
-        (format t "x=~D (time: ~D ms)~%" x t1)
-        (setq loops (* loops 2))
-      ))
-      (if (/= x -1) (progn
-        (setq loops (floor loops 2))  ;>>= 1; /* div 2 */
-        (setq loops (* loops (+ (floor min_ms t1) 1))) ;integer division!
-        (format t "Calibration done. Starting measurement with ~D loops to get >=~D ms~%" loops min_ms)
-
-        ;measurement
-        (setq t1 (get_ms))
-        (setq x (run_bench bench loops n))
-        (setq t1 (- (get_ms) t1))
-        (format t "x=~D (time: ~D ms)~%" x t1)
-
-        (setf (aref bench_res1 bench) (floor (* t1 10) loops))  ;bench_res1[bench] = (int)(t1 * 10 / loops);
-        (format t "Elapsed time for ~D loops: ~D ms; estimation for 10 loops: ~D ms~%" loops t1 (aref bench_res1 bench))
-        ; (nth bench bench_res1)
-      )(progn
-        (setf (aref bench_res1 bench) -1)
-      ))
-    ))
-
-    (format t "Times for all benchmarks (10 loops, ms):~%")
-    (format t "BM Results (Lisp)      : ")
-
-
-    (loop for bench fixnum from bench1 to bench2 do
-      (format t "~7D" (aref bench_res1 bench)))
-    (format t "~%")
+    (setq rc (start_bench bench1 bench2 n))
 
     (format t "~&Total elapsed time: ~D ms~%" (- (get_ms) start_t))
-
-
+    rc ;(return-from main rc)
   ))
 
 
 (main (length *ARGS*) *ARGS*)
-
+;(quit 0)
 ;end
