@@ -1,20 +1,21 @@
 #! /usr/bin/env python
 # BM Bench - bmbench.py (Python)
-# (c) Marco Vieth, 2002
+# (c) Marco Vieth, 2002-2006
 # http://www.benchmarko.de
 #
-# 06.05.2002  0.01
-# 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536
-# 20.07.2002  0.04  some errors corrected
-# 24.01.2003  0.05  output format changed
+# 06.05.2002 0.01
+# 11.05.2002 0.02  bench01 = (sum 1..n) mod 65536
+# 20.07.2002 0.04  some errors corrected
+# 24.01.2003 0.05  output format changed
+# 03.12.2006 0.06  based on version 0.05
 #
 #
 # Usage:
-# python -O bmbench.py [bench1] [bench2] [n]
+# python -O bmbench1.py [bench1] [bench2] [n]
 # (example in: /usr/lib/python2.2/urllib.py)
 #
 #
-
+#
 # Note:
 # This is my first program in Python, so I tried my best...
 # A good starting point is the python-doc package:
@@ -22,6 +23,8 @@
 # (including a very readable Tutorial).
 # Other references:
 # pydoc -p 8080 to start a Python documentation server
+#
+# Or: http://www.angelfire.com/tx4/cus/notes/python.html
 #
 # Data types are nearly implicit:
 # - integer (32 bit), if it gets too long -> long integer (any number of bits, marked with L)
@@ -33,6 +36,9 @@
 #
 
 import time
+
+PRG_VERSION = "0.06"
+PRG_LANGUAGE = "Python"
 
 
 #
@@ -323,14 +329,89 @@ def checkbits_double1():
   return bits
 
 
+def print_info():
+  python_version = sys.version.replace('\n', '')
+  print 'BM Bench v%s (%s) -- (short:%d int:%d double:%d)' %(PRG_VERSION, PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()),
+  print 'version: '+ python_version +'; platform:', sys.platform
+  print '(c) Marco Vieth, 2006'
+  print 'Date:', time.ctime(time.time())
+
+
+def print_results(bench_res1):
+  max_language_len1 = 10
+  print '\nThroughput for all benchmarks (loops per sec):'
+  print 'BMR ('+ PRG_LANGUAGE +')'+ (' ' * (max_language_len1 - len(PRG_LANGUAGE))) + ': ',
+  #(' ' x ($max_language_len1 - length($PRG_LANGUAGE))), ": ";
+
+  for br in bench_res1:
+    print "%9.2f " % (br),
+  print
+  print
+
+
+def start_bench(bench1, bench2, n):
+  cali_ms = 1001 # const
+  delta_ms = 100 # const
+  max_ms = 10000 # const
+  bench_res1 = []
+
+  print_info()
+
+  for bench in range(bench1, bench2 + 1):
+    loops = 1  # number of loops
+    x = 0      # result from benchmark
+    t1 = 0     # measured time
+    t2 = 0     # estimated time
+
+    print "Calibrating benchmark %d with n=%d" % (bench, n)
+    while (1):
+      t1 = get_ms()
+      x = run_bench(bench, loops, n)
+      t1 = get_ms() - t1
+
+      if (t2 > t1):
+        t_delta = t2 - t1
+      else:
+        t_delta = t1 - t2 # compute difference abs(measures-estimated)
+
+      loops_p_sec = 0
+      if (t1 > 0):
+        loops_p_sec = loops * 1000.0 / t1
+
+      print "%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)" % (loops_p_sec, t1, loops, t_delta, x)
+      if (x == -1): # some error?
+        #bench_res1[bench] = -1
+        bench_res1.append(-1)
+        last # (can only exit while, if not in sub block)
+
+      if (t2 > 0): # do we have some estimated/expected time? 
+        if (t_delta < delta_ms): # smaller than delta_ms=100? 
+          #bench_res1[bench] = loops_p_sec # set loops per sec
+          bench_res1.append(loops_p_sec)
+          print "Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)" % (bench, PRG_LANGUAGE, bench_res1[bench], t1, loops, t_delta)
+          break
+
+      if (t1 > max_ms):
+        print "Benchmark %d (%s): Time already > %d ms. No measurement possible." % (bench, PRG_LANGUAGE, max_ms)
+        bench_res1.append(-1)
+        break
+
+      scale_fact = 2
+      if ((t1 < cali_ms) and (t1 > 0)):
+        scale_fact = int(((cali_ms + 100) / t1) + 1)
+          # scale a bit up to 1100 ms (cali_ms+100)
+
+      loops *= scale_fact
+      t2 = t1 * scale_fact
+
+  print_results(bench_res1)
+
 
 def main(argv=[]):
   start_t = get_ms()  # memorize start time
   bench1 = 0          # first benchmark to test
   bench2 = 5          # last benchmark to test
   n = 1000000         # maximum number
-  min_ms = 10000      # minimum runtime for measurement in ms
-  bench_res1 = []
 
   if argv:  # also possible: len(sys.argv) > 0
     if argv[1:]:
@@ -343,47 +424,9 @@ def main(argv=[]):
     if argv[3:]:
       n = int(argv[3]);
 
-  python_version = sys.version.replace('\n', '')
-  print 'BM Bench v0.5 (Python) -- (short:%d int:%d double:%d)' %(checkbits_short1(), checkbits_int1(), checkbits_double1()),
-  print 'version: '+ python_version +'; platform:', sys.platform
-  print '(c) Marco Vieth, 2002'
-  print 'Date:', time.ctime(time.time())
-
-  for bench in range(bench1, bench2 + 1):
-    loops = 1  # number of loops
-    x = 0      # result from benchmark
-    t1 = 0     # timestamp
-    # calibration
-    while (t1 < 1001) and (x != -1):  # we want at least 1001 ms calibration time
-      print "Calibrating benchmark %d with loops=%d, n=%d" % (bench, loops, n)
-      t1 = get_ms()
-      x = run_bench(bench, loops, n)
-      t1 = get_ms() - t1
-      print "x=%d (time: %d)" % (x, t1)
-      loops *= 2
-
-    if (x != -1):
-      loops /= 2
-      loops *= int(min_ms / t1) + 1  # integer division!
-      print "Calibration done. Starting measurement with %d loops to get >=%d ms" % (loops, min_ms)
-
-      # measurement
-      t1 = get_ms()
-      x = run_bench(bench, loops, n)
-      t1 = get_ms() - t1
-      print "x=%d (time: %d)" % (x, t1)
-      bench_res1.append(int(t1 * 10 / loops))
-      print "Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms" % (loops, t1, bench_res1[bench - bench1])
-    else:
-      bench_res1.append(-1)
-
-  print 'Times for all benchmarks (10 loops, ms):'
-  print 'BM Results (Python)    :',
-  for br in bench_res1:
-    print "%7d" % (br),
-  print
-
+  start_bench(bench1, bench2, n)
   print "Total elapsed time: %d ms" % (get_ms() - start_t)
+
 
 
 # Run test program when run as a script

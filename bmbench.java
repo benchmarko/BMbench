@@ -1,13 +1,14 @@
 //
 // BM Bench - bmbench.java (Java)
-// (c) Marco Vieth, 2002
+// (c) Marco Vieth, 2002-2006
 // http://www.benchmarko.de
 //
-// 06.05.2002  0.01
-// 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
-// 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
-// 20.07.2002  0.04  some errors corrected
-// 24.01.2003  0.05  output format changed
+// 06.05.2002 0.01
+// 11.05.2002 0.02  bench01 = (sum 1..n) mod 65536 (integer)
+// 22.05.2002 0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
+// 20.07.2002 0.04  some errors corrected
+// 24.01.2003 0.05  output format changed
+// 23.05.2006 0.06  based on version 0.05
 //
 // Usage:
 // java bmbench [bench] [n]
@@ -16,26 +17,23 @@
 
 //
 // Compile:
-// - javac -O bmbench.java
-//   (/usr/lib/IBMJava2-1.3.0/bin or /usr/lib/SunJava1-1.1.8/bin/)
-// or:
-// - guavac, gcj, ...
-//
-// Usage:
-// - java bmbench
+// javac -O bmbench.java
+// (/usr/lib/IBMJava2-1.3.0/bin or /usr/lib/SunJava1-1.1.8/bin/)
 // Or:
-// - javac...;  java -Djava.compiler=tya bmbench  (using Tya by Albrecht Kleine)
-//
+// guavac, gcj, ...
 //
 
 import java.applet.Applet;
 //import java.awt.Graphics;  // required for applet
 import java.text.SimpleDateFormat; // just to print date
 
+// import java.text.NumberFormat;
 
 
 public class bmbench extends java.applet.Applet {
 
+  static String prg_version = "0.06";
+  static String prg_language = "Java";
 
   //
   // General description for benchmark test functions
@@ -138,7 +136,7 @@ public class bmbench extends java.applet.Applet {
   private static int bench03(int loops, int n) {
     n /= 2; // compute only up to n/2
     int x = 0; // number of primes below n
-    boolean sieve1[] = new boolean[n + 1];
+    boolean sieve1[] = new boolean[n+1];
     sieve1[0] = false;
     sieve1[1] = false;
     while (loops-- > 0) {
@@ -251,15 +249,15 @@ public class bmbench extends java.applet.Applet {
       }
     }
 
-/*
-    for (int i = 0; i < 2; i++) {
-      System.out.print(i +": ");
-      for (int j = 0; j < k; j++) {
-        System.out.print(pas1[i % 2][j] +" ");
-      }
-      System.out.println();
-    }
-*/
+    /*
+     for (int i = 0; i < 2; i++) {
+     System.out.print(i +": ");
+     for (int j = 0; j < k; j++) {
+     System.out.print(pas1[i % 2][j] +" ");
+     }
+     System.out.println();
+     }
+     */
     return x;
   }
 
@@ -276,48 +274,48 @@ public class bmbench extends java.applet.Applet {
   public static int run_bench(int bench, int loops, int n) {
     int x = 0;
     int check1 = 0;
-    switch(bench) {
+    switch (bench) {
       case 0:
         x = bench00(loops, n);
         check1 = 10528;
-      break;
+        break;
 
       case 1:
         x = bench01(loops, n);
         check1 = 10528;
-      break;
+        break;
 
       case 2:
         x = bench02(loops, n);
         check1 = 10528;
-      break;
+        break;
 
       case 3:
         x = bench03(loops, n);
         check1 = 41538;
-      break;
+        break;
 
       case 4:
         x = bench04(loops, n);
         check1 = 1227283347;
-      break;
+        break;
 
       case 5:
         x = bench05(loops, n);
         check1 = 27200;
-      break;
+        break;
 
       default:
-        System.out.println("Error: Unknown benchmark "+ bench);
+        System.out.println("Error: Unknown benchmark " + bench);
         check1 = x + 1; // force error
-      break;
+        break;
     }
 
     if (check1 != x) {
-      System.out.println("Error(bench"+ bench +"): x="+ x);
+      System.out.println("Error(bench" + bench + "): x=" + x);
       x = -1; //exit;
     }
-    return(x);
+    return (x);
   }
 
   //
@@ -328,7 +326,7 @@ public class bmbench extends java.applet.Applet {
   // return a long to avoid overflows...
   //
   private static long get_ms() {
-    return(System.currentTimeMillis());
+    return (System.currentTimeMillis());
   }
 
 
@@ -352,10 +350,10 @@ public class bmbench extends java.applet.Applet {
       num++;
       bits++;
       //System.out.println("DEBUG: bits="+ bits +", num="+ num);
-    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    } while ((((num - 1) / 2) == last_num) && (bits < 101));
     return bits;
   }
-  
+
   private static int checkbits_int1() {
     int num = 1;
     int last_num = 0;
@@ -366,7 +364,7 @@ public class bmbench extends java.applet.Applet {
       num++;
       bits++;
       //System.out.println("DEBUG: bits="+ bits +", num="+ num);
-    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    } while ((((num - 1) / 2) == last_num) && (bits < 101));
     return bits;
   }
 
@@ -380,7 +378,7 @@ public class bmbench extends java.applet.Applet {
       num++;
       bits++;
       //System.out.println("DEBUG: bits="+ bits +", num="+ num);
-    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    } while ((((num - 1) / 2) == last_num) && (bits < 101));
     return bits;
   }
 
@@ -394,7 +392,7 @@ public class bmbench extends java.applet.Applet {
       num++;
       bits++;
       //System.out.println("DEBUG: bits="+ bits +", num="+ num);
-    } while ( (((num - 1.0f) / 2.0f) == last_num) && (bits < 101) );
+    } while ((((num - 1.0f) / 2.0f) == last_num) && (bits < 101));
     return bits;
   }
 
@@ -408,75 +406,126 @@ public class bmbench extends java.applet.Applet {
       num++;
       bits++;
       //System.out.println("DEBUG: bits="+ bits +", num="+ num);
-    } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+    } while ((((num - 1.0) / 2.0) == last_num) && (bits < 101));
     return bits;
   }
 
   // --------------------------------------------------------
 
-  private static String mynumformat1(int val, int digits) {
+  // or use NumberFormat?
+  private static String mynumformat1_i(int val, int digits) {
     StringBuffer str = new StringBuffer(); // buffer for one formatted value
     str.append(val);
     for (int i = str.length(); i < digits; i++) {
       str.insert(0, ' ');
     }
-    return(str.toString());
+    return (str.toString());
+  }
+
+  private static String mynumformat1_d(double val, int digits, int prec) {
+    StringBuffer str = new StringBuffer(); // buffer for one formatted value
+    double displ_prec_after = Math.pow(10, 2);  // display precision after decimal point
+    str.append(Math.round(val * displ_prec_after) / (displ_prec_after * 1.0));
+
+    if (str.toString().indexOf('.') < 0) { // should not occur
+      System.out.println("WARNING: str does not contain a dot: " + str);
+      str.append('.');
+    }
+
+    // format to prec digits after comma
+    while ((str.length() <= prec) || (str.charAt(str.length() - (prec + 1)) != '.')) {
+      //int len1 = str.length();
+      //int pos1 = str.length() - (prec - 1);
+      str.append("0");
+    }
+
+    for (int i = str.length(); i < digits; i++) {
+      str.insert(0, ' ');
+    }
+    return (str.toString());
   }
 
 
-  private static void start_bench(int bench1, int bench2, int n) {
-    long start_t = get_ms();  // memorize start time
-    int min_ms = 10000;      // minimum runtime for measurement in ms
-    int bench_res1[] = new int[bench2 + 1];
-
-    System.out.print("BM Bench v0.5 (Java) -- (short:"+ checkbits_short1() +" int:"+ checkbits_int1()
-      +" long:"+ checkbits_long1() +" float:"+ checkbits_float1() +" double:"+ checkbits_double1() +") ");
-    System.out.print("java.version="+ System.getProperty("java.version") +", java.vendor="+ System.getProperty("java.vendor"));
-    System.out.println("os.name="+ System.getProperty("os.name") +", os.arch="+ System.getProperty("os.arch")
-      +", os.version="+ System.getProperty("os.version"));
-    System.out.println("(c) Marco Vieth, 2002");
-    System.out.println("Date: "+ getdate1());
+  private static void print_info() {
+    System.out.print("BM Bench v" + prg_version + " (" + prg_language + ") -- (short:" + checkbits_short1() + " int:" + checkbits_int1()
+      + " long:" + checkbits_long1() + " float:" + checkbits_float1() + " double:" + checkbits_double1() + ") ");
+    System.out.print("java.version=" + System.getProperty("java.version") + ", java.vendor=" + System.getProperty("java.vendor"));
+    System.out.println("os.name=" + System.getProperty("os.name") + ", os.arch=" + System.getProperty("os.arch")
+      + ", os.version=" + System.getProperty("os.version"));
+    System.out.println("(c) Marco Vieth, 2006");
+    System.out.println("Date: " + getdate1());
     //System.out.println("properties="+ System.getProperties());
+  }
+
+
+  private static void print_results(int bench1, int bench2, double bench_res1[]) {
+    final int max_language_len1 = 10;
+    System.out.println("\nThroughput for all benchmarks (loops per sec):");
+    String str = "BMR (" + prg_language + ")";
+    for (int i = prg_language.length(); i < max_language_len1; i++) {
+      str += " ";
+    }
+    str += ": ";
+    for (int bench = bench1; bench <= bench2; bench++) {
+      str += mynumformat1_d(bench_res1[bench], 9, 2) + ' ';
+    }
+    System.out.println(str);
+    System.out.println("");
+  }
+
+
+  private static int start_bench(int bench1, int bench2, int n) {
+    final int cali_ms = 1001;
+    final int delta_ms = 100;
+    final int max_ms = 10000;
+
+    print_info();
+
+    double bench_res1[] = new double[bench2+1];
 
     for (int bench = bench1; bench <= bench2; bench++) {
       int loops = 1; // number of loops
       int x = 0;     // result from benchmark
-      long t1 = 0;    // timestamp
-      // calibration
-      while (t1 < 1000) { // we want at least 1 sec calibration time
-        System.out.println("Calibrating benchmark "+ bench +" with loops="+ loops +", n="+ n);
+      long t1 = 0;   // measured time
+      long t2 = 0;   // estimated time
+      System.out.println("Calibrating benchmark " + bench + " with n=" + n);
+      while(true) {
         t1 = get_ms();
         x = run_bench(bench, loops, n);
         t1 = get_ms() - t1;
-        System.out.println("x="+ x +" (time: "+ t1 +" ms)");
-        loops *= 2;
-        if (x == -1) {
+
+        long t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); // compute difference abs(measures-estimated)
+        double loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
+        System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_i((int)t1, 5) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_i((int)t_delta, 5) + " ms, x=" + x);
+        if (x == -1) { // some error?
+          bench_res1[bench] = -1;
           break;
         }
-      }
-      if (x != -1) {
-        loops /= 2;
-        loops *= (min_ms / t1) + 1; // integer division!
-        System.out.println("Calibration done. Starting measurement with "+ loops +" loops to get >="+ min_ms +" ms");
+        if (t2 > 0) { // do we have some estimated/expected time?
+          if (t_delta < delta_ms) { // smaller than delta_ms=100?
+            bench_res1[bench] = loops_p_sec; // set loops per sec
+            System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(bench_res1[bench], 0, 3) + "/s (time=" + t1 + " ms, loops=" + loops + ", delta=" + t_delta + " ms)");
+            break;
+          }
 
-        // measurement
-        t1 = get_ms();
-        x = run_bench(bench, loops, n);
-        int td1 = (int)(get_ms() - t1);
-        System.out.println("x="+ x +" (time: "+ td1 +" ms)");
-        bench_res1[bench] = (td1 * 10 / loops); // int
-        System.out.println("Elapsed time for "+ loops +" loops: "+ td1 +" ms; estimation for 10 loops: "+ bench_res1[bench] +" ms");
-      } else {
-        bench_res1[bench] = -1;
+        }
+        if (t1 > max_ms) {
+          System.out.println("Benchmark " + bench + " (" + prg_language + "): Time already > " + max_ms + " ms. No measurement possible.");
+          bench_res1[bench] = -1;
+          break;
+        }
+	      {
+          int scale_fact = ((t1 < cali_ms) && (t1 > 0)) ? (int)((cali_ms + 100) / t1) + 1 : 2;
+          // scale a bit up to 1100 ms (cali_ms+100)
+          loops *= scale_fact;
+          t2 = t1 * scale_fact;
+        }
+
       }
     }
-    System.out.println("Times for all benchmarks (10 loops, ms):");
-    System.out.print("BM Results (Java)      : ");
-    for (int bench = bench1; bench <= bench2; bench++) {
-      System.out.print(mynumformat1(bench_res1[bench], 7) +' ');
-    }
-    System.out.println("");
-    System.out.println("Total elapsed time: "+ (get_ms() - start_t) +" ms");
+
+    print_results(bench1, bench2, bench_res1);
+    return 1;
   }
 
 
@@ -487,6 +536,7 @@ public class bmbench extends java.applet.Applet {
   // if you call it with java...
   //
   public static void main(String args[]) {
+    long start_t = get_ms();  // memorize start time        
     if (args.length > 0) {
       default_bench1 = Integer.parseInt(args[0]);
       default_bench2 = default_bench1;
@@ -497,29 +547,16 @@ public class bmbench extends java.applet.Applet {
     if (args.length > 2) {
       default_n = Integer.parseInt(args[2]);
     }
-    start_bench(default_bench1, default_bench2, default_n);
+    int rc = start_bench(default_bench1, default_bench2, default_n);
+    rc = rc; //avoid warning
+    System.out.println("Total elapsed time: " + (get_ms() - start_t) + " ms");
   }
+
+
 
   //
   // Applet code...
   //
-  //int applet_status = 0;
-
-/*
-  public void paint(Graphics g) {
-    //g.drawString((applet_status == 1) ? "Applet running..." : "Applet ready. Click ?", 0, getSize().height / 2);  // getSize().width / 2
-  }
-
-  public synchronized void mousePressed(MouseEvent e) {
-    if (applet_status == 0) {
-      applet_status = 1;
-    } else if (applet_status == 1) {
-      applet_status = 0;
-    }
-    showStatus((applet_status == 1) ? "Applet running..." : "Applet ready. Click?");
-  }
-
-*/
 
   //
   // Initialize the applet.
@@ -542,18 +579,20 @@ public class bmbench extends java.applet.Applet {
 
   public void simbench() {
     showStatus("Applet running...");
-    start_bench(default_bench1, default_bench2, default_n);
-    showStatus("Applet ready. See log...");
+    long start_t = get_ms();  // memorize start time     
+    int rc = start_bench(default_bench1, default_bench2, default_n);
+    System.out.println("Total elapsed time: " + (get_ms() - start_t) + " ms");    
+    showStatus("Applet ready. See log (rc=" + rc +")...");
   }
 
   public String getAppletInfo() {
-    return "Title: bmbench\nAuthor: Marco Vieth, 2002 (http://www.benchmarko.de)\n";
+    return "Title: bmbench\nAuthor: Marco Vieth, 2006 (http://www.benchmarko.de)\n";
   }
 
   public String[][] getParameterInfo() {
     String[][] info = {
-      {"bench1", "int", "First Benchmark"},
-      {"bench2", "int", "Last Benchmark"},
+      { "bench1", "int", "First Benchmark" },
+      { "bench2", "int", "Last Benchmark" },
       {"n", "int", "Workload size n"}
     };
     return info;

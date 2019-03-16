@@ -3,15 +3,16 @@
 exec tclsh "$0" "$@"
 
 #
-# BM Bench - bmbench.pl (Tcl)
-# (c) Marco Vieth, 2002
+# BM Bench - bmbench1.pl (Tcl)
+# (c) Marco Vieth, 2002-2006
 # http://www.benchmarko.de
 #
-# 06.05.2002  0.01
-# 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
-# 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
-# 20.07.2002  0.04  some errors corrected
-# 24.01.2003  0.05  output format changed
+# 06.05.2002 0.01
+# 11.05.2002 0.02  bench01 = (sum 1..n) mod 65536 (integer)
+# 22.05.2002 0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
+# 20.07.2002 0.04  some errors corrected
+# 24.01.2003 0.05  output format changed
+# 30.05.2006 0.06  based on version 0.05
 #
 # Usage:
 # tclsh bmbench.tcl [bench1] [bench2] [n]
@@ -23,7 +24,7 @@ exec tclsh "$0" "$@"
 # - This was hard to code if you don't know Tcl and it is your first program.
 #   On my Linux system  man n <tcl command> was a good starting point.
 # - There is no need for ';' at end of instructions but if you want some comments...
-# - Do not forget to out arguments of expr in braces {}! Otherwise you will see a large performance degradion...
+# - Do not forget to put arguments of expr in braces {}! Otherwise you will see a large performance degradion...
 #   (See man n expr)
 #
 
@@ -38,6 +39,12 @@ exec tclsh "$0" "$@"
 #
 # loops may be increased to produce a longer runtime without changing the result.
 #
+
+
+set PRG_VERSION "0.06";
+set PRG_LANGUAGE "Tcl";
+
+
 
 
   #
@@ -464,14 +471,102 @@ proc checkbits_double1 {} {
 }
 
 
+proc print_info {} {
+  global PRG_VERSION;
+  global PRG_LANGUAGE;
+  puts "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:[checkbits_int1] double:[checkbits_double1]) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
+  puts "Date: [clock format [clock seconds]]";
+#  puts "t1: $tcl_precision";
+#  puts "on platform [$tcl_platform{2}]";
+}
+
+
+proc print_results {bench_res} {
+  global PRG_LANGUAGE;
+  set MAX_LANGUAGE_LEN1 10;
+  puts "\nThroughput for all benchmarks (loops per sec):";
+
+  set str_len [expr { $MAX_LANGUAGE_LEN1 - [string length $PRG_LANGUAGE] }];
+  #set str [expr { [string repeat " " $str_len] }]; # works for Tcl 8.x
+  set str "";
+  for {set i 0} {$i < $str_len} {incr i} {
+    set str "$str ";
+  }
+
+  puts -nonewline "BMR ($PRG_LANGUAGE)$str: ";
+
+  foreach t1 $bench_res {
+    puts -nonewline [format "%9.2f " $t1];
+  }
+  puts "";
+  puts "";
+}
+
+
+proc start_bench {bench1 bench2 n} {
+  global PRG_LANGUAGE;
+  set cali_ms 1001; # const
+  set delta_ms 100; # const
+  set max_ms 10000; # const
+
+  print_info;
+
+  set bench_res1 [list ];
+  for {set bench $bench1} {$bench <= $bench2} {incr bench} {
+    set loops 1; # number of loops
+    set x 0;     # result from benchmark
+    set t1 0;    # measured time
+    set t2 0;    # estimated time
+
+    puts "Calibrating benchmark $bench with n=$n";
+    while {1} {
+      set t1 [get_ms];
+      set x [run_bench $bench $loops $n];
+      set t1 [expr {[get_ms] - $t1}];
+
+      set t_delta [expr {($t2 > $t1) ? ($t2 - $t1) : ($t1 - $t2)}]; # compute difference abs(measures-estimated)
+      set loops_p_sec [expr {($t1 > 0) ? ($loops * 1000.0 / $t1) : 0}];
+
+      puts "[format %10.3f $loops_p_sec]/s (time= [format %5d $t1] ms, loops= [format %7d $loops], delta=[format %5d $t_delta] ms, x=$x)";
+      if {$x == -1} { # some error?
+        #$bench_res1[$bench] = -1;
+        lappend bench_res1 -1;
+        break; # exit while
+      }
+      if {$t2 > 0} { # do we have some estimated/expected time? 
+        if {$t_delta < $delta_ms} { # smaller than delta_ms=100?
+          #$bench_res1[$bench] = $loops_p_sec; # set loops per sec
+          lappend bench_res1 $loops_p_sec;
+          puts "Benchmark $bench ($PRG_LANGUAGE): [format %.3f $loops_p_sec]/s (time=$t1 ms, loops=$loops, delta=$t_delta ms)";
+          break;
+        }
+      }
+
+      if {$t1 > $max_ms} {
+        puts "Benchmark  $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
+        #$bench_res1[$bench] = -1;
+        lappend bench_res1 -1;
+        break;
+      }
+
+      set scale_fact [expr {(($t1 < $cali_ms) && ($t1 > 0)) ? int((($cali_ms + 100) / $t1) + 1) : 2}];
+        # scale a bit up to 1100 ms (cali_ms+100)
+      set loops [expr {$loops * $scale_fact}];
+      set t2 [expr {$t1 * $scale_fact}];
+    }
+  }
+
+  print_results $bench_res1;
+
+  return 0;
+}
+
+
 proc main {argc argv} {
   set start_t [get_ms]; # memorize start time
   set bench1 0;       # first benchmark to test
   set bench2 5;       # last benchmark to test
   set n 1000000;      # maximum number
-  set min_ms 10000;   # minimum runtime for measurement in ms
-  set bench_res [list ];
-  set t_esti 0;
 
   if {$argc > 0} {
     set bench1 [lindex $argv 0];
@@ -484,56 +579,13 @@ proc main {argc argv} {
     set n [lindex $argv 2];
   }
 
-  puts "BM Bench v0.5 (Tcl) -- (int:[checkbits_int1] double:[checkbits_double1]) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
-  puts "Date: [clock format [clock seconds]]";
-#  puts "t1: $tcl_precision";
-#  puts "on platform [$tcl_platform{2}]";
-
-  for {set bench $bench1} {$bench <= $bench2} {incr bench} {
-    set loops 1; # number of loops
-    set x 0;     # result from benchmark
-    set t1 0;    # timestamp
-    # calibration
-    while {$t1 < 1001} { # we want at least 1001 ms calibration time
-      puts "Calibrating benchmark $bench with loops=$loops, n=$n";
-      set t1 [get_ms];
-      set x [run_bench $bench $loops $n];
-      set t1 [expr {[get_ms] - $t1}];
-      puts "x=$x (time: $t1 ms)";
-      set loops [expr {$loops * 2}];
-      if {$x == -1} {
-        break;
-      }
-    }
-    if {$x != -1} {
-      set loops [expr {$loops / 2}];
-      set loops [expr {$loops * int($min_ms / $t1) + 1}];  # integer division!
-      puts "Calibration done. Starting measurement with $loops loops to get >=$min_ms ms";
-
-      # measurement
-      set t1 [get_ms];
-      set x [run_bench $bench $loops $n];
-      set t1 [expr {[get_ms] - $t1}];
-      puts "x=$x (time: $t1 ms)";
-      set t_esti [expr {int($t1 * 10 / $loops)}];
-      puts "Elapsed time for $loops loops: $t1 ms; estimation for 10 loops: $t_esti ms";
-      lappend bench_res $t_esti
-    } else {
-      lappend bench_res -1
-    }
-  }
-  
-  puts "Times for all benchmarks (10 loops, ms):";
-  puts -nonewline "BM Results (Tcl)       : ";
-  foreach t1 $bench_res {
-    puts -nonewline [format "%7d " $t1];
-  }
-  puts "";
-
+  set rc [start_bench $bench1 $bench2 $n];
   set t1 [expr {[get_ms] - $start_t}];
   puts "Total elapsed time: $t1 ms";
-  return 0;
+  return rc;
 }
+
+
 
 main $argc $argv;
 

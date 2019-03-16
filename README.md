@@ -1,13 +1,20 @@
 # BMbench - BM Benchmark Suite
 
-Version: 0.51
-Date: 21.05.2006
+Version: 0.60
+Date: 03.12.2006
 
 BMbench is a collection of simple benchmarks in different programming languages.
 It is a synthetic benchmark which means that it does not represent real workload.
 Concerning the tests, it allows to compare the performance of different languages,
 different implementations of the same language and maybe
 the same language on different operating systems.
+
+## Changes in 0.60
+
+- Improved calibraton loop to speed up measurement
+- New: bmbench06.boo Boo scripting language for .Net or Mono
+- Not all languages have been adapted, yet. Already adapted:
+bmbench.abap, bmbench.boo, bmbench.c, bmbench.cpp, bmbench.cs, bmbench.java, bmbench.js, bmbench.pl, bmbench.pl4, bmbench.py, bmbench.tcl
 
 ## Changes in 0.51
 
@@ -74,6 +81,7 @@ bmbench.awk    |   ++++++  | DDDDDD | AWK for gawk
 bmbench.bas    |   --+...  | ?????? | BASIC for Locomotive BASIC or bwbasic (Bywater BASIC Interpreter)
 bmbench.bash   |   ++++++  | ?????? | Shell script for bash, zsh
 bmbench.bc     |   .+....  | DDDDDD | BC for bc (arbitrary precision calculator, no timing)
+bmbench06.boo  |           |        | Boo scripting language for .Net or Mono
 bmbench.c      |   ++++++  | SIDTII | C for gcc, Microsoft C, Borland C (bcc), ...
 bmbench.cpp    |   ++++++  | SIDTII | C++ for g++, Microsoft C++, ...
 bmbench.cs     |   ++++++  | IIDBII | C# for Mono, Microsoft C# .NET

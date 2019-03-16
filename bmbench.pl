@@ -1,19 +1,25 @@
 #!/usr/bin/perl -w
 # BM Bench - bmbench.pl (Perl 5)
-# (c) Marco Vieth, 2002
+# (c) Marco Vieth, 2002-2006
 # http://www.benchmarko.de
 #
-# 06.05.2002  0.01
-# 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
-# 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
-# 20.07.2002  0.04  some errors corrected
-# 24.01.2003  0.05  output format changed
+# 06.05.2002 0.01
+# 11.05.2002 0.02  bench01 = (sum 1..n) mod 65536 (integer)
+# 22.05.2002 0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
+# 20.07.2002 0.04  some errors corrected
+# 24.01.2003 0.05  output format changed
+# 30.05.2006 0.06  based on version 0.05
 #
 # Usage:
 # perl bmbench.pl [bench1] [bench2] [n]
 #
 #
+
 use strict;
+
+my $PRG_VERSION = "0.06";
+my $PRG_LANGUAGE = "Perl";
+
 
 $::TimeHiResFunc = undef();
 
@@ -430,6 +436,85 @@ sub checkbits_double1() {
 }
 
 
+sub print_info() {
+  my $perl_version = $];
+  $perl_version =~ tr/\n/;/;
+  print("BM Bench v", $PRG_VERSION, " (", $PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(), ") $perl_version, osname: $^O\n");
+  print("(c) Marco Vieth, 2006\n");
+  print("Date: ". localtime(time()) ."\n");
+  #system("uname -a");        
+}
+
+
+sub print_results($$$) {
+  my($bench1, $bench2, $bench_res1_r) = @_;
+  my $max_language_len1 = 10;
+  
+  print("\nThroughput for all benchmarks (loops per sec):\n");
+  print "BMR (", $PRG_LANGUAGE .")". (' ' x ($max_language_len1 - length($PRG_LANGUAGE))), ": ";
+  for (my $bench = $bench1; $bench <= $bench2; $bench++) {
+    printf("%9.2f ", $bench_res1_r->[$bench]);
+  }
+  print "\n";
+  print "\n";
+}
+
+
+sub start_bench($$$) {
+  my($bench1, $bench2, $n) = @_;
+  my $cali_ms = 1001; # const
+  my $delta_ms = 100; # const
+  my $max_ms = 10000; # const
+
+  print_info();
+
+  my @bench_res1 = ();
+  for (my $bench = $bench1; $bench <= $bench2; $bench++) {
+    my $loops = 1; # number of loops
+    my $x = 0;     # result from benchmark
+    my $t1 = 0;    # measured time
+    my $t2 = 0;    # estimated time
+
+    printf("Calibrating benchmark %d with n=%d\n", $bench, $n);
+    while (1) {
+      $t1 = get_ms();
+      $x = run_bench($bench, $loops, $n);
+      $t1 = get_ms() - $t1;
+
+      my $t_delta = ($t2 > $t1) ? ($t2 - $t1) : ($t1 - $t2); # compute difference abs(measures-estimated)
+      my $loops_p_sec = ($t1 > 0) ? ($loops * 1000.0 / $t1) : 0;
+      printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", $loops_p_sec, $t1, $loops, $t_delta, $x);
+      if ($x == -1) { # some error?
+        $bench_res1[$bench] = -1;
+        last; # (can only exit while, if not in sub block)
+      }
+      if ($t2 > 0) { # do we have some estimated/expected time? 
+        if ($t_delta < $delta_ms) { # smaller than delta_ms=100? 
+          $bench_res1[$bench] = $loops_p_sec; # set loops per sec
+          printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", $bench, $PRG_LANGUAGE, $bench_res1[$bench], $t1, $loops, $t_delta);
+          last;
+        }
+      }
+
+      if ($t1 > $max_ms) {
+        printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", $bench, $PRG_LANGUAGE, $max_ms);
+        $bench_res1[$bench] = -1;
+        last;
+      }
+      {
+        my $scale_fact = (($t1 < $cali_ms) && ($t1 > 0)) ? int((($cali_ms + 100) / $t1) + 1) : 2;
+          # scale a bit up to 1100 ms (cali_ms+100)
+        $loops *= $scale_fact;
+        $t2 = $t1 * $scale_fact;
+      }
+    }
+  }
+
+  print_results($bench1, $bench2, \@bench_res1);
+  return 0;
+}
+
+
 
 sub main($) {
   #my(@ARGV) = @_;
@@ -437,8 +522,6 @@ sub main($) {
   my $bench1 = 0;     # first benchmark to test
   my $bench2 = 5;     # last benchmark to test
   my $n = 1000000;    # maximum number
-  my $min_ms = 10000; # minimum runtime for measurement in ms
-  my @bench_res1 = ();
 
   if ($#ARGV > -1) {
     $bench1 = $ARGV[0];
@@ -451,52 +534,13 @@ sub main($) {
   if ($#ARGV > 1) {
     $n = $ARGV[2];
   }
-
-  my $perl_version = $];
-  $perl_version =~ tr/\n/;/;
-  print("BM Bench v0.5 (Perl) -- (int:", checkbits_int1(), " double:", checkbits_double1(), ") $perl_version, osname: $^O\n");
-  print("(c) Marco Vieth, 2002\n");
-  print("Date: ". localtime(time()) ."\n");
-  #system("uname -a");
-
-  for (my $bench = $bench1; $bench <= $bench2; $bench++) {
-    my $loops = 1; # number of loops
-    my $x = 0;     # result from benchmark
-    my $t1 = 0;    # timestamp
-    # calibration
-    while (($t1 < 1001) && ($x != -1)) { # we want at least 1001 ms calibration time
-      printf("Calibrating benchmark %d with loops=%d, n=%d\n", $bench, $loops, $n);
-      $t1 = get_ms();
-      $x = run_bench($bench, $loops, $n);
-      $t1 = get_ms() - $t1;
-      printf("x=%d (time: %d ms)\n", $x, $t1);
-      $loops *= 2;
-    }
-    if ($x != -1) {
-      $loops /= 2;
-      $loops *= int($min_ms / $t1) + 1; # we need int here!
-      printf("Calibration done. Starting measurement with %d loops to get >=%d ms\n", $loops, $min_ms);
-
-      # measurement
-      $t1 = get_ms();
-      $x = run_bench($bench, $loops, $n);
-      $t1 = get_ms() - $t1;
-      printf("x=%d (time: %d ms)\n", $x, $t1);
-      push(@bench_res1, int($t1 * 10 / $loops));
-      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", $loops, $t1, $bench_res1[$bench - $bench1]);
-    } else {
-      push(@bench_res1, -1);
-    }
-  }
-  print "Times for all benchmarks (10 loops, ms):\n";
-  print "BM Results (Perl)      : ";
-  for (@bench_res1) {
-    printf("%7d ", $_);
-  }
-  print "\n";
+  
+  my $rc = start_bench($bench1, $bench2, $n);
+  
   printf("Total elapsed time: %d ms\n", get_ms() - $start_t);
-  return 0;
+  return $rc;
 }
+
 
 main(@ARGV);
 
