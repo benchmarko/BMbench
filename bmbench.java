@@ -16,10 +16,16 @@
 
 //
 // Compile:
-// javac -O bmbench.java
-// (/usr/lib/IBMJava2-1.3.0/bin or /usr/lib/SunJava1-1.1.8/bin/)
+// - javac -O bmbench.java
+//   (/usr/lib/IBMJava2-1.3.0/bin or /usr/lib/SunJava1-1.1.8/bin/)
+// or:
+// - guavac, gcj, ...
+//
+// Usage:
+// - java bmbench
 // Or:
-// guavac, gcj, ...
+// - javac...;  java -Djava.compiler=tya bmbench  (using Tya by Albrecht Kleine)
+//
 //
 
 import java.applet.Applet;

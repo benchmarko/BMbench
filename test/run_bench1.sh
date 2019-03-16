@@ -16,6 +16,7 @@
 #
 #
 AWK="gawk"
+BASH="bash"
 BWBASIC="bwbasic"
 BC="bc"
 GCC="gcc"
@@ -38,6 +39,7 @@ PERL="perl"
 PYTHON="python"
 GST="gst"
 TCLSH="tclsh"
+ZSH="zsh"
 #
 #
 #
@@ -67,6 +69,12 @@ echo "----------"
 echo "AWK"
 $AWK --version
 (time $AWK -f ./bmbench.awk) 2>&1
+
+echo ""
+echo "----------"
+echo "bash"
+$BASH --version
+(time $BASH -f ./bmbench.bash) 2>&1
 
 
 echo ""
@@ -224,14 +232,21 @@ echo "Python (-O)"
 
 
 echo "----------"
-echo "Smalltalk (not yet implemented)"
+echo "Smalltalk"
 $GST -v
-#(time $GST ./bmbench.st) 2>&1
+(time $GST ./bmbench.st) 2>&1
 
 
 echo "----------"
 echo "Tcl"
 (time $TCLSH ./bmbench.tcl) 2>&1
+
+
+echo ""
+echo "----------"
+echo "zsh (uses bash script)"
+$ZSH --version
+(time $ZSH -f ./bmbench.bash) 2>&1
 
 
 echo "----------"

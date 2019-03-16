@@ -10,6 +10,8 @@
 // 20.07.2002  0.04  some errors corrected
 // 24.01.2003  0.05  output format changed
 // 04.04.2003        navigator platform corrected; use args[0] as first element (as in Java)
+// 18.07.2004        added support for JScript (Windows Scripting Host, cscript.exe)
+// 17.01.2006        added support for DMDscript
 //
 //
 // Usage:
@@ -48,6 +50,11 @@
 // (Help: echo "help()" | js_sp;  JavaScript-C 1.5 pre-release 5 2003-01-10)
 // (Debugging: js -s ...  for strict)
 //
+// 4. Windows Scripting host (cscript.exe) (Documentation for Jscript: Help in Microsoft Script Editor)
+// Usage: cscript.exe bmbench.js [bench1] [bench2] [n]
+//
+// 5. DMDScript (ds.exe) (http://www.digitalmars.com/dscript/index.html)
+// Usage: ds.exe bmbench.js  (DMDScript version 1.06 cannot parse arguments)
 //
 
 var myint = Math.floor; // cast to integer
@@ -110,7 +117,7 @@ var myint = Math.floor; // cast to integer
   function bench01(loops, n) {
     var x = 0;
     var sum1 = myint(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
-    // do not use '& 0xffff' since this converts sum1 to 0 for stand alonw engine
+    // do not use '& 0xffff' since this converts sum1 to 0 for stand alone engine
     while (loops-- > 0) {
       for (var i = n; i > 0; i--) {
         x += i;
@@ -432,6 +439,9 @@ function bmbench(args) {
   if (typeof System != "undefined") { // NGS JS Engine
     js_version += " Interpreter: "+ System.canonicalHost +", VM.version="+ VM.version;
   }
+  if (typeof ScriptEngine != "undefined") { // JScript (Windows Scripting Host) or DMDScript
+    js_version += " "+ ScriptEngine() +" Version "+ ScriptEngineMajorVersion() +"."+ ScriptEngineMinorVersion() +"."+ ScriptEngineBuildVersion();
+  }
   if (typeof java != "undefined") { // Rhino or Java active?
     if (java.lang.System) {
       var jls = java.lang.System;
@@ -440,7 +450,7 @@ function bmbench(args) {
         +", os.version="+ jls.getProperty("os.version");
     }
   }
-  
+
   win.document.writeln("BM Bench v0.5 (JavaScript) -- (int:"+ checkbits_int1() +" double:"+checkbits_double1() +")"+ js_version);
   win.document.writeln("(c) Marco Vieth, 2002");
   win.document.writeln(getdate1());
@@ -486,7 +496,9 @@ function bmbench(args) {
   }
   win.document.writeln(str);
   win.document.writeln("Total elapsed time: "+ (get_ms() - start_t) +" ms");
-  win.document.writeln("</pre>\n");
+  if (typeof navigator != "undefined") { // only in browsers...
+    win.document.writeln("</pre>\n");
+  }
   win.document.close();
 
   return true;
@@ -500,37 +512,46 @@ function main(args) {
 // ---------------------------------------
 
 // simulate window object for stand alone JS engines...
-if (typeof window == "undefined") { // are we outside of a browser in a standalone JS engine?
+
+// DMDScript does not like functions inside "if", so define them outside...
   function window_open1() {
     return this;
   }
 
-  function window_writeln_system1() { // for NSG JS Engine
+  function window_writeln1() {
     var str = ""; // does not work: arguments.join(" ");
     for (var i = 0; i < arguments.length; i++) {
       str += arguments[i]; // copy arguments
     }
-    System.print(str +"\n"); //or: System.stdout.writeln(str);
-  }
-
-  function window_writeln_print1() { // for Rhino, SpiderMonkey
-    var str = ""; // does not work: arguments.join(" ");
-    for (var i = 0; i < arguments.length; i++) {
-      str += arguments[i]; // copy arguments
+    switch(window.js_engine1) {
+      case 1: // NGS JS Engine
+        System.print(str +"\n"); //or: System.stdout.writeln(str);
+      break;
+      case 2: // Rhino, SpiderMonkey
+        print(str);
+      break;
+      case 3: // DMDScript
+        println(str);
+      break;
+      case 4: // Windows JScript (cscript)
+        WScript.Echo(str);
+      break;
     }
-    print(str);
   }
 
+if (typeof window == "undefined") { // are we outside of a browser in a standalone JS engine?
   window = new Object(); // NGS: how to avoid warning about undefined global 'window'?
   window.open = window_open1;
   window.focus = window_open1; // dummy
   window.document = new Object();
   window.document.open = window_open1; // dummy
   window.document.close = window_open1; // dummy
+  window.js_engine1 = 0; // js engine for writeln
+  window.document.writeln = window_writeln1;
+  window.alert = window.document.writeln; // same as writeln
   if (typeof System != "undefined") { // System object is available with NGS JS Engine
-    window.document.writeln = window_writeln_system1;
-    window.alert = window.document.writeln; // same as writeln
-    // convert to integer with standalone engine, use Math.floor for others...
+    window.js_engine1 = 1;
+    // convert to integer with NGS JS Engine engine, use Math.floor for others...
     eval("myint = int"); // set integer cast; avoid warning 'int' is reserved identifier in browsers
     if (typeof ARGS != "undefined") {
       if ((Math.max(5, 8) != 8) || (Math.pow(0.5, 2) != 0.25)) {
@@ -540,12 +561,23 @@ if (typeof window == "undefined") { // are we outside of a browser in a standalo
         main(ARGS); // start script
       }
     }
-  } else { // Rhino, SpiderMonkey...
-    if (typeof arguments != "undefined") {
-      window.document.writeln = window_writeln_print1; // for Rhino, SpiderMonkey
-      window.alert = window.document.writeln; // same as writeln
-      main(arguments); // start script
+  } else if (typeof arguments != "undefined") { // Rhino, SpiderMonkey, DMDScript...
+    if (typeof println != "undefined") { // DMDScript
+      window.js_engine1 = 3;
+      // Note: arguments for DMDScript do not work.
+    } else { // Rhino, SpiderMonkey
+      window.js_engine1 = 2;
     }
+    main(arguments); // start script
+  } else if (typeof WScript != "undefined") { // JScript (cscript)...
+    window.js_engine1 = 4;
+    var args = new Array(); // copy arguments into array
+    for (var i = 0; i < WScript.Arguments.length; i++) {
+      args[i] = WScript.Arguments(i);
+    }
+    main(args);
+  } else {
+    main(); // unknown engine, call without arguments
   }
 }
 

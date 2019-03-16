@@ -471,10 +471,12 @@ function main(argc, argv,    start_t, bench1, bench2, n, min_ms, bench, bench_re
 BEGIN {
   if (TEXTDOMAIN) { # TEXTDOMAIN is defined for gawk!
     g_use_gawk = 1;
-    g_awk_version = "gawk version ?"
+    # assume gawk and get first line with version info...
+    "gawk --version" | getline g_awk_version;
+    #g_awk_version = "gawk version ?";
   } else {
     g_use_gawk = 0;
-    g_awk_version = "awk version ?"
+    g_awk_version = "awk version ?";
   }
   main(ARGC, ARGV);
   exit;

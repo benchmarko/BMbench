@@ -365,15 +365,18 @@ sub run_bench($$$) {
 # otherwise time()
 #
 sub private_init_HiRes() {
-  if (eval { require Time::HiRes; }) {
-    # If we can use Time::HiRes,  Time::HiRes::time() will be a float to 6 decimal places.
+  if (eval { require Time::HiRes; }) { # Time::HiRes::time() will be a float to 6 decimal places
     $::TimeHiResFunc = \&Time::HiRes::time;
   } elsif (eval { require 'syscall.ph'; }) {
     # ...otherwise try to use a syscall to gettimeofday, which will also return a float
+    my $TIMEVAL_T = "QQ"; # for 64 bit Perl
+    if (!eval { pack($TIMEVAL_T, ()); }) {
+      $TIMEVAL_T = "LL"; # for 32 bit
+    }
     $::TimeHiResFunc = sub {
-      my $tval = pack("LL", ()); # adapt for 64 bit Perl!
+      my $tval = pack($TIMEVAL_T, ());
       syscall(&SYS_gettimeofday, $tval, 0) != -1 or die "gettimeofday: $!";
-      my @time1 = unpack("LL", $tval);
+      my @time1 = unpack($TIMEVAL_T, $tval);
       return $time1[0] + ($time1[1] / 1_000_000);
     }
   } else {
@@ -427,11 +430,6 @@ sub checkbits_double1() {
 }
 
 
-#sub print_config() {
-#  if (eval { require Config; }) {
-#    print Config::myconfig();
-#  }
-#}
 
 sub main($) {
   #my(@ARGV) = @_;
