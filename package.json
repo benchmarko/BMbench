@@ -1,0 +1,29 @@
+{
+  "name": "bmbench",
+  "version": "0.6.2",
+  "description": "BM Benchmark for JavaScript",
+  "main": "bmbench.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "qunit": "^2.6.1"
+  },
+  "scripts": {
+    "test": "qunit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TODO/BMbench.git"
+  },
+  "keywords": [
+    "Geocaching"
+  ],
+  "author": "Marco Vieth",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TODO/BMbench/issues"
+  },
+  "homepage": "https://github.com/TODO/BMbench#readme"
+}
