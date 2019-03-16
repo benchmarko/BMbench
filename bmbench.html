@@ -7,8 +7,15 @@
 <!--
 //
 function run_bmbench(frm) {
-  var args = new Array("bmbench01", frm.bench1.value, frm.bench2.value);
-  return bmbench(args);
+  if (frm) {
+    var args = new Array(3);
+    args[0] = frm.bench1.value;
+    args[1] = frm.bench2.value;
+    args[2] = frm.n.value;
+    return bmbench(args);
+  } else {
+    return 1;
+  }
 }
 // -->
 </script>
@@ -20,8 +27,11 @@ function run_bmbench(frm) {
 <hr>
 
 <form name="BM_form">
-  bench1 <input type="text" size="4" name="bench1" value="1"><br>
-  bench2 <input type="text" size="4" name="bench2" value="5"><br>
+  <table border="0" summary="">
+    <tr><td>bench1</td> <td><input type="text" size="4" name="bench1" value="0"></td></tr>
+    <tr><td>bench2</td> <td><input type="text" size="4" name="bench2" value="5"></td></tr>
+    <tr><td>n</td>      <td><input type="text" size="8" name="n" value="1000000"></td></tr>
+  </table>
   <input type="button" value="Run Benchmark" onclick="run_bmbench(this.form)" name="BENCH001">
 </form>
 
@@ -31,6 +41,6 @@ function run_bmbench(frm) {
 <b>Please activate JavaScript to use the functionality of this page!</b>
 </noscript>
 
-<address><font size="-1">&copy; Benchmarko, 11.05.2002</font></address>
+<address><font size="-1">&copy; <a href="http://www.benchmarko.de">Marco Vieth</a>, 11.05.2002</font></address>
 </body>
 </html>

@@ -1,7 +1,7 @@
 # BMbench - BM Benchmark Suite
 
-Version: 0.40
-Date: 20.08.2002
+Version: 0.50
+Date: 25.01.2003
 
 BMbench is a collection of simple benchmarks in different programming languages.
 It is a synthetic benchmark which means that it does not represent real workload.
@@ -43,36 +43,46 @@ the same language on different operating systems.
 
 (Status: Development status for every benchmark test 0-5: +=ok, -=problems, .=not implemented)
 
-File |             Status |    Description
---- | --- | ---
-README.md    |           |  this readme
-bmbench.abap   |  .+++++   | ABAP/4 for SAP R/3 4.x
-bmbench.awk    |  .+++++   | AWK for gawk
-bmbench.bas    |  .-+...   | BASIC for (Locomotive) BASIC (still v0.1)
-bmbench.bc     |  .+....   | BC for bc (arbitrary precision calculator)
-bmbench.c      |  ++++++   | C for gcc, Microsoft C, Borland C, ...
-bmbench.f      |  .++.+.   | Fortran for g77
-bmbench.fs     |  .+....   | Forth for gforth
-bmbench.html   |           | HTML page to start JavaScript from browser
-bmbench.java   |  -+++++   | Java
-bmbench.js     |  .+++++   | JavaScript for Browsers, Rhino, NGS
-bmbench.mi     |  +++++-   | Modula-2 for mocka
-bmbench.p      |  ++++++   | Pascal for gpc
-bmbench.pl     |  .+++++   | Perl for Perl 5
-bmbench.pl4    |  .x++++   | Perl for old Perl 4 (no Integer available)
-bmbench.py     |  .+++++   | Python for python
-bmbench.st     |  .-....   | Smalltalk for gst
-bmbench.tcl    |  .+++++   | Tcl for tclsh
-bmbench_bw.bas |  .x+...   | BASIC for bwbasic (Bywater BASIC Interpreter; no Integer available)
-bmbench_java.html |        |  HTML page to start Java from browser (as an applet, not used)
-bmbench_sto.bas | --+-..   | BASIC for Star Office 5.2
-bmbench_vba.bas | .-....   | VBA (Visual Basic for Applications, e.g. Excel)
-test/00results1.html |           | Benchmark results (HTML)
-test/00results1.xls  |           | Benchmark results (Excel)
-test/00results1_log_linux1.txt |  | Benchmark measurement log (Linux)
-test/run_bench1.sh    |          | Shell script to run tests under UNIX (e.g. Linux)
-test/run_bench1_misc.sh |        | Another shell script
-test/run_bench_browser1.sh |     | Shell script to run browser tests under UNIX (e.g. Linux)
+Type: Main data types used:
+
+- ? = unknown
+- T = Bit
+- B = Byte
+- S = short (16 bit)
+- I = integer (32 bit)
+- L = long integer (any number of bits)
+- D = double (e.g. 64 bit)
+
+File            |   Status  | Type   | Description
+--- | --- | --- | ---
+README.md    |        |   |  this readme
+bmbench.abap   |   .+++++  | ?IDTII | ABAP/4 for SAP R/3 4.x
+bmbench.awk    |   ++++++  | DDDDDD | AWK for gawk
+bmbench.bas    |   --+...  | ?????? | BASIC for Locomotive BASIC or bwbasic (Bywater BASIC Interpreter)
+bmbench.bc     |   .+....  | DDDDDD | BC for bc (arbitrary precision calculator, no timing)
+bmbench.c      |   ++++++  | SIDTII | C for gcc, Microsoft C, Borland C (bcc), ...
+bmbench.f      |   ++++++  | SID?II | Fortran for g77 or f2c
+bmbench.fs     |   .+....  | ?????? | Forth for gforth (to do)
+bmbench.html   |           | ?????? | HTML page to start JavaScript from browser
+bmbench.java   |   ++++++  | SIDTII | Java
+bmbench.js     |   ++++++  | IIDIII | JavaScript for Browsers, Rhino, NGS (only NGS has integer)
+bmbench.lisp   |   ++++++  | IIDIII | Lisp for clisp
+bmbench.mi     |   ++++++  | SIDTII | Modula-2 for mocka
+bmbench.p      |   ++++++  | SIDTII | Pascal for gpc, p2c
+bmbench.pl     |   ++++++  | IIDIII | Perl for Perl 5
+bmbench.pl4    |   ++++++  | DDDDDD | Perl for old Perl 4 (no Integer available)
+bmbench.py     |   ++++++  | SLDIII | Python for python
+bmbench.st     |   ++++++  | ILDBDI | Smalltalk for gst (I only 30 bit)
+bmbench.tcl    |   ++++++  | IIDIII | Tcl for tclsh
+bmbench_java.html |        | ?????? | HTML page to start Java from browser (as an applet, not used)
+bmbench_sto.bas|   --+-..  | ?????? | BASIC for Star Office 5.2
+bmbench_vba.bas|   .-....  | ?????? | VBA (Visual Basic for Applications, e.g. Excel)
+test/00results1.html |         |  | Benchmark results (HTML)
+test/00results1.xls  |         |  | Benchmark results (Excel)
+test/00results1_log_linux1.txt | |  | Benchmark measurement log (Linux)
+test/run_bench1.sh    |        |  | Shell script to run tests under UNIX (e.g. Linux)
+test/run_bench1_misc.sh |      |  | Another shell script
+test/run_bench_browser1.sh |   |  | Shell script to run browser tests under UNIX (e.g. Linux)
 
 ---
 

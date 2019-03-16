@@ -1,11 +1,13 @@
-// bmbench.java
-// (c) Benchmarko, 2002
+//
+// BM Bench - bmbench.java (Java)
+// (c) Marco Vieth, 2002
+// http://www.benchmarko.de
 //
 // 06.05.2002  0.01
 // 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
 // 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
 // 20.07.2002  0.04  some errors corrected
-//
+// 24.01.2003  0.05  output format changed
 //
 // Usage:
 // java bmbench [bench] [n]
@@ -14,7 +16,7 @@
 
 //
 // Compile:
-// javac bmbench.java
+// javac -O bmbench.java
 // (/usr/lib/IBMJava2-1.3.0/bin or /usr/lib/SunJava1-1.1.8/bin/)
 // Or:
 // guavac, gcj, ...
@@ -22,6 +24,7 @@
 
 import java.applet.Applet;
 //import java.awt.Graphics;  // required for applet
+import java.text.SimpleDateFormat; // just to print date
 
 
 
@@ -45,27 +48,24 @@ public class bmbench extends java.applet.Applet {
   // (sum of 1..n) mod 65536
   //
   private static int bench00(int loops, int n) {
-    System.out.println("Benchmark 0 not available.");
-    return 0;
-  }
-
-/*
-  private static int bench00_notready1(int loops, int n) {
     short x = 0; // short is -32767..32768
     short sum1 = (short)((n / 2) * (n + 1)); // assuming n even!
     // (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
     short n_div_65536 = (short)(n >> 16);
     short n_mod_65536 = (short)(n & 0xffff);
+    //System.out.println("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
     while (loops-- > 0) {
       for (int i = n_div_65536; i > 0; i--) {
-        for (short j = 32767; j != -32768; j--) {
+        for (short j = 32767; j > 0; j--) {
+          x += j;
+        }
+        for (short j = -32768; j < 0; j++) {
           x += j;
         }
       }
       for (short j = n_mod_65536; j > 0; j--) {
         x += j;
       }
-
       if (loops > 0) { // some more loops left?
         x -= sum1;     // yes, set x back to 0 (assuming n even)
         if (x != 0) {  // now x must be 0 again
@@ -76,7 +76,6 @@ public class bmbench extends java.applet.Applet {
     }
     return (int)(x & 0xffff);
   }
-*/
 
 
   //
@@ -319,29 +318,124 @@ public class bmbench extends java.applet.Applet {
   // get timestamp in milliseconds
   // out: x = time in ms
   //
-  // This function is intended for short measurements only so we
-  // can return it as an integer.
+  // Even if the function is intended for short measurements we should
+  // return a long to avoid overflows...
   //
-  private static int get_ms() {
-    return((int)System.currentTimeMillis());
+  private static long get_ms() {
+    return(System.currentTimeMillis());
+  }
+
+
+  private static String getdate1() {
+    long date1 = get_ms();
+    SimpleDateFormat format1 = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+    return format1.format(new java.util.Date(date1));
+  }
+
+  // --------------------------------------------------------
+
+  // in Java the sizes of the types is specified (int: 32, double: 64)
+  // Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
+  private static int checkbits_short1() {
+    short num = 1;
+    short last_num = 0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2;
+      num++;
+      bits++;
+      //System.out.println("DEBUG: bits="+ bits +", num="+ num);
+    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    return bits;
+  }
+  
+  private static int checkbits_int1() {
+    int num = 1;
+    int last_num = 0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2;
+      num++;
+      bits++;
+      //System.out.println("DEBUG: bits="+ bits +", num="+ num);
+    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  private static int checkbits_long1() {
+    long num = 1;
+    long last_num = 0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2;
+      num++;
+      bits++;
+      //System.out.println("DEBUG: bits="+ bits +", num="+ num);
+    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  private static int checkbits_float1() {
+    float num = 1.0f;
+    float last_num = 0.0f;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2.0f;
+      num++;
+      bits++;
+      //System.out.println("DEBUG: bits="+ bits +", num="+ num);
+    } while ( (((num - 1.0f) / 2.0f) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  private static int checkbits_double1() {
+    double num = 1.0;
+    double last_num = 0.0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2.0;
+      num++;
+      bits++;
+      //System.out.println("DEBUG: bits="+ bits +", num="+ num);
+    } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  // --------------------------------------------------------
+
+  private static String mynumformat1(int val, int digits) {
+    StringBuffer str = new StringBuffer(); // buffer for one formatted value
+    str.append(val);
+    for (int i = str.length(); i < digits; i++) {
+      str.insert(0, ' ');
+    }
+    return(str.toString());
   }
 
 
   private static void start_bench(int bench1, int bench2, int n) {
-    int start_t = get_ms();  // memorize start time
+    long start_t = get_ms();  // memorize start time
     int min_ms = 10000;      // minimum runtime for measurement in ms
     int bench_res1[] = new int[bench2 + 1];
 
-    System.out.println("BM Bench v0.4 (Java)");
-    System.out.println("java.version="+ System.getProperty("java.version") +", java.vendor="+ System.getProperty("java.vendor"));
+    System.out.print("BM Bench v0.5 (Java) -- (short:"+ checkbits_short1() +" int:"+ checkbits_int1()
+      +" long:"+ checkbits_long1() +" float:"+ checkbits_float1() +" double:"+ checkbits_double1() +") ");
+    System.out.print("java.version="+ System.getProperty("java.version") +", java.vendor="+ System.getProperty("java.vendor"));
     System.out.println("os.name="+ System.getProperty("os.name") +", os.arch="+ System.getProperty("os.arch")
       +", os.version="+ System.getProperty("os.version"));
+    System.out.println("(c) Marco Vieth, 2002");
+    System.out.println("Date: "+ getdate1());
     //System.out.println("properties="+ System.getProperties());
 
     for (int bench = bench1; bench <= bench2; bench++) {
       int loops = 1; // number of loops
       int x = 0;     // result from benchmark
-      int t1 = 0;    // timestamp
+      long t1 = 0;    // timestamp
       // calibration
       while (t1 < 1000) { // we want at least 1 sec calibration time
         System.out.println("Calibrating benchmark "+ bench +" with loops="+ loops +", n="+ n);
@@ -362,18 +456,20 @@ public class bmbench extends java.applet.Applet {
         // measurement
         t1 = get_ms();
         x = run_bench(bench, loops, n);
-        t1 = get_ms() - t1;
-        System.out.println("x="+ x +" (time: "+ t1 +" ms)");
-        System.out.println("Elapsed time for "+ loops +" loops: "+ t1 +" ms; estimation for 10 loops: "+ (t1 * 10 / loops) +" ms");
-        bench_res1[bench] = (t1 * 10 / loops);
+        int td1 = (int)(get_ms() - t1);
+        System.out.println("x="+ x +" (time: "+ td1 +" ms)");
+        bench_res1[bench] = (td1 * 10 / loops); // int
+        System.out.println("Elapsed time for "+ loops +" loops: "+ td1 +" ms; estimation for 10 loops: "+ bench_res1[bench] +" ms");
       } else {
         bench_res1[bench] = -1;
       }
     }
-    System.out.println("Summary for 10 Loops:");
+    System.out.println("Times for all benchmarks (10 loops, ms):");
+    System.out.print("BM Results (Java)      : ");
     for (int bench = bench1; bench <= bench2; bench++) {
-      System.out.println("Benchmark "+ bench +": "+ bench_res1[bench] +" ms");
+      System.out.print(mynumformat1(bench_res1[bench], 7) +' ');
     }
+    System.out.println("");
     System.out.println("Total elapsed time: "+ (get_ms() - start_t) +" ms");
   }
 
@@ -445,7 +541,7 @@ public class bmbench extends java.applet.Applet {
   }
 
   public String getAppletInfo() {
-    return "Title: bmbench\nAuthor: Benchmarko, 2002\n";
+    return "Title: bmbench\nAuthor: Marco Vieth, 2002 (http://www.benchmarko.de)\n";
   }
 
   public String[][] getParameterInfo() {

@@ -1,18 +1,29 @@
-/* bmbench.bc (bc)
- * (c) Benchmarko, 2002
+/*
+ * BM Bench - bmbench.pl (bc)
+ * (c) Marco Vieth, 2002
+ * http://www.benchmarko.de
  *
- * 06.05.2002  0.01 first tests
- * 20.07.2002  0.04 some more functions
+ * 06.05.2002  0.01  first tests
+ * 20.07.2002  0.04  some more functions
+ * 24.01.2003  0.05  output format changed
  *
  * Usage:
  * setenv BC_LINE_LENGTH 80 (csh)  export BC_LINE_LENGTH=80 (sh) (default 70)
  * bc bmbench.bc
  * (bc is an arbitrary precision calculator language)
- * The original POSIX bc has some limitations (e.g. one letter variables. if without else), so
- * we require GNU bc here. Tested with GNU bc version 1.06.
  *
- * Information:
- * man bc
+ * Notes:
+ * - Statements are executed "as soon  as  possible."
+ * - The original POSIX bc has some limitations (e.g. one letter variables. if without else), so
+ *   we require GNU bc here. Tested with GNU bc version 1.06.
+ * - Only one numerical data type available: decimal numbers of arbitrary length
+ * - No command line parameters
+ * - No time measurement possible
+ * - Do not use '<var>++', it prints the output!, use '<var> += 1'
+ * - Only bench01 implemented
+ *
+ * - Information:
+ *   man bc ; info bc
  *
  */
 
@@ -30,6 +41,15 @@
 
 
   /*
+   * bench00 (Integer 16 bit)
+   * (sum of 1..n) mod 65536
+   */
+define bench00(loops, n) {
+  return(-1);
+}
+
+
+  /*
    * bench01 (Integer 16/32 bit)
    * (sum of 1..n) mod 65536
    */
@@ -44,12 +64,43 @@ define bench01(loops, n) {
     if (loops > 0) {               /* some more loops left? */
       x -= sum;                    /* yes, set x back to 0 (assuming n even) */
       if (x != 0) {                /* now x must be 0 again */
-        x++;
+        x += 1;
         break;
       }
     }
   }
   return(x % 65536);
+}
+
+  
+  /*
+   * bench02
+   */
+define bench02(loops, n) {
+  return(-1);
+}
+
+  /*
+   * bench03
+   */
+define bench03(loops, n) {
+  return(-1);
+}
+
+
+  /*
+   * bench04
+   */
+define bench04(loops, n) {
+  return(-1);
+}
+
+
+  /*
+   * bench05
+   */
+define bench05(loops, n) {
+  return(-1);
 }
 
 
@@ -65,7 +116,7 @@ define run_bench(bench, loops, n) {
   x = 0;
   check1 = 0;
   if (bench == 0) {
-    /* x = bench00(loops, n); */
+    x = bench00(loops, n);
     check1 = 10528;
 
   } else if (bench == 1) {
@@ -73,19 +124,19 @@ define run_bench(bench, loops, n) {
     check1 = 10528;
 
   } else if (bench == 2) {
-    /* x = bench02(loops, n); */
+     x = bench02(loops, n);
     check1 = 10528;
 
   } else if (bench == 3) {
-    /* x = bench03(loops, n); */
+    x = bench03(loops, n);
     check1 = 41538;
 
   } else if (bench == 4) {
-    /* x = bench04(loops, n); */
+    x = bench04(loops, n);
     check1 = 1227283347;
 
   } else if (bench == 5) {
-    /* x = bench05(loops, n); */
+    x = bench05(loops, n);
     check1 = 27200; /* 58336; 43584; */
 
   } else {
@@ -108,17 +159,65 @@ define get_ms() {
 }
 
 
+define checkbits_int1() {
+  auto num, last_num, bits;
+  num = 1;
+  last_num = 0;
+  bits = 0;
+  while (bits < 101) {
+    last_num = num;
+    num *= 2;
+    num += 1;
+    bits += 1;
+    if (((num - 1) / 2) != last_num) {
+      break;
+    }
+  }
+  return(bits);
+}
+
+
+define checkbits_double1() {
+  auto num, last_num, bits;
+  num = 1.0;
+  last_num = 0.0;
+  bits = 0;
+  while (bits < 101) {
+    last_num = num;
+    num *= 2.0;
+    num += 1.0;
+    bits += 1;
+    if (((num - 1.0) / 2.0) != last_num) {
+      break;
+    }
+  }
+  return(bits);
+}
+
+
+define mynumformat1(val, digits) {
+  auto i;
+  /* print "DEBUG: length(val)=", length(val), "\n"; */
+  /* extended bc: length(val) = number of digits in val */
+  for (i = length(val); i < digits; i++) {
+    print " ";
+  }
+  return(val);
+}
+
+
 define main() {
   auto start_t, bench1, bench2, n, bench, bench_res[], min_ms,  loops, x, t1;
   start_t = get_ms(); /* memorize start time */
   bench1 = 0;       /* first benchmark to test */
-  bench2 = 2;       /* last benchmark to test */
+  bench2 = 5;       /* last benchmark to test */
   n = 1000000;      /* maximum number */
   min_ms = 10000;   /* minimum runtime for measurement in ms */
   bench = 0;
   /* bench_res1; */
 
-  print "BM Bench v0.4 (bc)\n";
+  print "BM Bench v0.5 (bc) -- (int:", checkbits_int1(), " double:", checkbits_double1(), ") version ?\n";
+  print "(c) Marco Vieth, 2002\n";
 
   for (bench = bench1; bench <= bench2; bench++) {
     loops = 1;   /* number of loops */
@@ -146,21 +245,24 @@ define main() {
       x = run_bench(bench, loops, n);
       t1 = get_ms() - t1;
       print "x=", x, " (time: ", t1, " ms)\n";
-      print "Elapsed time for ", loops, " loops: ", t1, " ms; estimation for 10 loops: ", t1 * 10 / loops, " ms\n";
       bench_res1[bench] = (t1 * 10 / loops);
+      print "Elapsed time for ", loops, " loops: ", t1, " ms; estimation for 10 loops: ", bench_res1[bench], " ms\n";
     } else {
       bench_res1[bench] = -1;
     }
   }
-  print "Summary for 10 Loops:\n";
+  print "Times for all benchmarks (10 loops, ms):\n";
+  print "BM Results (bc)        : ";
+  /* print "DEBUG:'", mynumformat1(123456, 7), "'\n"; */
   for (bench = bench1; bench <= bench2; bench++) {
-    print "Benchmark ", bench, ": ", bench_res1[bench], " ms\n";
+    print mynumformat1(bench_res1[bench], 7), " ";
   }
+  print "\n";
   print "Total elapsed time: ", (get_ms() - start_t), " ms\n";
   return(0);
 }
 
 
-main();
+rc = main();
 halt; /* end program (GNU bc) */
 /* end */

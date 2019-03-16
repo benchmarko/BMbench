@@ -1,14 +1,16 @@
-(* bmbench.mi (Modula-2)
- * (c) Benchmarko, 2002
+(*
+ * BM Bench - bmbench.p (Modula-2)
+ * (c) Marco Vieth, 2002
+ * http://www.benchmarko.de
  *
  * 06.05.2002  0.01
  * 11.05.2002  0.02  bench1 = (sum 1..n) mod 65536
  * 20.07.2002  0.04  more benchmarks
+ * 24.01.2003  0.05  output format changed
  *
- * usage:
- * bmbench [bench] [n]
+ * Usage:
+ * bmbench [bench1] [bench2] [n]
  *
- * To DO: bench05!
  *)
 
 (*
@@ -23,7 +25,10 @@
  * /usr/share/doc/packages/mocka/UserMan.ps.gz
  * /usr/share/doc/packages/mocka/example/bench1.mi , bench2.mi
  *
+ * Notes:
+ * - <neg. number> MOD 65536  seems to be different than in Pascal
  * - LREAL::LFLOAT() seems to be faster than MathLib::realL()
+ *
  *)
 
 MODULE bmbench;
@@ -269,7 +274,7 @@ MODULE bmbench;
     END;
 
     pas1[0][0] := 1; pas1[1][0] := 1; (* set first column *)
-
+    (* WriteString('DEBUG: loops='); WriteInt(loops, 1); WriteLn; *)
     WHILE (loops > 0) DO
       DEC(loops);
       FOR i := 2 TO n DO
@@ -288,7 +293,9 @@ MODULE bmbench;
         END;
       END;
 
-      x := x + pas1[n MOD 2][k] MOD 65536; (* % 65536 *)
+      (* WriteString('DEBUG: pas1[n MOD 2]='); WriteInt(pas1[n MOD 2][k], 1); WriteLn; *) (* -531600832 *)
+      x := x + (pas1[n MOD 2][k] - (pas1[n MOD 2][k] DIV 65536) * 65536); (* MOD 65536 seems to be different... *)
+      (* WriteString('DEBUG: curr_x='); WriteInt(x, 1); WriteLn; *) (* 27200 *)
 
       IF (loops > 0) THEN  (* some more loops left? *)
         x := x - 27200;    (* yes, set x back to 0 (assuming n even) *)
@@ -355,12 +362,81 @@ MODULE bmbench;
 
 
   PROCEDURE atoi(VAR s: ARRAY OF CHAR) : INTEGER;
-  VAR num:           (* WriteString('Error: bench01: x='); WriteInt(x, 1); WriteLn; *)LONGCARD;
+  VAR num: LONGCARD;
   VAR done: BOOLEAN;
   BEGIN
     Str2Num(num, 10, s, done);
     RETURN(num);
   END atoi;
+
+
+  (* Here we compute the number of "significant" bits for positive numbers (which means 53 for double) *)
+  PROCEDURE checkbits_short1() : INTEGER;
+  VAR num, last_num : SHORTCARD;
+  VAR bits : INTEGER;
+  BEGIN
+    num := 1;
+    last_num := 0;
+    bits := 0;
+    REPEAT
+      last_num := num;
+      num := num * 2;
+      num := num + 1;
+      bits := bits + 1;
+    UNTIL ( (((num - 1) DIV 2) <> last_num) OR (bits >= 101) );
+    RETURN(bits);
+  END checkbits_short1;
+
+
+  PROCEDURE checkbits_int1() : INTEGER;
+  VAR num, last_num : INTEGER;
+  VAR bits : INTEGER;
+  BEGIN
+    num := 1;
+    last_num := 0;
+    bits := 0;
+    REPEAT
+      last_num := num;
+      num := num * 2;
+      num := num + 1;
+      bits := bits + 1;
+    UNTIL ( (((num - 1) DIV 2) <> last_num) OR (bits >= 101) );
+    RETURN(bits);
+  END checkbits_int1;
+
+
+  PROCEDURE checkbits_float1() : INTEGER;
+  VAR num, last_num : REAL;
+  VAR bits : INTEGER;
+  BEGIN
+    num := 1.0;
+    last_num := 0.0;
+    bits := 0;
+    REPEAT
+      last_num := num;
+      num := num * 2.0;
+      num := num + 1.0;
+      bits := bits + 1;
+    UNTIL ( (((num - 1.0) / 2.0) <> last_num) OR (bits >= 101) );
+    RETURN(bits);
+  END checkbits_float1;
+
+
+  PROCEDURE checkbits_double1() : INTEGER;
+  VAR num, last_num : LONGREAL;
+  VAR bits : INTEGER;
+  BEGIN
+    num := 1.0;
+    last_num := 0.0;
+    bits := 0;
+    REPEAT
+      last_num := num;
+      num := num * 2.0;
+      num := num + 1.0;
+      bits := bits + 1;
+    UNTIL ( (((num - 1.0) / 2.0) <> last_num) OR (bits >= 101) );
+    RETURN(bits);
+  END checkbits_double1;
 
 
   PROCEDURE main(argc: SHORTCARD; VAR argv: ArgTable);
@@ -399,7 +475,12 @@ MODULE bmbench;
       HALT; (* error *)
     END;
 
-    WriteString('BM Bench v0.4 (Modula-2)'); WriteLn;
+    WriteString('BM Bench v0.5 (Modula-2) -- (short:'); WriteInt(checkbits_short1(), 1);
+    WriteString(' int:'); WriteInt(checkbits_int1(), 1);
+    WriteString(' float:'); WriteInt(checkbits_float1(), 1);
+    WriteString(' double:'); WriteInt(checkbits_double1(), 1);
+    WriteString(') version: ?'); WriteLn;
+    WriteString('(c) Marco Vieth, 2002'); WriteLn;
 
     FOR bench := bench1 TO bench2 DO
       loops := 1;
@@ -429,16 +510,18 @@ MODULE bmbench;
         WriteString('x='); WriteInt(x, 1); WriteString(' (time: '); WriteInt(t1, 1); WriteString(' ms)'); WriteLn;
 
         WriteString('Elapsed time for '); WriteInt(loops, 1); WriteString(' loops: '); WriteInt(t1, 1);
-        WriteString(' ms; estimation for 10 loops: '); WriteInt(t1 * 10 DIV loops, 1); WriteString(' ms'); WriteLn;
         bench_res1[bench] := t1 * 10 DIV loops;
+        WriteString(' ms; estimation for 10 loops: '); WriteInt(bench_res1[bench], 1); WriteString(' ms'); WriteLn;
       ELSE
         bench_res1[bench] := -1;
       END;
     END;
-    WriteString('Summary for 10 Loops:'); WriteLn;
+    WriteString('Times for all benchmarks (10 loops, ms):'); WriteLn;
+    WriteString('BM Results (Modula-2)  : ');
     FOR bench := bench1 TO bench2 DO
-      WriteString('Benchmark '); WriteInt(bench, 1); WriteString(': '); WriteInt(bench_res1[bench], 1); WriteString(' ms'); WriteLn;
+      WriteInt(bench_res1[bench], 7); WriteString(' ');
     END;
+    WriteLn;
     WriteString('Total elapsed time: '); WriteInt(get_ms() - start_t, 1); WriteString(' ms'); WriteLn;
   END main;
 

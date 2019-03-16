@@ -1,11 +1,13 @@
 #!/usr/bin/perl -w
 # BM Bench - bmbench.pl (Perl 5)
-# (c) Benchmarko, 2002
+# (c) Marco Vieth, 2002
+# http://www.benchmarko.de
 #
 # 06.05.2002  0.01
 # 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
 # 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
 # 20.07.2002  0.04  some errors corrected
+# 24.01.2003  0.05  output format changed
 #
 # Usage:
 # perl bmbench.pl [bench1] [bench2] [n]
@@ -26,6 +28,47 @@ $::TimeHiResFunc = undef();
 #
 # loops may be increased to produce a longer runtime without changing the result.
 #
+
+
+
+#
+# bench00 (Integer 16 bit)
+# (sum of 1..n) mod 65536
+#
+sub bench00($$) {
+  use integer; # it is possible to use integer arithmetic
+  my($loops, $n) = @_;
+  my $x = 0;
+  my $sum1 = (($n / 2) * ($n + 1)) & 0xffff; # assuming n even!
+  # sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
+  my $n_div_65536 = ($n >> 16) & 0xffff;
+  my $n_mod_65536 = $n & 0xffff;
+  #print "DEBUG: n=$n, sum1=$sum1, n_div_65536=$n_div_65536, n_mod_65536=$n_mod_65536\n";
+  while ($loops-- > 0) {
+    # simulate summation with 16 bit borders...
+    for (my $i = $n_div_65536; $i > 0; $i--) {
+      for (my $j = 65535; $j > 0; $j--) {
+        $x += $j;
+        #$x &= 0xffff;
+      }
+    }
+    for (my $j = $n_mod_65536; $j > 0; $j--) {
+      $x += $j;
+      #$x &= 0xffff;
+    }
+    $x &= 0xffff;
+    #print "DEBUG: x0=$x, x-sum1=". ($x - $sum1) ."\n";
+    if ($loops > 0) {  # some more loops left?
+      #print "DEBUG: x=$x, x-sum1=". ($x - $sum1) ."\n";
+      $x -= $sum1;     # yes, set x back to 0 (assuming n even)
+      if ($x != 0) {   # now x must be 0 again
+        $x++;          # force error for many wrong computations
+        last;          # Error
+      }
+    }
+  }
+  return ($x & 0xffff);
+}
 
 
 #
@@ -215,6 +258,7 @@ sub bench05($$) {
 }
 
 
+=for nobody
 #
 # bench05 (Integer 32 bit) (Array implementation (is slower))
 # n over n/2 mod 65536 (Pascal's triangle)
@@ -260,6 +304,9 @@ sub bench05_array_ok1($$) {
   }
   return $x;
 }
+#=begin comment text
+#=end comment text
+=cut
 
 
 #
@@ -273,10 +320,14 @@ sub run_bench($$$) {
   my($bench, $loops, $n) = @_;
   my $x = 0;
   my $check1 = 0;
-  if ($bench == 1) {
+  if ($bench == 0) {
+    $x = bench00($loops, $n);
+    $check1 = 10528;
+
+  } elsif ($bench == 1) {
     $x = bench01($loops, $n);
     $check1 = 10528;
-  
+
   } elsif ($bench == 2) {
     $x = bench02($loops, $n);
     $check1 = 10528;
@@ -320,7 +371,7 @@ sub private_init_HiRes() {
   } elsif (eval { require 'syscall.ph'; }) {
     # ...otherwise try to use a syscall to gettimeofday, which will also return a float
     $::TimeHiResFunc = sub {
-      my $tval = pack("LL", ());
+      my $tval = pack("LL", ()); # adapt for 64 bit Perl!
       syscall(&SYS_gettimeofday, $tval, 0) != -1 or die "gettimeofday: $!";
       my @time1 = unpack("LL", $tval);
       return $time1[0] + ($time1[1] / 1_000_000);
@@ -347,6 +398,35 @@ sub get_ms() {
 }
 
 
+# Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
+sub checkbits_int1() {
+  use integer; # we need integer
+  my $num = 1;
+  my $last_num = 0;
+  my $bits = 0;
+  do {
+    $last_num = $num;
+    $num *= 2;
+    $num++;
+    $bits++;
+  } while ( ((($num - 1) / 2) == $last_num) && ($bits < 101) );
+  return $bits;
+}
+
+sub checkbits_double1() {
+  my $num = 1.0;
+  my $last_num = 0.0;
+  my $bits = 0;
+  do {
+    $last_num = $num;
+    $num *= 2.0;
+    $num++;
+    $bits++;
+  } while ( ((($num - 1.0) / 2.0) == $last_num) && ($bits < 101) );
+  return $bits;
+}
+
+
 #sub print_config() {
 #  if (eval { require Config; }) {
 #    print Config::myconfig();
@@ -356,7 +436,7 @@ sub get_ms() {
 sub main($) {
   #my(@ARGV) = @_;
   my $start_t = get_ms(); # memorize start time
-  my $bench1 = 1;     # first benchmark to test
+  my $bench1 = 0;     # first benchmark to test
   my $bench2 = 5;     # last benchmark to test
   my $n = 1000000;    # maximum number
   my $min_ms = 10000; # minimum runtime for measurement in ms
@@ -374,8 +454,12 @@ sub main($) {
     $n = $ARGV[2];
   }
 
-  print("BM Bench v0.4 (Perl)\n");
-  print("Perl Version: $], osname: $^O\n");
+  my $perl_version = $];
+  $perl_version =~ tr/\n/;/;
+  print("BM Bench v0.5 (Perl) -- (int:", checkbits_int1(), " double:", checkbits_double1(), ") $perl_version, osname: $^O\n");
+  print("(c) Marco Vieth, 2002\n");
+  print("Date: ". localtime(time()) ."\n");
+  #system("uname -a");
 
   for (my $bench = $bench1; $bench <= $bench2; $bench++) {
     my $loops = 1; # number of loops
@@ -400,21 +484,23 @@ sub main($) {
       $x = run_bench($bench, $loops, $n);
       $t1 = get_ms() - $t1;
       printf("x=%d (time: %d ms)\n", $x, $t1);
-      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", $loops, $t1, ($t1 * 10 / $loops));
-      push(@bench_res1, $t1 * 10 / $loops);
+      push(@bench_res1, int($t1 * 10 / $loops));
+      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", $loops, $t1, $bench_res1[$bench - $bench1]);
     } else {
       push(@bench_res1, -1);
     }
   }
-  print "Summary for 10 Loops:\n";
-  my $bench = $bench1;
+  print "Times for all benchmarks (10 loops, ms):\n";
+  print "BM Results (Perl)      : ";
   for (@bench_res1) {
-    printf("Benchmark %d: %d ms\n", $bench++, $_);
+    printf("%7d ", $_);
   }
+  print "\n";
   printf("Total elapsed time: %d ms\n", get_ms() - $start_t);
   return 0;
 }
 
 main(@ARGV);
 
+__END__
 # end

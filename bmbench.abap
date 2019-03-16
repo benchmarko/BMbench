@@ -1,12 +1,17 @@
 *&---------------------------------------------------------------------*
-*& Report  ZMVTEST4                                                    *
+*& Report  ZMVTEST5                                                    *
 *&                                                                     *
 *&---------------------------------------------------------------------*
+*&                                                                     *
+*& 21.08.2002  extended system info                                    *
+*& 04.09.2002  calibration corrected                                   *
+*& 11.02.2003  output format changed                                   *
+*& 19.02.2003  ...                                                     *
 *&                                                                     *
 *&                                                                     *
 *&---------------------------------------------------------------------*
 
-REPORT ZMVTEST4 .
+REPORT ZMVTEST5 LINE-SIZE 120.
 
 PARAMETERS: BENCH1 TYPE I DEFAULT 1,
             BENCH2 TYPE I DEFAULT 5,
@@ -26,8 +31,15 @@ EXIT.
 *
 
 * with integer arithmetic we get an overflow...
-
-
+*
+* Notes:
+* - Data types:
+*   - I (integer, 4 byte): -2147483648 bis 2147483647
+*   - P (packed): -2147483648 bis 2147483647
+*   - F (floating point): 2,225073E-308 bis 1,769313E+308
+*
+*
+*
 *---------------------------------------------------------------------*
 *       FORM BENCH01                                                  *
 *---------------------------------------------------------------------*
@@ -623,6 +635,108 @@ FORM GET_MS CHANGING MS TYPE I.
 ENDFORM.
 
 
+*FROM GET_MS_TEST1 CHANGING MS TYPE I.
+*DATA: P1 TYPE timestampl.
+*  GET TIME STAMP FIELD P1.
+* *TODO: MS = P1 / 1000.
+*ENDFORM.
+
+
+*---------------------------------------------------------------------*
+*       FORM CHECKBITS_INT1                                           *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  BITS                                                          *
+*---------------------------------------------------------------------*
+FORM CHECKBITS_INT1 CHANGING BITS TYPE I.
+  DATA: NUM TYPE I VALUE 1,
+        TMP_NUM TYPE I,
+        LAST_NUM TYPE I VALUE 0.
+
+  BITS = 0.
+  CATCH SYSTEM-EXCEPTIONS ARITHMETIC_ERRORS = 4.
+    WHILE BITS < 101.
+      BITS = BITS + 1. "increment before overflow
+      LAST_NUM = NUM.
+      NUM = NUM * 2.
+      NUM = NUM + 1.
+      TMP_NUM = ( NUM - 1 ) DIV 2.
+      IF TMP_NUM <> LAST_NUM.
+        EXIT.
+      ENDIF.
+    ENDWHILE.
+
+  ENDCATCH.
+  IF SY-SUBRC = 4.
+*    WRITE: / 'DEBUG: Overflow! bits=',bits.
+  ENDIF.
+ENDFORM.
+
+
+*---------------------------------------------------------------------*
+*       FORM CHECKBITS_DOUBLE1                                        *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  BITS                                                          *
+*---------------------------------------------------------------------*
+FORM CHECKBITS_DOUBLE1 CHANGING BITS TYPE I.
+  DATA: NUM TYPE F VALUE '1.0',
+        TMP_NUM TYPE F,
+        LAST_NUM TYPE F VALUE '0.0'.
+
+  BITS = 0.
+  WHILE BITS < 101.
+    BITS = BITS + 1.
+    LAST_NUM = NUM.
+    NUM = NUM * 2.
+    NUM = NUM + 1.
+    TMP_NUM = ( NUM - 1 ) / 2.
+    IF TMP_NUM <> LAST_NUM.
+      EXIT.
+    ENDIF.
+  ENDWHILE.
+ENDFORM.
+
+
+* Get and write the kernel information (optional)
+* (taken from RSUVM002...)
+FORM GET_KINFO CHANGING KERNEL_RELEASE TYPE C
+                        KERNEL_PATCH TYPE C.
+  DATA: BEGIN OF KERNEL_VERSION_INFO OCCURS 0,
+          KEY(21)  TYPE C,
+          DATA(59) TYPE C,
+        END OF KERNEL_VERSION_INFO.
+*       KERNEL_RELEASE(10)     TYPE C,
+*       KERNEL_PATCH_LEVEL(10) TYPE C.
+
+*  CLEAR KERNEL_RELEASE.
+*  CLEAR KERNEL_PATCH_LEVEL.
+
+  CALL 'SAPCORE' ID 'ID'    FIELD 'VERSION'
+                 ID 'TABLE' FIELD KERNEL_VERSION_INFO-*SYS*.
+  IF SY-SUBRC = 0.
+    READ TABLE KERNEL_VERSION_INFO INDEX 12.
+    IF SY-SUBRC = 0.
+      IF KERNEL_VERSION_INFO-KEY = 'kernel release'.
+        KERNEL_RELEASE = KERNEL_VERSION_INFO-DATA.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE KERNEL_VERSION_INFO INDEX 15.
+    IF SY-SUBRC = 0.
+      IF KERNEL_VERSION_INFO-KEY = 'kernel patch level'.
+        KERNEL_PATCH = KERNEL_VERSION_INFO-DATA.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+*  WRITE: / 'Kernel rel/patch:', KERNEL_RELEASE.
+*  WRITE: / 'Kernel patch level:', KERNEL_PATCH_LEVEL.
+ENDFORM.  "get_kinfo
+
+
 *---------------------------------------------------------------------*
 *       FORM main                                                     *
 *---------------------------------------------------------------------*
@@ -646,17 +760,49 @@ FORM MAIN USING VALUE(BENCH1) TYPE I
          LEN1 TYPE I,
          LEN2 TYPE I,
          LEN3 TYPE I,
+         B_INT1 TYPE I,
+         B_DOUBLE1 TYPE I,
+         KERNEL_REL(10) TYPE C,
+         KERNEL_PATCH(10) TYPE C,
       BENCH_RES1 TYPE STANDARD TABLE OF I.
 
-  SET RUN TIME CLOCK RESOLUTION HIGH. "is default
+*  SET RUN TIME CLOCK RESOLUTION HIGH. "is default
   PERFORM GET_MS CHANGING T_START.
 
-  WRITE: / 'BM Bench v0.4 (ABAP)'.
-  WRITE: / 'opsys=', SY-OPSYS, ', saprel=', SY-SAPRL.
+  PERFORM CHECKBITS_INT1 CHANGING B_INT1.
+  WRITE B_INT1 TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
+  PERFORM CHECKBITS_DOUBLE1 CHANGING B_DOUBLE1.
+  WRITE B_DOUBLE1 TO NS2 LEFT-JUSTIFIED. LEN2 = STRLEN( NS2 ).
+
+  WRITE: / 'BM Bench v0.5 (ABAP) -- (int:', AT (LEN1) NS1,
+    ' double:', AT (LEN2) NS2, ')'.
+
+  WRITE SY-SYSID TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
+  WRITE SY-SAPRL TO NS2 LEFT-JUSTIFIED. LEN2 = STRLEN( NS2 ).
+  WRITE: / 'sysid=', AT (LEN1) NS1, ', saprel=', AT (LEN2) NS2,
+   ','.
+
+  WRITE SY-HOST TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
+  WRITE SY-OPSYS TO NS2 LEFT-JUSTIFIED. LEN2 = STRLEN( NS2 ).
+  WRITE SY-DBSYS TO NS3 LEFT-JUSTIFIED. LEN3 = STRLEN( NS3 ).
+  WRITE: 'host=', AT (LEN1) NS1, ', opsys=', AT (LEN2) NS2,
+    ', dbsys=', AT (LEN3) NS3.
+
+  PERFORM GET_KINFO CHANGING KERNEL_REL KERNEL_PATCH.
+  WRITE KERNEL_REL TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
+  WRITE KERNEL_PATCH TO NS2 LEFT-JUSTIFIED. LEN2 = STRLEN( NS2 ).
+  WRITE: ', kernel_rel/patch=', AT (LEN1) NS1, '/', AT (LEN2) NS2.
+
+  WRITE: / '(c) Marco Vieth, 2002'.
+  WRITE: / 'Date:', SY-DATUM, SY-UZEIT.
+
+
   BENCH2 = BENCH2 + 1 - BENCH1.
   DO BENCH2 TIMES.
     BENCH = BENCH1 + SY-INDEX - 1.
 
+    T2 = 0.
+    X = 0.
 * We want at least 1001 ms calibration time
     WHILE T2 < 1001 AND X <> -1.
       WRITE BENCH TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
@@ -704,17 +850,20 @@ FORM MAIN USING VALUE(BENCH1) TYPE I
       APPEND -1 TO BENCH_RES1.
     ENDIF.
   ENDDO.
-  WRITE: / 'Summary for 10 loops:'.
-  LOOP AT BENCH_RES1 INTO T_ESTI10.
-    WRITE BENCH1 TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
-    WRITE T_ESTI10 TO NS2 LEFT-JUSTIFIED. LEN2 = STRLEN( NS2 ).
 
-    WRITE: / 'Benchmark', AT (LEN1) NS1, ':', AT (LEN2) NS2, 'ms'.
-    BENCH1 = BENCH1 + 1.
+  WRITE: / 'Times for all benchmarks (10 loops, ms):'.
+  WRITE: / 'BM Results (ABAP)      : '.
+  LOOP AT BENCH_RES1 INTO T_ESTI10.
+*    WRITE T_ESTI10 TO NS2 LEFT-JUSTIFIED. LEN2 = STRLEN( NS2 ).
+*    WRITE: AT (LEN2) NS2.
+    WRITE: T_ESTI10.
   ENDLOOP.
 
   PERFORM GET_MS CHANGING T2.
   T2 = T2 - T_START.
-  WRITE T2 TO NS1 LEFT-JUSTIFIED. LEN1 = STRLEN( NS1 ).
+  WRITE T2 TO NS1 LEFT-JUSTIFIED NO-GROUPING. LEN1 = STRLEN( NS1 ).
   WRITE: / 'Total elapsed time:', AT (LEN1) NS1, 'ms'.
 ENDFORM.
+*
+* end
+*

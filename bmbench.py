@@ -1,10 +1,12 @@
 #! /usr/bin/env python
-# BM Bench - bmbench.py
-# (c) Benchmarko, 2002
+# BM Bench - bmbench.py (Python)
+# (c) Marco Vieth, 2002
+# http://www.benchmarko.de
 #
 # 06.05.2002  0.01
 # 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536
 # 20.07.2002  0.04  some errors corrected
+# 24.01.2003  0.05  output format changed
 #
 #
 # Usage:
@@ -20,6 +22,10 @@
 # (including a very readable Tutorial).
 # Other references:
 # pydoc -p 8080 to start a Python documentation server
+#
+# Data types are nearly implicit:
+# - integer (32 bit), if it gets too long -> long integer (any number of bits, marked with L)
+# - floating point (marked with dot)
 #
 
 #
@@ -39,6 +45,36 @@ import time
 #
 # loops may be increased to produce a longer runtime without changing the result.
 #
+
+#
+# bench00 (Integer 16 bit) -- adapt!!
+# (sum of 1..n) mod 65536
+#
+def bench00(loops, n):
+  x = 0
+  sum1 = ((n / 2) * (n + 1)) & 0xffff # this produces an integer
+  # sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
+  n_div_65536 = (n >> 16) & 0xffff
+  n_mod_65536 = n & 0xffff;
+  #print 'DEBUG: sum1='+ str(sum1) +', n_div='+ str(n_div_65536) +', n_mod='+ str(n_mod_65536)
+  while loops > 0:
+    loops = loops - 1
+
+    # simulate summation with 16 bit borders...
+    for i in range(n_div_65536, 0, -1):
+      for j in range(65535, 0, -1):
+        x += j
+    for j in range(n_mod_65536, 0, -1):
+      x += j
+
+    x &= 0xffff
+
+    if (loops > 0):   # some more loops left
+      x -= sum1       # yes, set x back to 0 (assuming n even)
+      if x != 0:      # now x must be 0 again
+        x = x + 1     # force error for many wrong computations
+        break         # raise ValueError, "bench01: x=" + str(x)
+  return int(x & 0xffff)
 
 
 #
@@ -210,7 +246,7 @@ def run_bench(bench, loops, n):
   x = 0
   check1 = 0
   if bench == 0:
-    #x = bench00(loops, n)
+    x = bench00(loops, n)
     check1 = 10528
   elif bench == 1:
     x = bench01(loops, n)
@@ -245,9 +281,52 @@ def get_ms():
   return time.time() * 1000
 
 
+def checkbits_short1():
+  num = 1 # get's long integer later...
+  last_num = 0
+  bits = 0
+  while (bits < 101):
+    last_num = num
+    num <<= 1 # force (short) intrger operation (num *= 2)
+    num += 1
+    bits += 1
+    if (((num - 1) / 2) != last_num):
+      break
+  return bits
+
+
+def checkbits_int1():
+  num = 1 # get's long integer later...
+  last_num = 0
+  bits = 0
+  while (bits < 101):
+    last_num = num
+    num *= 2
+    num += 1
+    bits += 1
+    if (((num - 1) / 2) != last_num):
+      break
+  return bits
+
+
+def checkbits_double1():
+  num = 1.0
+  last_num = 0.0
+  bits = 0
+  while (bits < 101):
+    last_num = num
+    num *= 2.0
+    num += 1.0
+    bits += 1
+    if (((num - 1.0) / 2.0) != last_num):
+      break
+  return bits
+
+
+
 def main(argv=[]):
   start_t = get_ms()  # memorize start time
-  bench1 = 1          # first benchmark to test
+  bench1 = 0          # first benchmark to test
   bench2 = 5          # last benchmark to test
   n = 1000000         # maximum number
   min_ms = 10000      # minimum runtime for measurement in ms
@@ -264,8 +343,11 @@ def main(argv=[]):
     if argv[3:]:
       n = int(argv[3]);
 
-  print 'BM Bench v0.4 (Python)'
-  print 'Python version:', sys.version, ' platform:', sys.platform
+  python_version = sys.version.replace('\n', '')
+  print 'BM Bench v0.5 (Python) -- (short:%d int:%d double:%d)' %(checkbits_short1(), checkbits_int1(), checkbits_double1()),
+  print 'version: '+ python_version +'; platform:', sys.platform
+  print '(c) Marco Vieth, 2002'
+  print 'Date:', time.ctime(time.time())
 
   for bench in range(bench1, bench2 + 1):
     loops = 1  # number of loops
@@ -290,16 +372,16 @@ def main(argv=[]):
       x = run_bench(bench, loops, n)
       t1 = get_ms() - t1
       print "x=%d (time: %d)" % (x, t1)
-      print "Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms" % (loops, t1, (t1 * 10 / loops))
-      bench_res1.append(t1 * 10 / loops)
+      bench_res1.append(int(t1 * 10 / loops))
+      print "Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms" % (loops, t1, bench_res1[bench - bench1])
     else:
       bench_res1.append(-1)
 
-  print "Summary for 10 Loops:"
-  bench = bench1
+  print 'Times for all benchmarks (10 loops, ms):'
+  print 'BM Results (Python)    :',
   for br in bench_res1:
-    print "Benchmark %d: %d ms" % (bench, br)
-    bench = bench + 1
+    print "%7d" % (br),
+  print
 
   print "Total elapsed time: %d ms" % (get_ms() - start_t)
 

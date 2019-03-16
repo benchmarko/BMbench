@@ -1,12 +1,17 @@
-/* bmbench.c
- * (c) Benchmarko, 2002
+/*
+ * BM Bench - bmbench.c (C)
+ * (c) Marco Vieth, 2002
+ * http://www.benchmarko.de
  *
  * 06.05.2002  0.01
  * 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
  * 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
  * 20.07.2002  0.04  some errors corrected
+ * 24.01.2003  0.05  output format changed
+ * 13.04.2003        malloc size for bench_res1 corrected
  *
- * usage:
+ *
+ * Usage:
  * bmbench [bench1] [bench2] [n]
  *
  */
@@ -28,9 +33,11 @@
   *
   */
 
+/* #define BENCH03_ODD */ /* bench03: put only odd numbers in sieve? */
+
 #include <stdio.h>
 #include <stdlib.h>
-/* #include <time.h> */ /* time */
+#include <time.h>  /* only to get date with ctime(), time() */
 
 #ifdef __BORLANDC__
 #define Use_Windows
@@ -165,8 +172,7 @@
   }
 
 
-
-
+#ifndef BENCH03_ODD /* not defined */
   /*
    * bench03 (Integer)
    * number of primes below n (Sieve of Eratosthenes)
@@ -194,21 +200,22 @@
     SIEVE_RES_BIT(sieve1, 1);
     while (loops-- > 0) {
       /* initialize sieve */
-      for (i = 2; i <= n; i++) {
+      for (i = 2; i < n; i ++) {
         SIEVE_SET_BIT(sieve1, i);
       }
       /* compute primes */
-      for (i = 2; (i * i) <= n; i++) {
+      for (i = 2; (i * i) < n; i++) {
         if (SIEVE_TEST_BIT(sieve1, i) > 0) {
           /* fprintf(stderr, "[%ld] ", (long)i); */
 
-          for (j = i * i; j <= n; j += i) {
+          for (j = i * i; j < n; j += i) {
             SIEVE_RES_BIT(sieve1, j);
           }
         }
       }
+      
       /* count primes */
-      for (i = 0; i <= n; i++) {
+      for (i = 2; i < n; i++) {
         if (SIEVE_TEST_BIT(sieve1, i) > 0) {
           x++;
         }
@@ -231,6 +238,83 @@
     /* fprintf(stderr, "end: x=%ld\n", (long)x); */
     return x;
   }
+
+
+#else /* BENCH03_ODD */
+
+
+  /*
+   * bench03_odd (Integer)
+   * 13.04.2003 put only odd numbers in sieve. Certainly this is faster but we don't use it.
+   */
+#define SIEVE_SET_BIT(sieve, a) (sieve[(unsigned)((a>>1) >> 3)] |= (1 << ((a>>1) & 7)))
+#define SIEVE_RES_BIT(sieve, a) (sieve[(unsigned)((a>>1) >> 3)] &= ~(1 << ((a>>1) & 7)))
+#define SIEVE_TEST_BIT(sieve, a) (sieve[(unsigned)((a>>1) >> 3)] & (1 << ((a>>1) & 7)))
+  static num_t bench03(int loops, num_t n) {
+    typedef unsigned char sieve_t;
+    num_t x = 0; /* number of primes below n */
+    unsigned int sieve1_size = (unsigned int)(((n / 2) / 2 / 8) + 1);
+    num_t i, j;
+    /* allocate memory ... */
+    sieve_t MY_FAR *sieve1 = MY_MALLOC(sieve1_size * sizeof(sieve_t));
+    /* For some reason it would be faster on my machine to use n instead of n/8; valloc() is no improvement */
+    n /= 2; /* compute only up to n/2 */
+    /* fprintf(stderr, "DDD: %p\n", sieve); */
+
+    if (sieve1 == NULL) {
+      return -1; /* error */
+    }
+    /* fprintf(stderr, "DDD: %d\n", (n >> 3)); */
+    /* SIEVE_RES_BIT(sieve1, 0); */ /* slot 0: 0 and 1 are no primes; unused */
+    SIEVE_SET_BIT(sieve1, 0); /* we save prime 2 in slot 0! */
+
+    /* we don't put the prime 2 in the sieve */
+    while (loops-- > 0) {
+      /* initialize sieve */
+      for (i = 3; i < n; i += 2) {
+        SIEVE_SET_BIT(sieve1, i);
+      }
+      /* compute primes */
+      for (i = 3; (i * i) < n; i += 2) {
+        if (SIEVE_TEST_BIT(sieve1, i) > 0) {
+          /* fprintf(stderr, "[%ld] ", (long)i); */
+
+          for (j = i * i; j < n; j += 2 * i) {
+            SIEVE_RES_BIT(sieve1, j);
+          }
+        }
+      }
+      
+      /* x++; */ /* we know that 2 is a prime */
+      /* count primes */
+      /* For some reason this is very fast with gcc -O2... (slot floor(1/2)=0 counts for prime 2!) */
+      /* if you modify x here (e.g. set to 0) -> it will get slower!!?? */
+      for (i = 1; i < n; i += 2) {
+        if (SIEVE_TEST_BIT(sieve1, i) > 0) {
+          /* fprintf(stderr, "DEBUG: %d\n", (int)i); */
+          x++;
+        }
+      }
+
+      /* check prime count */
+      if (loops > 0) {  /* some more loops left? */
+        x -= 41538L;    /* yes, set x back to 0 (number of primes below 1000000) */
+        if (x != 0) {   /* now x must be 0 again */
+          x++;
+          break;        /* Error (cannot exit here because of malloc...) */
+        }
+      }
+    }
+
+    /* free memory */
+    if (sieve1 != NULL) {
+      MY_FREE(sieve1);
+      sieve1 = NULL;
+    }
+    /* fprintf(stderr, "end: x=%ld\n", (long)x); */
+    return x;
+  }
+#endif /* BENCH03_ODD */
 
 
   /*
@@ -422,13 +506,76 @@ static bmtime_t get_ms(void) {
 }
 
 
+  static time_t *get_time1(void) {
+    static time_t t;  /* need static because we return a pointer... */
+    t = time(NULL);
+    return(&t);
+  }
+
+
+  /* Here we compute the number of "significant" bits for positive numbers (which means 53 for double) */
+  static int checkbits_short1(void) {
+    short num = 1;
+    short last_num = 0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2;
+      num++;
+      bits++;
+    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  static int checkbits_int1(void) {
+    int num = 1;
+    int last_num = 0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2;
+      num++;
+      bits++;
+    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  static int checkbits_float1(void) {
+    float num = 1.0;
+    float last_num = 0.0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2.0;
+      num++;
+      bits++;
+    } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  static int checkbits_double1(void) {
+    double num = 1.0;
+    double last_num = 0.0;
+    int bits = 0;
+    do {
+      last_num = num;
+      num *= 2.0;
+      num++;
+      bits++;
+    } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  // --------------------------------------------------------
+
+
 /* #define MAX_BENCH (5 + 1) */
 
 int main(int argc, char **argv) {
   bmtime_t start_t = get_ms(); /* memorize start time */
   int bench1 = 0;       /* first benchmark to test */
   int bench2 = 5;       /* last benchmark to test */
-  num_t n = 1000000L;	/* maximum number */
+  num_t n = 1000000L;   /* maximum number */
   int min_ms = 10000;   /* minimum runtime for measurement in ms */
   int bench = 0;
   int *bench_res1 = NULL;
@@ -444,14 +591,17 @@ int main(int argc, char **argv) {
     n = atol(argv[3]);
   }
 
-  if ((bench_res1 = malloc((bench2 - bench1 + 1) * sizeof(int))) == NULL) {
+  if ((bench_res1 = malloc((bench2 + 1) * sizeof(int))) == NULL) {
     fprintf(stderr, "Error: malloc(bench_res1)\n");
     exit(1);
   }
 
-  printf("BM Bench v0.4 (C)\n");
-  printf(MY_VERSION);
-
+  printf("BM Bench v0.5 (C) -- (short:%d int:%d float:%d double:%d) ", checkbits_short1(), checkbits_int1(),
+    checkbits_float1(), checkbits_double1());
+  printf(MY_VERSION); /* maybe multiple arguments! */
+  printf("(c) Marco Vieth, 2002\n");
+  printf("Date: %s", ctime(get_time1()));
+  
   for (bench = bench1; bench <= bench2; bench++) {
     int loops = 1;   /* number of loops */
     num_t x = 0;     /* result from benchmark */
@@ -478,16 +628,18 @@ int main(int argc, char **argv) {
       x = run_bench(bench, loops, n);
       t1 = get_ms() - t1;
       printf("x=%ld (time: %d ms)\n", (long)x, (int)t1);
-      printf("Elapsed time for %d loops: %ld ms; estimation for 10 loops: %ld ms\n", loops, (long)t1, ((long)t1 * 10 / loops));
       bench_res1[bench] = (int)(t1 * 10 / loops);
+      printf("Elapsed time for %d loops: %ld ms; estimation for 10 loops: %ld ms\n", loops, (long)t1, ((long)bench_res1[bench]));
     } else {
       bench_res1[bench] = -1;
     }
   }
-  printf("Summary for 10 Loops:\n");
+  printf("Times for all benchmarks (10 loops, ms):\n");
+  printf("BM Results (C)         : ");
   for (bench = bench1; bench <= bench2; bench++) {
-    printf("Benchmark %d: %d ms\n", bench, bench_res1[bench]);
+    printf("%7d ", bench_res1[bench]);
   }
+  printf("\n");
   printf("Total elapsed time: %ld ms\n", (long)(get_ms() - start_t));
   if (bench_res1 != NULL) {
     free(bench_res1);

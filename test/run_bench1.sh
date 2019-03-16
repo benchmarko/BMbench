@@ -1,9 +1,45 @@
 #!/bin/sh
 # run_bench1.sh
+# Marco Vieth, 2002 (http://www.benchmarko.de)
+#
+# 29.01.2003  0.041 some improvements
+# 05.04.2003  0.05  define tools at the beginning
+#
+#
 #
 # Usage:
-# ./run_bench1.sh | tee 00results1_log_linux1.txt
-# (./run_bench1.sh 2>&1 | tee 00results1_log_linux1.txt)
+# ./run_bench1.sh > 00results1_log_linux05.txt
+# (./run_bench1.sh | tee 00results1_log_linux05.txt)
+#
+
+#
+#
+#
+AWK="gawk"
+BWBASIC="bwbasic"
+BC="bc"
+GCC="gcc"
+HTCOBOL="htcobol -L$HOME/bin"
+GFORTH="gforth"
+G77="g77"
+F2C="f2c"
+JAVADIR_SUN="/usr/lib/SunJava1-1.1.8/bin"
+JAVADIR_IBM="/usr/lib/IBMJava2-1.3.0/bin"
+GUAVAC="/usr/lib/guavac/bin/guavac"
+JS_NGS="js"
+JS_RHINOJAR="js.jar"
+JS_SPIDERMONKEY="js_sp"
+CLISP="clisp"
+MOCKA="mocka"
+GPC="gpc"
+P2C="p2c"
+PERL4="perl4"
+PERL="perl"
+PYTHON="python"
+GST="gst"
+TCLSH="tclsh"
+#
+#
 #
 
 
@@ -23,81 +59,100 @@ SYSNAME=`uname -s`
 # e.g. Linux
 
 echo $SYSNAME
+date
 
 #echo "." > /dev/stderr
 echo ""
 echo "----------"
 echo "AWK"
-gawk --version
-(time gawk -f ./bmbench.awk) 2>&1
+$AWK --version
+(time $AWK -f ./bmbench.awk) 2>&1
 
 
 echo ""
 echo "----------"
 echo "bwbasic"
-(time bwbasic ./bmbench_bw.bas) 2>&1
+(time $BWBASIC ./bmbench.bas) 2>&1
 
 echo ""
 echo "----------"
 echo "BC"
 export BC_LINE_LENGTH=80
-(time bc ./bmbench.bc) 2>&1
+(time $BC ./bmbench.bc) 2>&1
 
 echo "----------"
 echo "C (-O0)"
-(gcc -v) 2>&1
-#gcc -Wall -pedantic bmbench.c -o bmbench_c_o0_${SYSNAME}
-gcc -Wall -Wtraditional bmbench.c -o bmbench_c_o0_${SYSNAME}
+($GCC -v) 2>&1
+# -pedantic could slow down code!
+$GCC -Wall -Wtraditional bmbench.c -o bmbench_c_o0_${SYSNAME}
 (time ./bmbench_c_o0_${SYSNAME}) 2>&1
 
 echo "----------"
 echo "C (-O2)"
-(gcc -v) 2>&1
-gcc -Wall -Wtraditional -O2 bmbench.c -o bmbench_c_o2_${SYSNAME}
+#($GCC -v) 2>&1
+$GCC -Wall -Wtraditional -O2 bmbench.c -o bmbench_c_o2_${SYSNAME}
 (time ./bmbench_c_o2_${SYSNAME}) 2>&1
+
+
+echo "----------"
+echo "Cobol (htcobol)"
+#($HTCOBOL -hhh) 2>&1
+$HTCOBOL -o bmbench_cob_${SYSNAME}
+(time ./bmbench_cob_${SYSNAME}) 2>&1
+
 
 echo "----------"
 echo "Forth"
-#gforth bmbench.fs -e bye
-(time gforth ./bmbench.fs -e bye) 2>&1
+($GFORTH -v) 2>&1
+(time $GFORTH ./bmbench.fs -e bye) 2>&1
 
 #Benchmarks:
 #bubble.fs siev.fs matrix.fs fib.fs
 
 
 echo "----------"
-echo "Fortran (-O0)"
-(g77 -v) 2>&1
+echo "Fortran (g77 -O0)"
+($G77 -v) 2>&1
 #g77 -Wall -Wsurprising -Wunused -fpedantic bmbench.f -o bmbench_f_o0_${SYSNAME}
-#pedantic seems to compile slow code, so we don't use it!
-g77 -Wall -Wsurprising -Wunused bmbench.f -o bmbench_f_o0_${SYSNAME}
+#-fpedantic seems to compile slow code, so we don't use it!
+$G77 -Wall -Wsurprising -Wunused bmbench.f -o bmbench_f_o0_${SYSNAME}
 (time ./bmbench_f_o0_${SYSNAME}) 2>&1
 
 echo "----------"
-echo "Fortran (-O2)"
-g77 -Wall -Wsurprising -Wunused bmbench.f -O2 -o bmbench_f_o2_${SYSNAME}
+echo "Fortran (g77 -O2)"
+$G77 -Wall -Wsurprising -Wunused -O2 bmbench.f -o bmbench_f_o2_${SYSNAME}
 (time ./bmbench_f_o2_${SYSNAME}) 2>&1
+
+
+echo "----------"
+echo "Fortran (f2c -O2)"
+ln -s bmbench.f bmbench_f_f2c_${SYSNAME}.f
+($F2C -A -a bmbench_f_f2c_${SYSNAME}.f) 2>&1
+$G77 -O2 bmbench_f_f2c_${SYSNAME}.f -o bmbench_f_f2c_o2_${SYSNAME}
+(time ./bmbench_f_f2c_o2_${SYSNAME}) 2>&1
+
+
 
 echo "----------"
 echo "Java (Sun) (-O)"
-(/usr/lib/SunJava1-1.1.8/bin/java -version) 2>&1
-/usr/lib/SunJava1-1.1.8/bin/javac -O bmbench.java
-(time /usr/lib/SunJava1-1.1.8/bin/java bmbench) 2>&1
-mv ./bmbench.class ./bmbench.class_sun118
+(${JAVADIR_SUN}/java -version) 2>&1
+ln -s bmbench.java bmbench_sun118.java
+${JAVADIR_SUN}/javac -O bmbench_sun118.java
+(time ${JAVADIR_SUN}/java bmbench_sun118) 2>&1
 
 echo "----------"
 echo "Java (IBM) (-O)"
-(/usr/lib/IBMJava2-1.3.0/bin/java -version) 2>&1
-/usr/lib/IBMJava2-1.3.0/bin/javac -O bmbench.java
-(time /usr/lib/IBMJava2-1.3.0/bin/java bmbench) 2>&1
-mv ./bmbench.class ./bmbench.class_ibm130
+(${JAVADIR_IBM}/java -version) 2>&1
+ln -s bmbench.java bmbench_ibm130.java
+${JAVADIR_IBM}/javac -O bmbench_ibm130.java
+(time ${JAVADIR_IBM}/java bmbench_ibm130) 2>&1
 
 echo "----------"
 echo "Java (IBM, compiled with guavac)"
-(/usr/lib/guavac/bin/guavac -version) 2>&1
-/usr/lib/guavac/bin/guavac bmbench.java
-(time /usr/lib/IBMJava2-1.3.0/bin/java bmbench) 2>&1
-mv ./bmbench.class ./bmbench.class_guavac12
+($GUAVAC -version) 2>&1
+ln -s bmbench.java bmbench_guavac12.java
+$GUAVAC bmbench_guavac12.java
+(time ${JAVADIR_IBM}/java bmbench_guavac12) 2>&1
 
 
 echo "----------"
@@ -105,49 +160,80 @@ echo "JavaScript"
 echo "Start browser yourself... (script run_bench_browser1.sh)"
 
 echo "----------"
-echo "JavaScript (NGS) (-O2)"
-js -V
-js -c -O2 bmbench.js
-(time js bmbench.jsc) 2>&1
+echo "JavaScript (NGS js) (-O2)"
+$JS_NGS -V
+$JS_NGS -c -O2 bmbench.js
+(time $JS_NGS bmbench.jsc) 2>&1
 
 echo "----------"
 echo "JavaScript (Rhino)"
-(time /usr/lib/IBMJava2-1.3.0/bin/java -jar js.jar bmbench.js) 2>&1
-# Needs Rhina Java archive: ...rhino1_5R3/js.jar
+(time ${JAVADIR_IBM}/java -jar $JS_RHINOJAR bmbench.js) 2>&1
+# Needs Rhino Java archive: ...rhino1_5R3/js.jar
+
+echo "----------"
+echo "JavaScript (SpiderMonkey)"
+$JS_SPIDERMONKEY -h
+(time $JS_SPIDERMONKEY bmbench.js) 2>&1
+
+
+echo "----------"
+echo "Lisp (clisp)"
+($CLISP --version) 2>&1
+$CLISP -c bmbench.lisp
+(time $CLISP bmbench.fas) 2>&1
 
 
 echo "----------"
 echo "Modula-2"
-echo "q" | mocka
-mocka -noindex -norange -nog -c bmbench
-mocka -p bmbench
+echo "q" | $MOCKA
+$MOCKA -noindex -norange -nog -c bmbench
+$MOCKA -p bmbench
 mv ./bmbench bmbench_mi_${SYSNAME}
 (time ./bmbench_mi_${SYSNAME}) 2>&1
 
+
 echo "----------"
-echo "Pascal (-O2)"
-(gpc -v) 2>&1
-gpc bmbench.p -O2 -o bmbench_p_${SYSNAME}
+echo "Pascal (gpc -O2)"
+($GPC -v) 2>&1
+$GPC bmbench.p -O2 -o bmbench_p_${SYSNAME}
 (time ./bmbench_p_${SYSNAME}) 2>&1
 
 echo "----------"
+echo "Pascal (p2c -O2)"
+$P2C -LHP -a -o bmbench_p2c_${SYSNAME}.c bmbench.p
+$GCC -O2 bmbench_p2c_${SYSNAME}.c -lp2c -o bmbench_p2c_${SYSNAME}
+# we skip -Wall -Wtraditional
+(time ./bmbench_p2c_${SYSNAME}) 2>&1
+
+
+echo "----------"
+echo "Perl 4"
+$PERL4 -v
+(time $PERL4 ./bmbench.pl4) 2>&1
+
+echo "----------"
 echo "Perl"
-perl -v
-(time perl ./bmbench.pl) 2>&1
+$PERL -v
+(time $PERL ./bmbench.pl) 2>&1
+
 
 echo "----------"
 echo "Python (-O)"
-(python -V) 2>&1
-(time python -O ./bmbench.py) 2>&1
+($PYTHON -V) 2>&1
+(time $PYTHON -O ./bmbench.py) 2>&1
+
 
 echo "----------"
 echo "Smalltalk (not yet implemented)"
-gst -v
-#(time ./bmbench_c_o2_${SYSNAME}) 2>&1
+$GST -v
+#(time $GST ./bmbench.st) 2>&1
+
 
 echo "----------"
 echo "Tcl"
-(time tclsh ./bmbench.tcl) 2>&1
+(time $TCLSH ./bmbench.tcl) 2>&1
+
 
 echo "----------"
+date
 echo "finished."

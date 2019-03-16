@@ -2,13 +2,16 @@
 # the next line restarts using tclsh \
 exec tclsh "$0" "$@"
 
-# BM Bench - bmbench.tcl
-# (c) Benchmarko, 2002
+#
+# BM Bench - bmbench.pl (Tcl)
+# (c) Marco Vieth, 2002
+# http://www.benchmarko.de
 #
 # 06.05.2002  0.01
 # 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
 # 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
 # 20.07.2002  0.04  some errors corrected
+# 24.01.2003  0.05  output format changed
 #
 # Usage:
 # tclsh bmbench.tcl [bench1] [bench2] [n]
@@ -41,13 +44,41 @@ exec tclsh "$0" "$@"
   # bench00 (Integer 16 bit)
   # (sum of 1..n) mod 65536
   #
-  # Not available.
+  # (Tcl tries to compute with C longs as long as no floating point number is introdced.)
+  proc bench00 {loops n} {
+    set x 0;
+    set sum1 [expr {(($n / 2) * ($n + 1)) & 0xffff}];
+    set n_div_65536 [expr {($n >> 16) & 0xffff}];
+    set n_mod_65536 [expr {$n & 0xffff}];
+    #puts "DEBUG: sum1=$sum1, n_div=$n_div_65536, n_mod=$n_mod_65536";
+    while {$loops > 0} {
+      incr loops -1;
+      for {set i $n_div_65536} {$i > 0} {incr i -1} {
+        for {set j 65535} {$j > 0} {incr j -1} {
+          incr x $j; # a bit faster than "set x [expr {$x + $j}]"
+        }
+      }
+      for {set j $n_mod_65536} {$j > 0} {incr j -1} {
+        incr x $j; # a bit faster than "set x [expr {$x + $j}]"
+      }
+      set x [expr {$x & 0xffff}];
+      if {$loops > 0} { # some more loops left?
+        incr x -$sum1;  #set x [expr {$x - $sum1}]; # yes, set x back to 0 (assuming n even)
+        if {$x != 0} {  # now x must be 0 again
+          incr x;       # force error for many wrong computations
+          break; #error
+        }
+      }
+    }
+    return [expr {$x & 0xffff}];
+  }
+
 
   #
   # bench01 (Integer 16/32 bit)
   # (sum of 1..n) mod 65536
   #
-  # (Tcl tries to compute with C longs as long as an Floating point number is introdced.)
+  # (Tcl tries to compute with C longs as long as no floating point number is introdced.)
   proc bench01 {loops n} {
     set x 0;
     set sum1 [expr {($n / 2) * ($n + 1)}]; # sum1=1784293664
@@ -340,7 +371,7 @@ proc run_bench {bench loops n} {
   set check1 0;
 
   if {$bench == 0} {
-    #set x [bench00 $loops $n];
+    set x [bench00 $loops $n];
     set check1 10528;
 
   } elseif {$bench == 1} {
@@ -398,9 +429,44 @@ if {[catch get_ms]} {
 }
 
 
+proc checkbits_int1 {} {
+  set num 1;
+  set last_num 0;
+  set bits 0;
+  while {$bits < 101} {
+    set last_num $num;
+    set num [expr {$num * 2}];
+    incr num;
+    incr bits;
+    set oldnum [expr {($num - 1) / 2}];
+    if {$oldnum != $last_num} {
+      break;
+    }
+  }
+  return $bits;
+}
+
+proc checkbits_double1 {} {
+  set num 1.0;
+  set last_num 0.0;
+  set bits 0;
+  while {$bits < 101} {
+    set last_num $num;
+    set num [expr {$num * 2.0}];
+    set num [expr {$num + 1.0}];
+    incr bits;
+    set oldnum [expr {($num - 1.0) / 2.0}];
+    if {$oldnum != $last_num} {
+      break;
+    }
+  }
+  return $bits;
+}
+
+
 proc main {argc argv} {
   set start_t [get_ms]; # memorize start time
-  set bench1 1;       # first benchmark to test
+  set bench1 0;       # first benchmark to test
   set bench2 5;       # last benchmark to test
   set n 1000000;      # maximum number
   set min_ms 10000;   # minimum runtime for measurement in ms
@@ -418,11 +484,8 @@ proc main {argc argv} {
     set n [lindex $argv 2];
   }
 
-  puts "BM Bench v0.4 (Tcl)";
-  puts "This is Tcl [info tclversion] patchlevel [info patchlevel]";
-  puts "library: [info library]";
-  puts "hostname: [info hostname]";
-
+  puts "BM Bench v0.5 (Tcl) -- (int:[checkbits_int1] double:[checkbits_double1]) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
+  puts "Date: [clock format [clock seconds]]";
 #  puts "t1: $tcl_precision";
 #  puts "on platform [$tcl_platform{2}]";
 
@@ -452,19 +515,21 @@ proc main {argc argv} {
       set x [run_bench $bench $loops $n];
       set t1 [expr {[get_ms] - $t1}];
       puts "x=$x (time: $t1 ms)";
-      set t_esti [expr {$t1 * 10 / $loops}];
+      set t_esti [expr {int($t1 * 10 / $loops)}];
       puts "Elapsed time for $loops loops: $t1 ms; estimation for 10 loops: $t_esti ms";
       lappend bench_res $t_esti
     } else {
       lappend bench_res -1
     }
   }
-  puts "Summary for 10 Loops:";
-  set bench $bench1
+  
+  puts "Times for all benchmarks (10 loops, ms):";
+  puts -nonewline "BM Results (Tcl)       : ";
   foreach t1 $bench_res {
-    puts "Benchmark $bench: $t1 ms";
-    incr bench;
+    puts -nonewline [format "%7d " $t1];
   }
+  puts "";
+
   set t1 [expr {[get_ms] - $start_t}];
   puts "Total elapsed time: $t1 ms";
   return 0;

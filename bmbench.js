@@ -1,19 +1,27 @@
-// bmbench.js
-// (c) Benchmarko, 2002
+//
+// BM Bench - bmbench.js (JavaScript)
+// (c) Marco Vieth, 2002
+// http://www.benchmarko.de
 //
 // 06.05.2002  0.01
 // 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
 // 30.05.2002  0.03
 // 18.06.2002  0.031 adapted for standalone JS engines (NSG JS Engine, Rhino, ...)
 // 20.07.2002  0.04  some errors corrected
-
+// 24.01.2003  0.05  output format changed
+// 04.04.2003        navigator platform corrected; use args[0] as first element (as in Java)
 //
-// usage:
+//
+// Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
 //
 
 // Notes:
-// Stand alone NGS JS Engine:
+// This JavaScript can be included in an HTML page to start in a browser or executed
+// by a stand-alone JavaScript engine.
+//
+// Tested with the following JS engines:
+// 1. Stand alone NGS JS Engine:
 // Usage: js bmbench.js [bench1] [bench2] [n]  (or use compiler: js -c -O2 bmbench.js, js bmbench.jsc)
 // - Has no windows, navigator object, but System, System.stdout.writeln, ...
 // - Allows integer arithmetic (int(), isInt()), but Math.floor(), division results float
@@ -26,11 +34,19 @@
 // - Math.min(), Math.Max() return always the first argument (which may be sometimes correct)
 //   Correct line 259: js_vm_to_number (vm, &args[1], &cvt);  =>  js_vm_to_number (vm, &args[i+1], &cvt);
 //
-// Rhino (JS Engine from Mozilla)
-// Usage: java -jar js.jar bmbench.js (or: java -cp js.jar org.mozilla.javascript.tools.shell.Main bmbench.js)
+// 2. Rhino (JS Engine written in JAVA; http://www.mozilla.org/js)
+// Usage: java -jar js.jar bmbench.js (or: java -classpath js.jar org.mozilla.javascript.tools.shell.Main bmbench.js)
 // Compiler: [export CLASSPATH=js.jar]
-//           java -cp js.jar org.mozilla.javascript.tools.jsc.Main -opt 0 bmbench.js
-//           java -cp js.jar bmbench
+//           java -classpath js.jar org.mozilla.javascript.tools.jsc.Main -opt 0 bmbench.js
+//           java -classpath js.jar bmbench
+//
+// 3. SpiderMonkey (JS Engine written in C; http://www.mozilla.org/js/spidermonkey/)
+// Compile SpiderMonkey
+// - gmake BUILD_OPT=1 -f Makefile.ref  (see README.html)
+//   (On my Linux system I get a js shell in Linux_All_OPT.OBJ/js)
+// Usage: js bmbench.js [bench1] [bench2] [n]
+// (Help: echo "help()" | js_sp;  JavaScript-C 1.5 pre-release 5 2003-01-10)
+// (Debugging: js -s ...  for strict)
 //
 //
 
@@ -54,8 +70,37 @@ var myint = Math.floor; // cast to integer
   // (sum of 1..n) mod 65536
   //
   function bench00(loops, n) {
-    //System.out.println("Benchmark 0 not available.");
-    return 0;
+    var x = 0;
+    var sum1 = myint(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
+    // do not use '& 0xffff' since this converts sum1 to 0 for stand alone engine
+    var n_div_65536 = (n >> 16);
+    var n_mod_65536 = (n & 0xffff);
+    //window.document.writeln("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
+    while (loops-- > 0) {
+      for (var i = n_div_65536; i > 0; i--) {
+        for (var j = 32767; j > 0; j--) {
+          x += j;
+        }
+        //var j; // already declared
+        for (j = -32768; j < 0; j++) {
+          x += j;
+        }
+      }
+      //var j; // already declared
+      for (j = n_mod_65536; j > 0; j--) {
+        x += j;
+      }
+      if (loops > 0) {   // some more loops left?
+        x %= 65536;      // (do not use &= 0xffff)
+        x -= sum1;       // yes, set x back to 0
+        if (x != 0) {    // now x must be 0 again
+          x++;           // force error for many wrong computations
+          break;         // Error   //alert("Error(bench01): x="+ x);
+        }
+      }
+    }
+    //if (isInt(x)) { System.stdout.writeln("Yes, it is integer!"); }
+    return x % 65536;
   }
 
   //
@@ -125,7 +170,8 @@ var myint = Math.floor; // cast to integer
         sieve1[i] = 1;
       }
       // compute primes
-      for (var i = 2; (i * i) <= n; i++) {
+      //var i; // already declared
+      for (i = 2; (i * i) <= n; i++) {
         if (sieve1[i]) {
           for (var j = i * i; j <= n; j += i) {
             sieve1[j] = 0;
@@ -133,7 +179,8 @@ var myint = Math.floor; // cast to integer
         }
       }
       // count primes
-      for (var i = 0; i <= n; i++) {
+      //var i; // already declared
+      for (i = 0; i <= n; i++) {
         if (sieve1[i]) {
           x++;
         }
@@ -304,24 +351,69 @@ function get_ms() {
 }
 
 
+function getdate1() {
+  var dt = new Date();
+  return(dt.toLocaleString());
+}
+
+
+  // Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
+  function checkbits_int1() {
+    var num = 1;
+    var last_num = 0;
+    var bits = 0;
+    do {
+      last_num = num;
+      num *= 2;
+      num++;
+      bits++;
+    } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+  function checkbits_double1() {
+    var num = 1.0;
+    var last_num = 0.0;
+    var bits = 0;
+    do {
+      last_num = num;
+      num *= 2.0;
+      num++;
+      bits++;
+      //window.document.writeln("DEBUG: bits="+ bits +", num="+ num);
+    } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+    return bits;
+  }
+
+
+function mynumformat1(val, digits) {
+  var str = String(val);
+  var spaces = "";
+  for (var i = str.length; i < digits; i++) {
+    spaces += " ";
+  }
+  return(spaces + str);
+}
+
+
 // main
 function bmbench(args) {
   var start_t = get_ms();  // memorize start time
-  var bench1 = 1;          // first benchmark to test
+  var bench1 = 0;          // first benchmark to test
   var bench2 = 5;          // last benchmark to test
   var n = 1000000;         // maximum number
   var min_ms = 10000;      // minimum runtime for measurement in ms
 
   if (args) {
-    if (args.length > 1) {
-      bench1 = parseInt(args[1]);
+    if (args.length > 0) {
+      bench1 = parseInt(args[0]);
       bench2 = bench1;
     }
-    if (args.length > 2) {
-      bench2 = parseInt(args[2]);
+    if (args.length > 1) {
+      bench2 = parseInt(args[1]);
     }
-    if (args.length > 3) {
-      n = parseInt(args[3]);
+    if (args.length > 2) {
+      n = parseInt(args[2]);
     }
   }
 
@@ -330,24 +422,28 @@ function bmbench(args) {
   var win = window.open("","Result","width=640,height=300,resizable=yes,scrollbars=yes,dependent=yes");
   if (win.focus) { win.focus(); }
   win.document.open("text/html", "reuse");
-  win.document.writeln("<pre>\n");
 
-  win.document.writeln("BM Bench v0.4 (JavaScript)");
+  var js_version = "";
   if (typeof navigator != "undefined") { // only in browsers...
-    win.document.writeln("appCodeName="+ navigator.appCodeName, "+ appName="+ navigator.appName, "+ appVersion="+ navigator.appVersion +", platform="+ navigator.plattform);
-    win.document.writeln("userAgent="+ navigator.userAgent);
+    win.document.writeln("<pre>\n");
+    js_version += " appCodeName="+ navigator.appCodeName +", appName="+ navigator.appName
+      +", appVersion="+ navigator.appVersion +", platform="+ navigator.platform +", userAgent="+ navigator.userAgent;
   }
   if (typeof System != "undefined") { // NGS JS Engine
-    win.document.writeln("Interpreter: "+ System.canonicalHost +", VM.version="+ VM.version);
+    js_version += " Interpreter: "+ System.canonicalHost +", VM.version="+ VM.version;
   }
   if (typeof java != "undefined") { // Rhino or Java active?
     if (java.lang.System) {
       var jls = java.lang.System;
-      win.document.writeln("java.version="+ jls.getProperty("java.version") +", java.vendor="+ jls.getProperty("java.vendor"));
-      win.document.writeln("os.name="+ jls.getProperty("os.name") +", os.arch="+ jls.getProperty("os.arch")
-      +", os.version="+ jls.getProperty("os.version"));
+      js_version += " java.version="+ jls.getProperty("java.version") +", java.vendor="+ jls.getProperty("java.vendor")
+        +"os.name="+ jls.getProperty("os.name") +", os.arch="+ jls.getProperty("os.arch")
+        +", os.version="+ jls.getProperty("os.version");
     }
   }
+  
+  win.document.writeln("BM Bench v0.5 (JavaScript) -- (int:"+ checkbits_int1() +" double:"+checkbits_double1() +")"+ js_version);
+  win.document.writeln("(c) Marco Vieth, 2002");
+  win.document.writeln(getdate1());
 
   for (var bench = bench1; bench <= bench2; bench++) {
     var loops = 1; // number of loops
@@ -375,16 +471,20 @@ function bmbench(args) {
       x = run_bench(bench, loops, n);
       t1 = get_ms() - t1;
       win.document.writeln("x="+ x +" (time: "+ t1 +" ms)");
-      win.document.writeln("Elapsed time for "+ loops +" loops: "+ t1 +" ms; estimation for 10 loops: "+ myint(t1 * 10 / loops) +" ms\n");
       bench_res1[bench] = myint(t1 * 10 / loops);
+      win.document.writeln("Elapsed time for "+ loops +" loops: "+ t1 +" ms; estimation for 10 loops: "+ bench_res1[bench] +" ms\n");
     } else {
       bench_res1[bench] = -1;
     }
   }
-  win.document.writeln("Summary for 10 Loops:");
-  for (var bench = bench1; bench <= bench2; bench++) {
-    win.document.writeln("Benchmark "+ bench +": "+ bench_res1[bench] +" ms");
+  win.document.writeln("Times for all benchmarks (10 loops, ms):");
+  var str = "BM Results (JavaScript): ";
+  //var bench; // already declared
+  for (bench = bench1; bench <= bench2; bench++) {
+    str += mynumformat1(bench_res1[bench], 7) +" ";
+    // normally we also have win.document.write() but for NGS we need to define it.
   }
+  win.document.writeln(str);
   win.document.writeln("Total elapsed time: "+ (get_ms() - start_t) +" ms");
   win.document.writeln("</pre>\n");
   win.document.close();
@@ -402,10 +502,7 @@ function main(args) {
 // simulate window object for stand alone JS engines...
 if (typeof window == "undefined") { // are we outside of a browser in a standalone JS engine?
   function window_open1() {
-    return window;
-  }
-
-  function window_dummy1() {
+    return this;
   }
 
   function window_writeln_system1() { // for NSG JS Engine
@@ -413,11 +510,10 @@ if (typeof window == "undefined") { // are we outside of a browser in a standalo
     for (var i = 0; i < arguments.length; i++) {
       str += arguments[i]; // copy arguments
     }
-    //System.stdout.writeln(str);
-    System.print(str +"\n");
+    System.print(str +"\n"); //or: System.stdout.writeln(str);
   }
 
-  function window_writeln_print1() { // for Rhino
+  function window_writeln_print1() { // for Rhino, SpiderMonkey
     var str = ""; // does not work: arguments.join(" ");
     for (var i = 0; i < arguments.length; i++) {
       str += arguments[i]; // copy arguments
@@ -425,31 +521,29 @@ if (typeof window == "undefined") { // are we outside of a browser in a standalo
     print(str);
   }
 
-  window = new Object(); // how to avoid warining about undefined global 'window'?
+  window = new Object(); // NGS: how to avoid warning about undefined global 'window'?
   window.open = window_open1;
-  //window.focus = window_dummy1;
+  window.focus = window_open1; // dummy
   window.document = new Object();
-  window.document.open = window_dummy1;
-  window.document.close = window_dummy1;
+  window.document.open = window_open1; // dummy
+  window.document.close = window_open1; // dummy
   if (typeof System != "undefined") { // System object is available with NGS JS Engine
     window.document.writeln = window_writeln_system1;
+    window.alert = window.document.writeln; // same as writeln
     // convert to integer with standalone engine, use Math.floor for others...
     eval("myint = int"); // set integer cast; avoid warning 'int' is reserved identifier in browsers
-    window.alert = window_writeln_system1; //or: System.error(str +"\n"), System.stderr.writeln();
     if (typeof ARGS != "undefined") {
-      //if ((Math.max(5, 8) != 8) || (Math.pow(0.5, 2) != 0.25)) {
-      //  window.alert("ERROR: Buggy NGS Javascript Engine! Correct b_math.c and try again...");
-      //} else {
+      if ((Math.max(5, 8) != 8) || (Math.pow(0.5, 2) != 0.25)) {
+        window.alert("ERROR: Buggy NGS Javascript Engine! Correct b_math.c and try again...");
+      } else {
+        ARGS.shift(); // remove program name in ARGV[0]
         main(ARGS); // start script
-      //}
+      }
     }
-  } else { // Rhino, ...
-    window.document.writeln = window_writeln_print1;
-    if (typeof java != "undefined") {
-      window.alert = java.lang.System.out.println;
-    }
+  } else { // Rhino, SpiderMonkey...
     if (typeof arguments != "undefined") {
-      arguments.unshift("0"); // unshift dummy argument
+      window.document.writeln = window_writeln_print1; // for Rhino, SpiderMonkey
+      window.alert = window.document.writeln; // same as writeln
       main(arguments); // start script
     }
   }

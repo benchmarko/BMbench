@@ -1,26 +1,31 @@
-# bmbench.awk
-# (c) Benchmarko, 2002
+#! /bin/awk -f
+# BM Bench - bmbench.awk (awk)
+# (c) Marco Vieth, 2002
+# http://www.benchmarko.de
 #
 # 24.07.2002  0.01
 # 10.08.2002  0.04  bench03; some errors corrected
+# 24.01.2003  0.05  output format changed
 #
 #
 # Usage:
 # gawk -f bmbench.awk [bench1] [bench2] [n]
 #
 # With check:
-# gawk -W lint -f bmbench.awk
+# gawk -W lint --dump-variables -f bmbench.awk
 #
 
 # Compatibility:
 # - Uses 'function', 'return' which is not supported by old awk
-# - Uses systime(), delete <array> which is a gawk extension
+# - Uses split("", <array>) as a portable way (for delete <array>) to delete array
+# - Uses systime() (and optional strftime()) which is a gawk extension
 #
 
 #
 # Info:
 # man gawk
 # info gawk
+# /usr/share/doc/packages/gawk-doc/gawk.ps.gz (GAWK: Effective AWK Programming) (sophisticated!)
 #
 
 # 
@@ -34,9 +39,41 @@
 # loops may be increased to produce a longer runtime without changing the result.
 #
 
+  #
+  # bench00 (Integer 16 bit) (awk computes always in floating point!)
+  # (sum of 1..n) mod 65536
+  #
+  function bench00(loops, n,    x, sum1, n_div_65536, n_mod_65536, i, j) {
+    x = 0;
+    sum1 = ((n / 2) * (n + 1)) % 65536; # assuming n even!
+    # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
+    n_div_65536 = int(n / 65536.0);
+    n_mod_65536 = (n % 65536.0);
+    while (loops-- > 0) {
+      for (i = n_div_65536; i > 0; i--) {
+        for (j = 65535; j > 0; j--) {
+          x += j;
+        }
+      }
+      for (j = n_mod_65536; j > 0; j--) {
+        x += j;
+      }
+      x %= 65536;
+      #printf("DEBUG: x=%d, sum1=%d\n", x, sum1);
+      if (loops > 0) { # some more loops left?
+        x -= sum1;     # yes, set x back to 0 (assuming n even)
+        if (x != 0) {  # now x must be 0 again
+          x++;
+          break;       # error */
+        }
+      }
+    }
+    return(x % 65536);
+  }
+
 
   #
-  # bench01 (Integer 16/32 bit) (awk computes always in floating pont!)
+  # bench01 (Integer 16/32 bit) (awk computes always in floating point!)
   # (sum of 1..n) mod 65536
   #
   function bench01(loops, n,    x, sum1, i) {
@@ -181,17 +218,19 @@
     }
     #pas1 = ();
     #pas2 = ();
-
+    
     while (loops-- > 0) {
       pas1[0] = 1;
       for (i = 2; i <= n; i++) {
 
         # get last line to pas2 (pas2 = pas1) ...
-        #delete pas2; # don't need tihs because we just grow and delete pas1...
+        #delete pas2; # don't need this because we just grow and delete pas1...
         for (j in pas1) {
           pas2[j] = pas1[j]; # copy elements from pas2 into pas1
         }
-        delete pas1;
+
+        # (We do not need to delete the array since we overwrite all elements...)
+        #split("", pas1); # portable way to 'delete pas1'
 
         pas1[0] = 1; # and restart with new list
         min1 = int((i - 1) / 2); # int(...)
@@ -275,7 +314,7 @@
     x = 0;
     check1 = 0;
     if (bench == 0) {
-        #x = bench00(loops, n); # special version optimized for 16 bit
+        x = bench00(loops, n); # special version optimized for 16 bit
         check1 = 10528;
 
     } else if (bench == 1) {
@@ -301,7 +340,6 @@
     } else {
         printf("Error: Unknown benchmark: %d\n", bench);
         check1 = x + 1; # force error
-      break;
     }
     if (check1 != x) {
       printf("Error(bench%d): x=%d\n", bench, x);
@@ -318,19 +356,59 @@
 # systime() is gawk extension.
 #
 function get_ms() {
-  # g_time += 5; return(g_time * 1000);  # test
-  return(systime() * 1000);
+  if (g_use_gawk) {
+    return(systime() * 1000); # for gawk we have systime()! (but still undefined on other systems...)
+  } else {
+    g_last_time += 5;
+    return(g_last_time * 1000);
+  }
+}
+
+function getdate1() {
+  if (g_use_gawk) {
+    return strftime(); # gawk extension
+  } else {
+    return "";
+  }
 }
 
 
-function main(argc, argv,    start_t, bench1, bench2, n, min_ms, bench, bench_res, loops, x, t1) {
+/* Here we compute the number of "significant" bits for positive numbers (which means 53 for double) */
+function checkbits_int1(    num, last_num, bits) {
+  num = 1;
+  last_num = 0;
+  bits = 0;
+  do {
+    last_num = num;
+    num *= 2;
+    num++;
+    bits++;
+  } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
+  return bits;
+}
+
+function checkbits_double1(    num, last_num, bits) {
+  num = 1.0;
+  last_num = 0.0;
+  bits = 0;
+  do {
+    last_num = num;
+    num *= 2.0;
+    num++;
+    bits++;
+  } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
+  return bits;
+}
+
+
+function main(argc, argv,    start_t, bench1, bench2, n, min_ms, bench, bench_res1, loops, x, t1) {
   start_t = get_ms(); # memorize start time
-  bench1 = 1;       # first benchmark to test
+  bench1 = 0;       # first benchmark to test
   bench2 = 5;       # last benchmark to test
   n = 1000000;      # maximum number
   min_ms = 10000;   # minimum runtime for measurement in ms
   bench = 0;
-  #bench_res1[] = NULL;
+  #bench_res1[]=
 
   if (argc > 1) {
     bench1 = argv[1];
@@ -343,7 +421,9 @@ function main(argc, argv,    start_t, bench1, bench2, n, min_ms, bench, bench_re
     n = argv[3];
   }
 
-  printf("BM Bench v0.4 (awk)\n");
+  printf("BM Bench v0.5 (awk) -- (int:%d double:%d) %s\n", checkbits_int1(), checkbits_double1(), g_awk_version);
+  print("(c) Marco Vieth, 2002"); # print appends \n!
+  print("Date:", getdate1());
 
   for (bench = bench1; bench <= bench2; bench++) {
     loops = 1;   # number of loops
@@ -371,22 +451,31 @@ function main(argc, argv,    start_t, bench1, bench2, n, min_ms, bench, bench_re
       x = run_bench(bench, loops, n);
       t1 = get_ms() - t1;
       printf("x=%d (time: %d ms)\n", x, t1);
-      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", loops, t1, (t1 * 10 / loops));
       bench_res1[bench] = int(t1 * 10 / loops); # int
+      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", loops, t1, bench_res1[bench]);
     } else {
       bench_res1[bench] = -1;
     }
   }
-  printf("Summary for 10 Loops:\n");
+  printf("Times for all benchmarks (10 loops, ms):\n");
+  printf("BM Results (awk)       : ");
   for (bench = bench1; bench <= bench2; bench++) {
-    printf("Benchmark %d: %d ms\n", bench, bench_res1[bench]);
+    printf("%7d ", bench_res1[bench]);
   }
+  printf("\n");
   printf("Total elapsed time: %d ms\n", (get_ms() - start_t));
   return 0;
 }
 
 
 BEGIN {
+  if (TEXTDOMAIN) { # TEXTDOMAIN is defined for gawk!
+    g_use_gawk = 1;
+    g_awk_version = "gawk version ?"
+  } else {
+    g_use_gawk = 0;
+    g_awk_version = "awk version ?"
+  }
   main(ARGC, ARGV);
   exit;
 }

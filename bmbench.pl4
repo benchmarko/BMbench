@@ -1,17 +1,31 @@
 #!/usr/bin/perl -w
-# BM Bench - bmbench.pl (Perl 4)
-# (c) Benchmarko, 2002
+# BM Bench - bmbench.pl4 (Perl 4)
+# (c) Marco Vieth, 2002
+# http://www.benchmarko.de
 #
 # 06.05.2002  0.01
 # 11.05.2002  0.02  bench01 = (sum 1..n) mod 65536 (integer)
 # 22.05.2002  0.03  bench02 = (sum 1..n) mod 65536 (floating point), bench03 = Sieve of Eratosthenes
 # 20.07.2002  0.04  some errors corrected
+# 24.01.2003  0.05  output format changed
 #
 # Usage:
 # perl bmbench.pl [bench1] [bench2] [n]
 #
 #
-#use strict;
+# Notes:
+# - Differences of this Perl 4 version compared to Perl 5:
+#   - No strict checking (use strict)
+#   - No integer (use integer)
+#   - No high resolution time (Time::HiRes)
+#   - No static local variables but dynamic locals (must use local instead of my)
+#   - No function prototypes ( sub func($) {... )
+#   - No anonymous subroutines ( = sub {...} )
+#   - All function calls must start with '&'
+# - Don't know how to set Code reference '$TimeHiResFunc = \private_time' so that is also work with Perl 5,
+#   so I use symbolic reference...
+#
+#
 
 $TimeHiResFunc = undef();
 
@@ -26,6 +40,45 @@ $TimeHiResFunc = undef();
 #
 # loops may be increased to produce a longer runtime without changing the result.
 #
+
+#
+# bench00 (Integer 16 bit)
+# (sum of 1..n) mod 65536
+#
+sub bench00 {
+  #require integer; # not possible to use integer arithmetic ($^H |= 1)
+  local($loops, $n) = @_;
+  local($x) = 0;
+  local($sum1) = (($n / 2) * ($n + 1)); # assuming n even!
+  $sum1 = $sum1 - int($sum1 / 65536) * 65536; # compute % 65536 explicitly
+  # sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
+  local($n_div_65536) = ($n >> 16) & 0xffff;
+  local($n_mod_65536) = $n & 0xffff;
+  #print "DEBUG: n=$n, sum1=$sum1, n_div_65536=$n_div_65536, n_mod_65536=$n_mod_65536\n";
+  local($i, $j);
+  while ($loops-- > 0) {
+    # simulate summation with 16 bit borders...
+    for ($i = $n_div_65536; $i > 0; $i--) {
+      for ($j = 65535; $j > 0; $j--) {
+        $x += $j;
+      }
+    }
+    for ($j = $n_mod_65536; $j > 0; $j--) {
+      $x += $j;
+    }
+    $x = $x - int($x / 65536) * 65536; # compute % 65536 explicitly
+    #print "DEBUG: x0=$x, x-sum1=". ($x - $sum1) ."\n";
+    if ($loops > 0) {  # some more loops left?
+      #print "DEBUG: x=$x, x-sum1=". ($x - $sum1) ."\n";
+      $x -= $sum1;     # yes, set x back to 0 (assuming n even)
+      if ($x != 0) {   # now x must be 0 again
+        $x++;          # force error for many wrong computations
+        last;          # Error
+      }
+    }
+  }
+  return ($x & 0xffff);
+}
 
 
 #
@@ -51,7 +104,8 @@ sub bench01 {
       }
     }
   }
-  return ($x & 0xffff);
+  return ($x - int($x / 65536) * 65536); # ($x & 0xffff);
+  # some Perl versions (e.g. 5.00503) seem to have a bug with modulus so use explicit computation...
 }
 
 
@@ -90,7 +144,7 @@ sub bench02 {
 sub bench03 {
   # require integer; # not possible to use integer arithmetic
   local($loops, $n) = @_;
-  $n = int($n / 2);    # compute only up to n/2 
+  $n = int($n / 2);    # compute only up to n/2
   local($x) = 0; # number of primes below n
   local($sieve) = 0;
   vec($sieve, 0, 1) = 0;
@@ -237,7 +291,11 @@ sub run_bench {
   local($bench, $loops, $n) = @_;
   local($x) = 0;
   local($check1) = 0;
-  if ($bench == 1) {
+  if ($bench == 0) {
+    $x = &bench00($loops, $n);
+    $check1 = 10528;
+
+  } elsif ($bench == 1) {
     $x = &bench01($loops, $n);
     $check1 = 10528;
   
@@ -283,8 +341,12 @@ sub private_init_HiRes1 {
   if (syscall(&SYS_gettimeofday, $tval, 0) == -1) {
     die "gettimeofday: $!";
   }
-  local(@time1) = unpack("LL", $tval);
+  local(@time1) = unpack("LL", $tval); # adapt for 64 bit Perl!
   return $time1[0] + ($time1[1] / 1_000_000);
+}
+
+sub private_time {
+  return time();
 }
 
 sub private_init_HiRes {
@@ -293,10 +355,11 @@ sub private_init_HiRes {
     # not for Perl4 $TimeHiResFunc = \&Time::HiRes::time;
   } elsif (eval { require 'syscall.ph'; }) {
     # ...otherwise try to use a syscall to gettimeofday, which will also return a float
-    $TimeHiResFunc = \private_init_HiRes1;
+    $TimeHiResFunc = "private_init_HiRes1";
   } else {
     # ...otherwise use time() to return an integral number of seconds.
-    $TimeHiResFunc = \time; # sub { time(); }; # is it possible to get a function pointer directly on time()?
+    $TimeHiResFunc = "private_time"; # sub { time(); }; # is it possible to get a function pointer directly on time()?
+    #perl 5 expects \&private_time here?
   }
 }
 
@@ -316,6 +379,34 @@ sub get_ms {
 }
 
 
+# Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
+sub checkbits_int1 {
+  #use integer; # we need integer
+  local($num) = 1;
+  local($last_num) = 0;
+  local($bits) = 0;
+  do {
+    $last_num = $num;
+    $num *= 2;
+    $num++;
+    $bits++;
+  } while ( ((($num - 1) / 2) == $last_num) && ($bits < 101) );
+  return $bits;
+}
+
+sub checkbits_double1 {
+  local($num) = 1.0;
+  local($last_num) = 0.0;
+  local($bits) = 0;
+  do {
+    $last_num = $num;
+    $num *= 2.0;
+    $num++;
+    $bits++;
+  } while ( ((($num - 1.0) / 2.0) == $last_num) && ($bits < 101) );
+  return $bits;
+}
+
 #sub print_config() {
 #  if (eval { require Config; }) {
 #    print Config::localconfig();
@@ -325,7 +416,7 @@ sub get_ms {
 sub main {
   #local(@ARGV) = @_;
   local($start_t) = &get_ms(); # memorize start time
-  local($bench1) = 1;     # first benchmark to test
+  local($bench1) = 0;     # first benchmark to test
   local($bench2) = 5;     # last benchmark to test
   local($n) = 1000000;    # maximum number
   local($min_ms) = 10000; # minimum runtime for measurement in ms
@@ -343,8 +434,12 @@ sub main {
     $n = $ARGV[2];
   }
 
-  print("BM Bench v0.4 (Perl 4)\n");
-  print("Perl Version: $], osname: $^O\n");
+  local($perl_version) = $];
+  $perl_version =~ tr/\n/;/;
+  print("BM Bench v0.5 (Perl 4) -- (int:", &checkbits_int1(), " double:", &checkbits_double1(), ") $perl_version, osname: $^O\n");
+  print("(c) Marco Vieth, 2002\n");
+  print("Date: ". localtime(time()) ."\n");
+  #system("uname -a");
 
   local($bench, $loops, $x, $t1);
   for ($bench = $bench1; $bench <= $bench2; $bench++) {
@@ -370,17 +465,18 @@ sub main {
       $x = &run_bench($bench, $loops, $n);
       $t1 = &get_ms() - $t1;
       printf("x=%d (time: %d ms)\n", $x, $t1);
-      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", $loops, $t1, ($t1 * 10 / $loops));
-      push(@bench_res1, $t1 * 10 / $loops);
+      push(@bench_res1, int($t1 * 10 / $loops));
+      printf("Elapsed time for %d loops: %d ms; estimation for 10 loops: %d ms\n", $loops, $t1, $bench_res1[$bench - $bench1]);
     } else {
       push(@bench_res1, -1);
     }
   }
-  print "Summary for 10 Loops:\n";
-  local($bench) = $bench1;
+  print "Times for all benchmarks (10 loops, ms):\n";
+  print "BM Results (Perl 4)    : ";
   for (@bench_res1) {
-    printf("Benchmark %d: %d ms\n", $bench++, $_);
+    printf("%7d ", $_);
   }
+  print "\n";
   printf("Total elapsed time: %d ms\n", &get_ms() - $start_t);
   return 0;
 }
