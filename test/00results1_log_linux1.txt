@@ -1,0 +1,1824 @@
+Linux
+
+----------
+AWK
+GNU Awk 3.1.0
+Copyright (C) 1989, 1991-2001 Free Software Foundation.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+BM Bench v0.4 (awk)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=10528 (time: 10000 ms)
+Elapsed time for 12 loops: 10000 ms; estimation for 10 loops: 8333 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=10528 (time: 11000 ms)
+Elapsed time for 12 loops: 11000 ms; estimation for 10 loops: 9166 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 35000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=41538 (time: 37000 ms)
+Elapsed time for 1 loops: 37000 ms; estimation for 10 loops: 370000 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 3000 ms)
+Calibration done. Starting measurement with 4 loops to get >=10000 ms
+x=1227283347 (time: 15000 ms)
+Elapsed time for 4 loops: 15000 ms; estimation for 10 loops: 37500 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 10000 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+x=27200 (time: 26000 ms)
+Elapsed time for 2 loops: 26000 ms; estimation for 10 loops: 130000 ms
+Summary for 10 Loops:
+Benchmark 1: 8333 ms
+Benchmark 2: 9166 ms
+Benchmark 3: 370000 ms
+Benchmark 4: 37500 ms
+Benchmark 5: 130000 ms
+Total elapsed time: 153000 ms
+
+real	2m33.204s
+user	2m33.050s
+sys	0m0.150s
+
+----------
+BC
+BM Bench v0.4 (bc)
+Calibrating benchmark 0 with loops=1, n=1000000
+Calibation ignored since we have no time function.
+x=0 (time: 20000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+Error(bench0): x=0
+x=-1 (time: 20000 ms)
+Elapsed time for 1 loops: 20000 ms; estimation for 10 loops: 200000 ms
+Calibrating benchmark 1 with loops=1, n=1000000
+Calibation ignored since we have no time function.
+x=0 (time: 20000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=10528 (time: 20000 ms)
+Elapsed time for 1 loops: 20000 ms; estimation for 10 loops: 200000 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+Calibation ignored since we have no time function.
+x=0 (time: 20000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+Error(bench2): x=0
+x=-1 (time: 20000 ms)
+Elapsed time for 1 loops: 20000 ms; estimation for 10 loops: 200000 ms
+Summary for 10 Loops:
+Benchmark 0: 200000 ms
+Benchmark 1: 200000 ms
+Benchmark 2: 200000 ms
+Total elapsed time: 260000 ms
+0
+
+real	0m4.431s
+user	0m4.430s
+sys	0m0.010s
+----------
+C (-O0)
+Reading specs from /usr/lib/gcc-lib/i486-suse-linux/2.95.3/specs
+gcc version 2.95.3 20010315 (SuSE)
+BM Bench v0.4 (C)
+Compiled with GCC 2.95
+Calibrating benchmark 0 with loops=1, n=1000000
+x=10528 (time: 7 ms)
+Calibrating benchmark 0 with loops=2, n=1000000
+x=10528 (time: 15 ms)
+Calibrating benchmark 0 with loops=4, n=1000000
+x=10528 (time: 30 ms)
+Calibrating benchmark 0 with loops=8, n=1000000
+x=10528 (time: 59 ms)
+Calibrating benchmark 0 with loops=16, n=1000000
+x=10528 (time: 118 ms)
+Calibrating benchmark 0 with loops=32, n=1000000
+x=10528 (time: 235 ms)
+Calibrating benchmark 0 with loops=64, n=1000000
+x=10528 (time: 472 ms)
+Calibrating benchmark 0 with loops=128, n=1000000
+x=10528 (time: 944 ms)
+Calibrating benchmark 0 with loops=256, n=1000000
+x=10528 (time: 1886 ms)
+Calibration done. Starting measurement with 1536 loops to get >=10000 ms
+x=10528 (time: 11324 ms)
+Elapsed time for 1536 loops: 11324 ms; estimation for 10 loops: 73 ms
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 5 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 10 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 20 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 42 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 82 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 162 ms)
+Calibrating benchmark 1 with loops=64, n=1000000
+x=10528 (time: 321 ms)
+Calibrating benchmark 1 with loops=128, n=1000000
+x=10528 (time: 639 ms)
+Calibrating benchmark 1 with loops=256, n=1000000
+x=10528 (time: 1280 ms)
+Calibration done. Starting measurement with 2048 loops to get >=10000 ms
+x=10528 (time: 10248 ms)
+Elapsed time for 2048 loops: 10248 ms; estimation for 10 loops: 50 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 21 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 42 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 84 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 170 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 339 ms)
+Calibrating benchmark 2 with loops=32, n=1000000
+x=10528 (time: 675 ms)
+Calibrating benchmark 2 with loops=64, n=1000000
+x=10528 (time: 1349 ms)
+Calibration done. Starting measurement with 512 loops to get >=10000 ms
+x=10528 (time: 10780 ms)
+Elapsed time for 512 loops: 10780 ms; estimation for 10 loops: 210 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 34 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 68 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 137 ms)
+Calibrating benchmark 3 with loops=8, n=1000000
+x=41538 (time: 273 ms)
+Calibrating benchmark 3 with loops=16, n=1000000
+x=41538 (time: 545 ms)
+Calibrating benchmark 3 with loops=32, n=1000000
+x=41538 (time: 1092 ms)
+Calibration done. Starting measurement with 320 loops to get >=10000 ms
+x=41538 (time: 10913 ms)
+Elapsed time for 320 loops: 10913 ms; estimation for 10 loops: 341 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 62 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 124 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 249 ms)
+Calibrating benchmark 4 with loops=8, n=1000000
+x=1227283347 (time: 497 ms)
+Calibrating benchmark 4 with loops=16, n=1000000
+x=1227283347 (time: 994 ms)
+Calibrating benchmark 4 with loops=32, n=1000000
+x=1227283347 (time: 1989 ms)
+Calibration done. Starting measurement with 192 loops to get >=10000 ms
+x=1227283347 (time: 11931 ms)
+Elapsed time for 192 loops: 11931 ms; estimation for 10 loops: 621 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 33 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 65 ms)
+Calibrating benchmark 5 with loops=4, n=1000000
+x=27200 (time: 129 ms)
+Calibrating benchmark 5 with loops=8, n=1000000
+x=27200 (time: 260 ms)
+Calibrating benchmark 5 with loops=16, n=1000000
+x=27200 (time: 519 ms)
+Calibrating benchmark 5 with loops=32, n=1000000
+x=27200 (time: 1039 ms)
+Calibration done. Starting measurement with 320 loops to get >=10000 ms
+x=27200 (time: 10385 ms)
+Elapsed time for 320 loops: 10385 ms; estimation for 10 loops: 324 ms
+Summary for 10 Loops:
+Benchmark 0: 73 ms
+Benchmark 1: 50 ms
+Benchmark 2: 210 ms
+Benchmark 3: 341 ms
+Benchmark 4: 621 ms
+Benchmark 5: 324 ms
+Total elapsed time: 82697 ms
+
+real	1m22.699s
+user	1m22.700s
+sys	0m0.000s
+----------
+C (-O2)
+Reading specs from /usr/lib/gcc-lib/i486-suse-linux/2.95.3/specs
+gcc version 2.95.3 20010315 (SuSE)
+BM Bench v0.4 (C)
+Compiled with GCC 2.95
+Calibrating benchmark 0 with loops=1, n=1000000
+x=10528 (time: 2 ms)
+Calibrating benchmark 0 with loops=2, n=1000000
+x=10528 (time: 4 ms)
+Calibrating benchmark 0 with loops=4, n=1000000
+x=10528 (time: 8 ms)
+Calibrating benchmark 0 with loops=8, n=1000000
+x=10528 (time: 16 ms)
+Calibrating benchmark 0 with loops=16, n=1000000
+x=10528 (time: 32 ms)
+Calibrating benchmark 0 with loops=32, n=1000000
+x=10528 (time: 64 ms)
+Calibrating benchmark 0 with loops=64, n=1000000
+x=10528 (time: 128 ms)
+Calibrating benchmark 0 with loops=128, n=1000000
+x=10528 (time: 256 ms)
+Calibrating benchmark 0 with loops=256, n=1000000
+x=10528 (time: 512 ms)
+Calibrating benchmark 0 with loops=512, n=1000000
+x=10528 (time: 1028 ms)
+Calibration done. Starting measurement with 5120 loops to get >=10000 ms
+x=10528 (time: 10237 ms)
+Elapsed time for 5120 loops: 10237 ms; estimation for 10 loops: 19 ms
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 2 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 4 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 8 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 16 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 32 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 64 ms)
+Calibrating benchmark 1 with loops=64, n=1000000
+x=10528 (time: 127 ms)
+Calibrating benchmark 1 with loops=128, n=1000000
+x=10528 (time: 257 ms)
+Calibrating benchmark 1 with loops=256, n=1000000
+x=10528 (time: 511 ms)
+Calibrating benchmark 1 with loops=512, n=1000000
+x=10528 (time: 1024 ms)
+Calibration done. Starting measurement with 5120 loops to get >=10000 ms
+x=10528 (time: 10235 ms)
+Elapsed time for 5120 loops: 10235 ms; estimation for 10 loops: 19 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 4 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 8 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 16 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 32 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 64 ms)
+Calibrating benchmark 2 with loops=32, n=1000000
+x=10528 (time: 129 ms)
+Calibrating benchmark 2 with loops=64, n=1000000
+x=10528 (time: 255 ms)
+Calibrating benchmark 2 with loops=128, n=1000000
+x=10528 (time: 512 ms)
+Calibrating benchmark 2 with loops=256, n=1000000
+x=10528 (time: 1024 ms)
+Calibration done. Starting measurement with 2560 loops to get >=10000 ms
+x=10528 (time: 10236 ms)
+Elapsed time for 2560 loops: 10236 ms; estimation for 10 loops: 39 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 12 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 22 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 45 ms)
+Calibrating benchmark 3 with loops=8, n=1000000
+x=41538 (time: 90 ms)
+Calibrating benchmark 3 with loops=16, n=1000000
+x=41538 (time: 181 ms)
+Calibrating benchmark 3 with loops=32, n=1000000
+x=41538 (time: 360 ms)
+Calibrating benchmark 3 with loops=64, n=1000000
+x=41538 (time: 722 ms)
+Calibrating benchmark 3 with loops=128, n=1000000
+x=41538 (time: 1443 ms)
+Calibration done. Starting measurement with 896 loops to get >=10000 ms
+x=41538 (time: 10101 ms)
+Elapsed time for 896 loops: 10101 ms; estimation for 10 loops: 112 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 35 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 70 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 141 ms)
+Calibrating benchmark 4 with loops=8, n=1000000
+x=1227283347 (time: 281 ms)
+Calibrating benchmark 4 with loops=16, n=1000000
+x=1227283347 (time: 562 ms)
+Calibrating benchmark 4 with loops=32, n=1000000
+x=1227283347 (time: 1124 ms)
+Calibration done. Starting measurement with 288 loops to get >=10000 ms
+x=1227283347 (time: 10121 ms)
+Elapsed time for 288 loops: 10121 ms; estimation for 10 loops: 351 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 10 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 20 ms)
+Calibrating benchmark 5 with loops=4, n=1000000
+x=27200 (time: 40 ms)
+Calibrating benchmark 5 with loops=8, n=1000000
+x=27200 (time: 80 ms)
+Calibrating benchmark 5 with loops=16, n=1000000
+x=27200 (time: 161 ms)
+Calibrating benchmark 5 with loops=32, n=1000000
+x=27200 (time: 323 ms)
+Calibrating benchmark 5 with loops=64, n=1000000
+x=27200 (time: 645 ms)
+Calibrating benchmark 5 with loops=128, n=1000000
+x=27200 (time: 1290 ms)
+Calibration done. Starting measurement with 1024 loops to get >=10000 ms
+x=27200 (time: 10327 ms)
+Elapsed time for 1024 loops: 10327 ms; estimation for 10 loops: 100 ms
+Summary for 10 Loops:
+Benchmark 0: 19 ms
+Benchmark 1: 19 ms
+Benchmark 2: 39 ms
+Benchmark 3: 112 ms
+Benchmark 4: 351 ms
+Benchmark 5: 100 ms
+Total elapsed time: 75054 ms
+
+real	1m15.056s
+user	1m15.040s
+sys	0m0.020s
+----------
+Forth
+BM Bench v0.2 (Forth)
+Calibrating benchmark 1 with loops=1 , n=1000000 
+x=10528  (time: 29 ms)
+Calibrating benchmark 1 with loops=2 , n=1000000 
+x=10528  (time: 56 ms)
+Calibrating benchmark 1 with loops=4 , n=1000000 
+x=10528  (time: 112 ms)
+Calibrating benchmark 1 with loops=8 , n=1000000 
+x=10528  (time: 223 ms)
+Calibrating benchmark 1 with loops=16 , n=1000000 
+x=10528  (time: 449 ms)
+Calibrating benchmark 1 with loops=32 , n=1000000 
+x=10528  (time: 895 ms)
+Calibrating benchmark 1 with loops=64 , n=1000000 
+x=10528  (time: 1793 ms)
+Calibration done. Starting measurement with 384 loops to get >=10000 ms
+x=10528  (time: 10747 ms)
+Elapsed time for 384 loops: 10747 ms; estimation for 10 loops: 279  ms
+Total elapsed time: 14304 ms
+
+real	0m14.318s
+user	0m14.310s
+sys	0m0.000s
+----------
+Fortran (-O0)
+g77 version 2.95.3 20010315 (SuSE) (from FSF-g77 version 0.5.25 20010315 (release))
+Driving: g77 -v -c -xf77-version /dev/null -xnone
+Reading specs from /usr/lib/gcc-lib/i486-suse-linux/2.95.3/specs
+gcc version 2.95.3 20010315 (SuSE)
+ /usr/lib/gcc-lib/i486-suse-linux/2.95.3/cpp0 -lang-c -v -D__GNUC__=2 -D__GNUC_MINOR__=95 -D__ELF__ -D__unix__ -D__i386__ -D__linux__ -D__unix -D__linux -Asystem(posix) -D_LANGUAGE_FORTRAN -traditional -Acpu(i386) -Amachine(i386) -Di386 -D__i386 -D__i386__ -Di486 -D__i486 -D__i486__ /dev/null /dev/null
+GNU CPP version 2.95.3 20010315 (SuSE) (i386 Linux/ELF)
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/local/include
+ /usr/lib/gcc-lib/i486-suse-linux/2.95.3/include
+ /usr/include
+End of search list.
+The following default directories have been omitted from the search path:
+ /usr/include/g++
+ /usr/lib/gcc-lib/i486-suse-linux/2.95.3/../../../../i486-suse-linux/include
+End of omitted list.
+ /usr/lib/gcc-lib/i486-suse-linux/2.95.3/f771 -fnull-version -quiet -dumpbase g77-version.f -version -fversion -o /tmp/ccjhJYv2.s /dev/null
+GNU F77 version 2.95.3 20010315 (SuSE) (i486-suse-linux) compiled by GNU C version 2.95.3 20010315 (SuSE).
+GNU Fortran Front End version 0.5.25 20010315 (release)
+ /usr/i486-suse-linux/bin/as -V -Qy -o /tmp/ccYSdtGW.o /tmp/ccjhJYv2.s
+GNU assembler version 2.11.92.0.10 (i486-suse-linux) using BFD version 2.11.92.0.10 20011021 (SuSE)
+ /usr/i486-suse-linux/bin/ld -m elf_i386 -dynamic-linker /lib/ld-linux.so.2 -o /tmp/cchrmWmQ /tmp/ccYSdtGW.o /usr/lib/crt1.o /usr/lib/crti.o /usr/lib/gcc-lib/i486-suse-linux/2.95.3/crtbegin.o -L/usr/lib/gcc-lib/i486-suse-linux/2.95.3 -L/usr/i486-suse-linux/lib -lg2c -lm -lgcc -lc -lgcc /usr/lib/gcc-lib/i486-suse-linux/2.95.3/crtend.o /usr/lib/crtn.o
+ /tmp/cchrmWmQ
+__G77_LIBF77_VERSION__: 0.5.25 20010315 (release)
+@(#)LIBF77 VERSION 19990503
+__G77_LIBI77_VERSION__: 0.5.25 20010315 (release)
+@(#) LIBI77 VERSION pjw,dmg-mods 19990503
+__G77_LIBU77_VERSION__: 0.5.25 20010315 (release)
+@(#) LIBU77 VERSION 19980709
+ BM Bench v0.4 (Fortran)
+ Calibrating benchmark  1 with loops= 1, n= 1000000
+ x= 10528 (time:  0 ms)
+ Calibrating benchmark  1 with loops= 2, n= 1000000
+ x= 10528 (time:  20 ms)
+ Calibrating benchmark  1 with loops= 4, n= 1000000
+ x= 10528 (time:  30 ms)
+ Calibrating benchmark  1 with loops= 8, n= 1000000
+ x= 10528 (time:  60 ms)
+ Calibrating benchmark  1 with loops= 16, n= 1000000
+ x= 10528 (time:  111 ms)
+ Calibrating benchmark  1 with loops= 32, n= 1000000
+ x= 10528 (time:  239 ms)
+ Calibrating benchmark  1 with loops= 64, n= 1000000
+ x= 10528 (time:  470 ms)
+ Calibrating benchmark  1 with loops= 128, n= 1000000
+ x= 10528 (time:  940 ms)
+ Calibrating benchmark  1 with loops= 256, n= 1000000
+ x= 10528 (time:  1880 ms)
+ Calibration done. Starting measurement with  1281 loops to get >= 10000 ms
+ x= 10528 (time:  9390 ms)
+ Elapsed time for  1281 loops:  9390 ms; estimation for 10 loops:  73 ms
+ Calibrating benchmark  2 with loops= 1, n= 1000000
+ x= 10528 (time:  21 ms)
+ Calibrating benchmark  2 with loops= 2, n= 1000000
+ x= 10528 (time:  29 ms)
+ Calibrating benchmark  2 with loops= 4, n= 1000000
+ x= 10528 (time:  80 ms)
+ Calibrating benchmark  2 with loops= 8, n= 1000000
+ x= 10528 (time:  160 ms)
+ Calibrating benchmark  2 with loops= 16, n= 1000000
+ x= 10528 (time:  321 ms)
+ Calibrating benchmark  2 with loops= 32, n= 1000000
+ x= 10528 (time:  639 ms)
+ Calibrating benchmark  2 with loops= 64, n= 1000000
+ x= 10528 (time:  1281 ms)
+ Calibration done. Starting measurement with  449 loops to get >= 10000 ms
+ x= 10528 (time:  8979 ms)
+ Elapsed time for  449 loops:  8979 ms; estimation for 10 loops:  199 ms
+ Calibrating benchmark  3 with loops= 1, n= 1000000
+ Error(bench 3): x= 0
+ x= -1 (time:  0 ms)
+ Calibrating benchmark  4 with loops= 1, n= 1000000
+ x= 1227283347 (time:  70 ms)
+ Calibrating benchmark  4 with loops= 2, n= 1000000
+ x= 1227283347 (time:  141 ms)
+ Calibrating benchmark  4 with loops= 4, n= 1000000
+ x= 1227283347 (time:  279 ms)
+ Calibrating benchmark  4 with loops= 8, n= 1000000
+ x= 1227283347 (time:  560 ms)
+ Calibrating benchmark  4 with loops= 16, n= 1000000
+ x= 1227283347 (time:  1131 ms)
+ Calibration done. Starting measurement with  129 loops to get >= 10000 ms
+ x= 1227283347 (time:  9060 ms)
+ Elapsed time for  129 loops:  9060 ms; estimation for 10 loops:  702 ms
+ Calibrating benchmark  5 with loops= 1, n= 1000000
+ Error(bench 5): x= 0
+ x= -1 (time:  0 ms)
+ Summary for 10 Loops:
+ Benchmark  1:  73 ms
+ Benchmark  2:  199 ms
+ Benchmark  3:  -1 ms
+ Benchmark  4:  702 ms
+ Benchmark  5:  -1 ms
+ Total elapsed time:  35891 ms
+
+real	0m35.893s
+user	0m35.900s
+sys	0m0.000s
+----------
+Fortran (-O2)
+ BM Bench v0.4 (Fortran)
+ Calibrating benchmark  1 with loops= 1, n= 1000000
+ x= 10528 (time:  9 ms)
+ Calibrating benchmark  1 with loops= 2, n= 1000000
+ x= 10528 (time:  0 ms)
+ Calibrating benchmark  1 with loops= 4, n= 1000000
+ x= 10528 (time:  10 ms)
+ Calibrating benchmark  1 with loops= 8, n= 1000000
+ x= 10528 (time:  10 ms)
+ Calibrating benchmark  1 with loops= 16, n= 1000000
+ x= 10528 (time:  41 ms)
+ Calibrating benchmark  1 with loops= 32, n= 1000000
+ x= 10528 (time:  59 ms)
+ Calibrating benchmark  1 with loops= 64, n= 1000000
+ x= 10528 (time:  130 ms)
+ Calibrating benchmark  1 with loops= 128, n= 1000000
+ x= 10528 (time:  250 ms)
+ Calibrating benchmark  1 with loops= 256, n= 1000000
+ x= 10528 (time:  520 ms)
+ Calibrating benchmark  1 with loops= 512, n= 1000000
+ x= 10528 (time:  1020 ms)
+ Calibration done. Starting measurement with  4609 loops to get >= 10000 ms
+ x= 10528 (time:  9221 ms)
+ Elapsed time for  4609 loops:  9221 ms; estimation for 10 loops:  20 ms
+ Calibrating benchmark  2 with loops= 1, n= 1000000
+ x= 10528 (time:  0 ms)
+ Calibrating benchmark  2 with loops= 2, n= 1000000
+ x= 10528 (time:  9 ms)
+ Calibrating benchmark  2 with loops= 4, n= 1000000
+ x= 10528 (time:  10 ms)
+ Calibrating benchmark  2 with loops= 8, n= 1000000
+ x= 10528 (time:  40 ms)
+ Calibrating benchmark  2 with loops= 16, n= 1000000
+ x= 10528 (time:  61 ms)
+ Calibrating benchmark  2 with loops= 32, n= 1000000
+ x= 10528 (time:  130 ms)
+ Calibrating benchmark  2 with loops= 64, n= 1000000
+ x= 10528 (time:  250 ms)
+ Calibrating benchmark  2 with loops= 128, n= 1000000
+ x= 10528 (time:  519 ms)
+ Calibrating benchmark  2 with loops= 256, n= 1000000
+ x= 10528 (time:  1021 ms)
+ Calibration done. Starting measurement with  2305 loops to get >= 10000 ms
+ x= 10528 (time:  9220 ms)
+ Elapsed time for  2305 loops:  9220 ms; estimation for 10 loops:  40 ms
+ Calibrating benchmark  3 with loops= 1, n= 1000000
+ Error(bench 3): x= 0
+ x= -1 (time:  0 ms)
+ Calibrating benchmark  4 with loops= 1, n= 1000000
+ x= 1227283347 (time:  60 ms)
+ Calibrating benchmark  4 with loops= 2, n= 1000000
+ x= 1227283347 (time:  129 ms)
+ Calibrating benchmark  4 with loops= 4, n= 1000000
+ x= 1227283347 (time:  270 ms)
+ Calibrating benchmark  4 with loops= 8, n= 1000000
+ x= 1227283347 (time:  531 ms)
+ Calibrating benchmark  4 with loops= 16, n= 1000000
+ x= 1227283347 (time:  1059 ms)
+ Calibration done. Starting measurement with  145 loops to get >= 10000 ms
+ x= 1227283347 (time:  9580 ms)
+ Elapsed time for  145 loops:  9580 ms; estimation for 10 loops:  660 ms
+ Calibrating benchmark  5 with loops= 1, n= 1000000
+ Error(bench 5): x= 0
+ x= -1 (time:  0 ms)
+ Summary for 10 Loops:
+ Benchmark  1:  20 ms
+ Benchmark  2:  40 ms
+ Benchmark  3:  -1 ms
+ Benchmark  4:  660 ms
+ Benchmark  5:  -1 ms
+ Total elapsed time:  34159 ms
+
+real	0m34.160s
+user	0m34.160s
+sys	0m0.000s
+----------
+Java (Sun) (-O)
+java version "1.1.8"
+BM Bench v0.4 (Java)
+java.version=1.1.8, java.vendor=Sun Microsystems Inc., ported by the Blackdown Java-Linux Porting Team
+os.name=Linux, os.arch=x86, os.version=2.4.18-4GB
+Calibrating benchmark 0 with loops=1, n=1000000
+Benchmark 0 not available.
+Error(bench0): x=0
+x=-1 (time: 1 ms)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 53 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 107 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 216 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 435 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 865 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 1728 ms)
+Calibration done. Starting measurement with 192 loops to get >=10000 ms
+x=10528 (time: 10387 ms)
+Elapsed time for 192 loops: 10387 ms; estimation for 10 loops: 540 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 75 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 150 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 300 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 600 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 1199 ms)
+Calibration done. Starting measurement with 144 loops to get >=10000 ms
+x=10528 (time: 10796 ms)
+Elapsed time for 144 loops: 10796 ms; estimation for 10 loops: 749 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 257 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 514 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 1024 ms)
+Calibration done. Starting measurement with 40 loops to get >=10000 ms
+x=41538 (time: 10168 ms)
+Elapsed time for 40 loops: 10168 ms; estimation for 10 loops: 2542 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 348 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 696 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 1393 ms)
+Calibration done. Starting measurement with 32 loops to get >=10000 ms
+x=1227283347 (time: 11144 ms)
+Elapsed time for 32 loops: 11144 ms; estimation for 10 loops: 3482 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 369 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 737 ms)
+Calibrating benchmark 5 with loops=4, n=1000000
+x=27200 (time: 1473 ms)
+Calibration done. Starting measurement with 28 loops to get >=10000 ms
+x=27200 (time: 10314 ms)
+Elapsed time for 28 loops: 10314 ms; estimation for 10 loops: 3683 ms
+Summary for 10 Loops:
+Benchmark 0: -1 ms
+Benchmark 1: 540 ms
+Benchmark 2: 749 ms
+Benchmark 3: 2542 ms
+Benchmark 4: 3482 ms
+Benchmark 5: 3683 ms
+Total elapsed time: 65360 ms
+
+real	1m5.441s
+user	1m5.400s
+sys	0m0.040s
+----------
+Java (IBM) (-O)
+java version "1.3.0"
+Java(TM) 2 Runtime Environment, Standard Edition (build 1.3.0)
+Classic VM (build 1.3.0, J2RE 1.3.0 IBM build cx130-20010626 (JIT enabled: jitc))
+BM Bench v0.4 (Java)
+java.version=1.3.0, java.vendor=IBM Corporation
+os.name=Linux, os.arch=x86, os.version=2.4.18-4GB
+Calibrating benchmark 0 with loops=1, n=1000000
+Benchmark 0 not available.
+Error(bench0): x=0
+x=-1 (time: 0 ms)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 6 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 4 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 8 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 16 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 32 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 64 ms)
+Calibrating benchmark 1 with loops=64, n=1000000
+x=10528 (time: 128 ms)
+Calibrating benchmark 1 with loops=128, n=1000000
+x=10528 (time: 256 ms)
+Calibrating benchmark 1 with loops=256, n=1000000
+x=10528 (time: 512 ms)
+Calibrating benchmark 1 with loops=512, n=1000000
+x=10528 (time: 1024 ms)
+Calibration done. Starting measurement with 5120 loops to get >=10000 ms
+x=10528 (time: 10240 ms)
+Elapsed time for 5120 loops: 10240 ms; estimation for 10 loops: 20 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 26 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 40 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 80 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 160 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 320 ms)
+Calibrating benchmark 2 with loops=32, n=1000000
+x=10528 (time: 640 ms)
+Calibrating benchmark 2 with loops=64, n=1000000
+x=10528 (time: 1279 ms)
+Calibration done. Starting measurement with 512 loops to get >=10000 ms
+x=10528 (time: 10236 ms)
+Elapsed time for 512 loops: 10236 ms; estimation for 10 loops: 199 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 73 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 116 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 212 ms)
+Calibrating benchmark 3 with loops=8, n=1000000
+x=41538 (time: 455 ms)
+Calibrating benchmark 3 with loops=16, n=1000000
+x=41538 (time: 834 ms)
+Calibrating benchmark 3 with loops=32, n=1000000
+x=41538 (time: 1813 ms)
+Calibration done. Starting measurement with 192 loops to get >=10000 ms
+x=41538 (time: 9950 ms)
+Elapsed time for 192 loops: 9950 ms; estimation for 10 loops: 518 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 61 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 116 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 233 ms)
+Calibrating benchmark 4 with loops=8, n=1000000
+x=1227283347 (time: 465 ms)
+Calibrating benchmark 4 with loops=16, n=1000000
+x=1227283347 (time: 931 ms)
+Calibrating benchmark 4 with loops=32, n=1000000
+x=1227283347 (time: 1860 ms)
+Calibration done. Starting measurement with 192 loops to get >=10000 ms
+x=1227283347 (time: 11162 ms)
+Elapsed time for 192 loops: 11162 ms; estimation for 10 loops: 581 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 24 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 21 ms)
+Calibrating benchmark 5 with loops=4, n=1000000
+x=27200 (time: 40 ms)
+Calibrating benchmark 5 with loops=8, n=1000000
+x=27200 (time: 80 ms)
+Calibrating benchmark 5 with loops=16, n=1000000
+x=27200 (time: 160 ms)
+Calibrating benchmark 5 with loops=32, n=1000000
+x=27200 (time: 322 ms)
+Calibrating benchmark 5 with loops=64, n=1000000
+x=27200 (time: 643 ms)
+Calibrating benchmark 5 with loops=128, n=1000000
+x=27200 (time: 1286 ms)
+Calibration done. Starting measurement with 1024 loops to get >=10000 ms
+x=27200 (time: 10286 ms)
+Elapsed time for 1024 loops: 10286 ms; estimation for 10 loops: 100 ms
+Summary for 10 Loops:
+Benchmark 0: -1 ms
+Benchmark 1: 20 ms
+Benchmark 2: 199 ms
+Benchmark 3: 518 ms
+Benchmark 4: 581 ms
+Benchmark 5: 100 ms
+Total elapsed time: 66225 ms
+
+real	1m6.563s
+user	1m6.520s
+sys	0m0.040s
+----------
+Java (IBM, compiled with guavac)
+guavac version 1.2
+>> No valid source file names given.
+Compilation Successful.  Classes/interfaces found:
+ *  bmbench
+BM Bench v0.4 (Java)
+java.version=1.3.0, java.vendor=IBM Corporation
+os.name=Linux, os.arch=x86, os.version=2.4.18-4GB
+Calibrating benchmark 0 with loops=1, n=1000000
+Benchmark 0 not available.
+Error(bench0): x=0
+x=-1 (time: 0 ms)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 6 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 5 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 14 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 30 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 62 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 126 ms)
+Calibrating benchmark 1 with loops=64, n=1000000
+x=10528 (time: 254 ms)
+Calibrating benchmark 1 with loops=128, n=1000000
+x=10528 (time: 510 ms)
+Calibrating benchmark 1 with loops=256, n=1000000
+x=10528 (time: 1026 ms)
+Calibration done. Starting measurement with 2560 loops to get >=10000 ms
+x=10528 (time: 10234 ms)
+Elapsed time for 2560 loops: 10234 ms; estimation for 10 loops: 39 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 11 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 12 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 24 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 47 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 96 ms)
+Calibrating benchmark 2 with loops=32, n=1000000
+x=10528 (time: 190 ms)
+Calibrating benchmark 2 with loops=64, n=1000000
+x=10528 (time: 383 ms)
+Calibrating benchmark 2 with loops=128, n=1000000
+x=10528 (time: 767 ms)
+Calibrating benchmark 2 with loops=256, n=1000000
+x=10528 (time: 1532 ms)
+Calibration done. Starting measurement with 1792 loops to get >=10000 ms
+x=10528 (time: 10735 ms)
+Elapsed time for 1792 loops: 10735 ms; estimation for 10 loops: 59 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 74 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 118 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 225 ms)
+Calibrating benchmark 3 with loops=8, n=1000000
+x=41538 (time: 463 ms)
+Calibrating benchmark 3 with loops=16, n=1000000
+x=41538 (time: 884 ms)
+Calibrating benchmark 3 with loops=32, n=1000000
+x=41538 (time: 1845 ms)
+Calibration done. Starting measurement with 192 loops to get >=10000 ms
+x=41538 (time: 10543 ms)
+Elapsed time for 192 loops: 10543 ms; estimation for 10 loops: 549 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 61 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 114 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 229 ms)
+Calibrating benchmark 4 with loops=8, n=1000000
+x=1227283347 (time: 457 ms)
+Calibrating benchmark 4 with loops=16, n=1000000
+x=1227283347 (time: 915 ms)
+Calibrating benchmark 4 with loops=32, n=1000000
+x=1227283347 (time: 1829 ms)
+Calibration done. Starting measurement with 192 loops to get >=10000 ms
+x=1227283347 (time: 10973 ms)
+Elapsed time for 192 loops: 10973 ms; estimation for 10 loops: 571 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 23 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 20 ms)
+Calibrating benchmark 5 with loops=4, n=1000000
+x=27200 (time: 40 ms)
+Calibrating benchmark 5 with loops=8, n=1000000
+x=27200 (time: 80 ms)
+Calibrating benchmark 5 with loops=16, n=1000000
+x=27200 (time: 161 ms)
+Calibrating benchmark 5 with loops=32, n=1000000
+x=27200 (time: 321 ms)
+Calibrating benchmark 5 with loops=64, n=1000000
+x=27200 (time: 642 ms)
+Calibrating benchmark 5 with loops=128, n=1000000
+x=27200 (time: 1286 ms)
+Calibration done. Starting measurement with 1024 loops to get >=10000 ms
+x=27200 (time: 10287 ms)
+Elapsed time for 1024 loops: 10287 ms; estimation for 10 loops: 100 ms
+Summary for 10 Loops:
+Benchmark 0: -1 ms
+Benchmark 1: 39 ms
+Benchmark 2: 59 ms
+Benchmark 3: 549 ms
+Benchmark 4: 571 ms
+Benchmark 5: 100 ms
+Total elapsed time: 67665 ms
+
+real	1m8.003s
+user	1m7.970s
+sys	0m0.030s
+----------
+JavaScript
+Start browser yourself... (script run_bench_browser1.sh)
+----------
+JavaScript (NGS) (-O2)
+NGS JavaScript Interpter 0.2.5
+Copyright (C) 1998 New Generation Software (NGS) Oy.
+NGS JavaScript Interpreter comes with NO WARRANTY, to the extent
+permitted by law.  You may redistribute copies of NGS JavaScript
+Interpreter under the terms of the GNU Library General Public License.
+For more information about these matters, see the files named COPYING.
+VM: warning: using undefined global `window'
+VM: warning: using undefined global `navigator'
+VM: warning: using undefined global `java'
+<pre>
+
+BM Bench v0.4 (JavaScript)
+Interpreter: i686-pc-linux-gnu, VM.version=0.2.5
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 48 loops to get >=10000 ms
+x=10528 (time: 14000 ms)
+Elapsed time for 48 loops: 14000 ms; estimation for 10 loops: 2916 ms
+
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 3000 ms)
+Calibration done. Starting measurement with 32 loops to get >=10000 ms
+x=10528 (time: 9000 ms)
+Elapsed time for 32 loops: 9000 ms; estimation for 10 loops: 2812 ms
+
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 1000 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 2000 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=41538 (time: 11000 ms)
+Elapsed time for 12 loops: 11000 ms; estimation for 10 loops: 9166 ms
+
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 1000 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 2000 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=1227283347 (time: 11000 ms)
+Elapsed time for 12 loops: 11000 ms; estimation for 10 loops: 9166 ms
+
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 1000 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 2000 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=27200 (time: 10000 ms)
+Elapsed time for 12 loops: 10000 ms; estimation for 10 loops: 8333 ms
+
+Summary for 10 Loops:
+Benchmark 1: 2916 ms
+Benchmark 2: 2812 ms
+Benchmark 3: 9166 ms
+Benchmark 4: 9166 ms
+Benchmark 5: 8333 ms
+Total elapsed time: 73000 ms
+</pre>
+
+
+real	1m13.236s
+user	1m13.220s
+sys	0m0.010s
+----------
+JavaScript (Rhino)
+Failed to load Main-Class manifest attribute from
+js.jar
+
+real	0m0.158s
+user	0m0.150s
+sys	0m0.010s
+----------
+Modula-2
+Mocka 9903
+>> BM Bench v0.4 (Modula-2)
+Calibrating benchmark 0 with loops=1, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=2, n=1000000
+x=10528 (time: 10 ms)
+Calibrating benchmark 0 with loops=4, n=1000000
+x=10528 (time: 20 ms)
+Calibrating benchmark 0 with loops=8, n=1000000
+x=10528 (time: 40 ms)
+Calibrating benchmark 0 with loops=16, n=1000000
+x=10528 (time: 90 ms)
+Calibrating benchmark 0 with loops=32, n=1000000
+x=10528 (time: 170 ms)
+Calibrating benchmark 0 with loops=64, n=1000000
+x=10528 (time: 340 ms)
+Calibrating benchmark 0 with loops=128, n=1000000
+x=10528 (time: 670 ms)
+Calibrating benchmark 0 with loops=256, n=1000000
+x=10528 (time: 1340 ms)
+Calibration done. Starting measurement with 1793 loops to get >=10000 ms
+x=10528 (time: 9410 ms)
+Elapsed time for 1793 loops: 9410 ms; estimation for 10 loops: 52 ms
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 10 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 10 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 20 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 50 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 80 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 160 ms)
+Calibrating benchmark 1 with loops=64, n=1000000
+x=10528 (time: 320 ms)
+Calibrating benchmark 1 with loops=128, n=1000000
+x=10528 (time: 650 ms)
+Calibrating benchmark 1 with loops=256, n=1000000
+x=10528 (time: 1280 ms)
+Calibration done. Starting measurement with 1793 loops to get >=10000 ms
+x=10528 (time: 8960 ms)
+Elapsed time for 1793 loops: 8960 ms; estimation for 10 loops: 49 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 10 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 30 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 50 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 100 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 210 ms)
+Calibrating benchmark 2 with loops=32, n=1000000
+x=10528 (time: 410 ms)
+Calibrating benchmark 2 with loops=64, n=1000000
+x=10528 (time: 830 ms)
+Calibrating benchmark 2 with loops=128, n=1000000
+x=10528 (time: 1660 ms)
+Calibration done. Starting measurement with 769 loops to get >=10000 ms
+x=10528 (time: 9920 ms)
+Elapsed time for 769 loops: 9920 ms; estimation for 10 loops: 128 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 60 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 130 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 260 ms)
+Calibrating benchmark 3 with loops=8, n=1000000
+x=41538 (time: 510 ms)
+Calibrating benchmark 3 with loops=16, n=1000000
+x=41538 (time: 1020 ms)
+Calibration done. Starting measurement with 145 loops to get >=10000 ms
+x=41538 (time: 9230 ms)
+Elapsed time for 145 loops: 9230 ms; estimation for 10 loops: 636 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 70 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 150 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 290 ms)
+Calibrating benchmark 4 with loops=8, n=1000000
+x=1227283347 (time: 570 ms)
+Calibrating benchmark 4 with loops=16, n=1000000
+x=1227283347 (time: 1160 ms)
+Calibration done. Starting measurement with 129 loops to get >=10000 ms
+x=1227283347 (time: 9310 ms)
+Elapsed time for 129 loops: 9310 ms; estimation for 10 loops: 721 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+Error(bench5): x=-38336
+x=-1 (time: 20 ms)
+Summary for 10 Loops:
+Benchmark 0: 52 ms
+Benchmark 1: 49 ms
+Benchmark 2: 128 ms
+Benchmark 3: 636 ms
+Benchmark 4: 721 ms
+Benchmark 5: -1 ms
+Total elapsed time: 59630 ms
+
+real	0m59.630s
+user	0m59.630s
+sys	0m0.000s
+----------
+Pascal (-O2)
+Reading specs from /usr/lib/gcc-lib/i486-suse-linux/2.95.3/specs
+gpc version 20011202, based on 2.95.3 20010315 (SuSE)
+BM Bench v0.4 (Pascal)
+Calibrating benchmark 0 with loops=1, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=2, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=4, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=8, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=16, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=32, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=64, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=128, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=256, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 0 with loops=512, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 0 with loops=1024, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 5121 loops to get >=10000 ms
+x=10528 (time: 10000 ms)
+Elapsed time for 5121 loops: 10000 ms; estimation for 10 loops: 19 ms
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=8, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=16, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=32, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=64, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=128, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=256, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 1 with loops=512, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=1024, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 5121 loops to get >=10000 ms
+x=10528 (time: 11000 ms)
+Elapsed time for 5121 loops: 11000 ms; estimation for 10 loops: 21 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=4, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=8, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=16, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=32, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=64, n=1000000
+x=10528 (time: 0 ms)
+Calibrating benchmark 2 with loops=128, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 2 with loops=256, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 1281 loops to get >=10000 ms
+x=10528 (time: 7000 ms)
+Elapsed time for 1281 loops: 7000 ms; estimation for 10 loops: 54 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 0 ms)
+Calibrating benchmark 3 with loops=2, n=1000000
+x=41538 (time: 1000 ms)
+Calibrating benchmark 3 with loops=4, n=1000000
+x=41538 (time: 0 ms)
+Calibrating benchmark 3 with loops=8, n=1000000
+x=41538 (time: 0 ms)
+Calibrating benchmark 3 with loops=16, n=1000000
+x=41538 (time: 1000 ms)
+Calibrating benchmark 3 with loops=32, n=1000000
+x=41538 (time: 1000 ms)
+Calibrating benchmark 3 with loops=64, n=1000000
+x=41538 (time: 3000 ms)
+Calibration done. Starting measurement with 193 loops to get >=10000 ms
+x=41538 (time: 9000 ms)
+Elapsed time for 193 loops: 9000 ms; estimation for 10 loops: 466 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 0 ms)
+Calibrating benchmark 4 with loops=2, n=1000000
+x=1227283347 (time: 1000 ms)
+Calibrating benchmark 4 with loops=4, n=1000000
+x=1227283347 (time: 0 ms)
+Calibrating benchmark 4 with loops=8, n=1000000
+x=1227283347 (time: 0 ms)
+Calibrating benchmark 4 with loops=16, n=1000000
+x=1227283347 (time: 1000 ms)
+Calibrating benchmark 4 with loops=32, n=1000000
+x=1227283347 (time: 1000 ms)
+Calibrating benchmark 4 with loops=64, n=1000000
+x=1227283347 (time: 2000 ms)
+Calibration done. Starting measurement with 321 loops to get >=10000 ms
+x=1227283347 (time: 11000 ms)
+Elapsed time for 321 loops: 11000 ms; estimation for 10 loops: 342 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 0 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 0 ms)
+Calibrating benchmark 5 with loops=4, n=1000000
+x=27200 (time: 0 ms)
+Calibrating benchmark 5 with loops=8, n=1000000
+x=27200 (time: 0 ms)
+Calibrating benchmark 5 with loops=16, n=1000000
+x=27200 (time: 1000 ms)
+Calibrating benchmark 5 with loops=32, n=1000000
+x=27200 (time: 1000 ms)
+Calibrating benchmark 5 with loops=64, n=1000000
+x=27200 (time: 2000 ms)
+Calibration done. Starting measurement with 321 loops to get >=10000 ms
+x=27200 (time: 8000 ms)
+Elapsed time for 321 loops: 8000 ms; estimation for 10 loops: 249 ms
+Summary for 10 Loops:
+Benchmark 0: 19 ms
+Benchmark 1: 21 ms
+Benchmark 2: 54 ms
+Benchmark 3: 466 ms
+Benchmark 4: 342 ms
+Benchmark 5: 249 ms
+Total elapsed time: 82000 ms
+
+real	1m22.496s
+user	1m22.500s
+sys	0m0.000s
+----------
+Perl
+
+This is perl, v5.6.1 built for i586-linux
+
+Copyright 1987-2001, Larry Wall
+
+Perl may be copied only under the terms of either the Artistic License or the
+GNU General Public License, which may be found in the Perl 5 source kit.
+
+Complete documentation for Perl, including FAQ lists, should be found on
+this system using `man perl' or `perldoc perl'.  If you have access to the
+Internet, point your browser at http://www.perl.com/, the Perl Home Page.
+
+BM Bench v0.4 (Perl)
+Perl Version: 5.006001, osname: linux
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 550 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 1104 ms)
+Calibration done. Starting measurement with 20 loops to get >=10000 ms
+x=10528 (time: 11058 ms)
+Elapsed time for 20 loops: 11058 ms; estimation for 10 loops: 5529 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 554 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 1109 ms)
+Calibration done. Starting measurement with 20 loops to get >=10000 ms
+x=10528 (time: 11095 ms)
+Elapsed time for 20 loops: 11095 ms; estimation for 10 loops: 5547 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 1936 ms)
+Calibration done. Starting measurement with 6 loops to get >=10000 ms
+x=41538 (time: 11552 ms)
+Elapsed time for 6 loops: 11552 ms; estimation for 10 loops: 19253 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 2301 ms)
+Calibration done. Starting measurement with 5 loops to get >=10000 ms
+x=1227283347 (time: 11427 ms)
+Elapsed time for 5 loops: 11427 ms; estimation for 10 loops: 22854 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 1714 ms)
+Calibration done. Starting measurement with 6 loops to get >=10000 ms
+x=27200 (time: 10071 ms)
+Elapsed time for 6 loops: 10071 ms; estimation for 10 loops: 16785 ms
+Summary for 10 Loops:
+Benchmark 1: 5529 ms
+Benchmark 2: 5547 ms
+Benchmark 3: 19253 ms
+Benchmark 4: 22854 ms
+Benchmark 5: 16785 ms
+Total elapsed time: 64477 ms
+
+real	1m4.595s
+user	1m4.530s
+sys	0m0.000s
+----------
+Python (-O)
+Python 2.2
+BM Bench v0.4 (Python)
+Python version: 2.2 (#1, Mar 26 2002, 15:46:04) 
+[GCC 2.95.3 20010315 (SuSE)]  platform: linux2
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 2440)
+Calibration done. Starting measurement with 5 loops to get >=10000 ms
+x=10528 (time: 12330)
+Elapsed time for 5 loops: 12330 ms; estimation for 10 loops: 24661 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 1013)
+Calibration done. Starting measurement with 10 loops to get >=10000 ms
+x=10528 (time: 9964)
+Elapsed time for 10 loops: 9964 ms; estimation for 10 loops: 9964 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 2372)
+Calibration done. Starting measurement with 5 loops to get >=10000 ms
+x=41538 (time: 12015)
+Elapsed time for 5 loops: 12015 ms; estimation for 10 loops: 24030 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 2489)
+Calibration done. Starting measurement with 5 loops to get >=10000 ms
+x=1227283347 (time: 12475)
+Elapsed time for 5 loops: 12475 ms; estimation for 10 loops: 24951 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 3220)
+Calibration done. Starting measurement with 4 loops to get >=10000 ms
+x=27200 (time: 13005)
+Elapsed time for 4 loops: 13005 ms; estimation for 10 loops: 32514 ms
+Summary for 10 Loops:
+Benchmark 1: 24661 ms
+Benchmark 2: 9964 ms
+Benchmark 3: 24030 ms
+Benchmark 4: 24951 ms
+Benchmark 5: 32514 ms
+Total elapsed time: 71331 ms
+
+real	1m12.012s
+user	1m10.550s
+sys	0m0.840s
+----------
+Smalltalk (not yet implemented)
+GNU Smalltalk version 1.95.9
+written by Steve Byrne (sbb@gnu.org) and Paolo Bonzini (bonzini@gnu.org)
+Copyright 1988-92, 1994-95, 1999-2001 Free Software Foundation, Inc.
+
+GNU Smalltalk comes with NO WARRANTY, to the extent permitted by law.
+You may redistribute copies of GNU Smalltalk under the terms of the
+GNU General Public License.  For more information, see the file named
+COPYING.
+
+Using default kernel path: /usr/share/smalltalk/kernel
+Using default image path: /usr/share/smalltalk
+----------
+Tcl
+BM Bench v0.4 (Tcl)
+This is Tcl 8.3 patchlevel 8.3.4
+library: /usr/lib/tcl8.3
+hostname: benchmark.wilo38.de
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 1017 ms)
+Calibration done. Starting measurement with 10 loops to get >=10000 ms
+x=10528 (time: 10149 ms)
+Elapsed time for 10 loops: 10149 ms; estimation for 10 loops: 10149 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 1095 ms)
+Calibration done. Starting measurement with 10 loops to get >=10000 ms
+x=10528 (time: 10975 ms)
+Elapsed time for 10 loops: 10975 ms; estimation for 10 loops: 10975 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+Important note: For Tcl we use 1/40 of the problem to get to an end (n=12500)...
+x=1492 (time: 4229 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+Important note: For Tcl we use 1/40 of the problem to get to an end (n=12500)...
+x=1492 (time: 12702 ms)
+Elapsed time for 3 loops: 12702 ms; estimation for 10 loops: 42340 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 3002 ms)
+Calibration done. Starting measurement with 4 loops to get >=10000 ms
+x=1227283347 (time: 12110 ms)
+Elapsed time for 4 loops: 12110 ms; estimation for 10 loops: 30275 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 4321 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+x=27200 (time: 12854 ms)
+Elapsed time for 3 loops: 12854 ms; estimation for 10 loops: 42846 ms
+Summary for 10 Loops:
+Benchmark 1: 10149 ms
+Benchmark 2: 10975 ms
+Benchmark 3: 42340 ms
+Benchmark 4: 30275 ms
+Benchmark 5: 42846 ms
+Total elapsed time: 72456 ms
+
+real	1m12.465s
+user	1m12.440s
+sys	0m0.030s
+----------
+finished.
+
+
+
+---
+
+Rhino
+
+<pre>
+
+BM Bench v0.4 (JavaScript)
+java.version=1.3.0, java.vendor=IBM Corporation
+os.name=Linux, os.arch=x86, os.version=2.4.18-4GB
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 902 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 1667 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=10528 (time: 9995 ms)
+Elapsed time for 12 loops: 9995 ms; estimation for 10 loops: 8329 ms
+
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 854 ms)
+Calibrating benchmark 2 with loops=2, n=1000000
+x=10528 (time: 1667 ms)
+Calibration done. Starting measurement with 12 loops to get >=10000 ms
+x=10528 (time: 10006 ms)
+Elapsed time for 12 loops: 10006 ms; estimation for 10 loops: 8338 ms
+
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 4267 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+x=41538 (time: 8300 ms)
+Elapsed time for 3 loops: 8300 ms; estimation for 10 loops: 27666 ms
+
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 19772 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=1227283347 (time: 19393 ms)
+Elapsed time for 1 loops: 19393 ms; estimation for 10 loops: 193930 ms
+
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 19418 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=27200 (time: 19186 ms)
+Elapsed time for 1 loops: 19186 ms; estimation for 10 loops: 191860 ms
+
+Summary for 10 Loops:
+Benchmark 1: 8329 ms
+Benchmark 2: 8338 ms
+Benchmark 3: 27666 ms
+Benchmark 4: 193930 ms
+Benchmark 5: 191860 ms
+Total elapsed time: 115462 ms
+</pre>
+
+
+real	1m57.022s
+user	1m56.790s
+sys	0m0.200s
+
+
+
+
+---
+
+Netscape 4
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Netscape+ appVersion=4.79 [de] (X11; U; Linux 2.4.18-4GB i686), platform=undefined
+userAgent=Mozilla/4.79 [de] (X11; U; Linux 2.4.18-4GB i686)
+Calibrating benchmark 0 with loops=1, n=1000000
+x=-1 (time: 6 ms)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 2321 ms)
+Calibration done. Starting measurement with 5 loops to get >=10000 ms
+x=10528 (time: 11149 ms)
+Elapsed time for 5 loops: 11149 ms; estimation for 10 loops: 22298 ms
+
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 2168 ms)
+Calibration done. Starting measurement with 5 loops to get >=10000 ms
+x=10528 (time: 10868 ms)
+Elapsed time for 5 loops: 10868 ms; estimation for 10 loops: 21736 ms
+
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 7105 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+x=41538 (time: 12570 ms)
+Elapsed time for 2 loops: 12570 ms; estimation for 10 loops: 62850 ms
+
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 26178 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=1227283347 (time: 6680 ms)
+Elapsed time for 1 loops: 6680 ms; estimation for 10 loops: 66800 ms
+
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 4189 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+x=27200 (time: 12514 ms)
+Elapsed time for 3 loops: 12514 ms; estimation for 10 loops: 41713 ms
+
+Summary for 10 Loops:
+Benchmark 0: -1 ms
+Benchmark 1: 22298 ms
+Benchmark 2: 21736 ms
+Benchmark 3: 62850 ms
+Benchmark 4: 66800 ms
+Benchmark 5: 41713 ms
+Total elapsed time: 95987 ms
+
+---
+
+Konqueror
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Konqueror+ appVersion=5.0 (compatible; Konqueror/3.0.0; Linux), platform=undefined
+userAgent=Mozilla/5.0 (compatible; Konqueror/3.0.0; Linux)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 36428 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=10528 (time: 36684 ms)
+Elapsed time for 1 loops: 36684 ms; estimation for 10 loops: 366840 ms
+
+Summary for 10 Loops:
+Benchmark 1: 366840 ms
+Total elapsed time: 73764 ms
+
+---
+
+Netscape 6.2  (script warning because of long running script)
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Netscape+ appVersion=5.0 (X11; en-US), platform=undefined
+userAgent=Mozilla/5.0 (X11; U; Linux i686; en-US; rv:0.9.4) Gecko/20011126 Netscape6/6.2.1
+java.version=1.3.1, java.vendor=Sun Microsystems Inc.
+os.name=Linux, os.arch=i386, os.version=2.4.18-4GB
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 4466 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+x=10528 (time: 13369 ms)
+Elapsed time for 3 loops: 13369 ms; estimation for 10 loops: 44563 ms
+
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 6539 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+x=10528 (time: 8957 ms)
+Elapsed time for 2 loops: 8957 ms; estimation for 10 loops: 44785 ms
+
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 8486 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+x=41538 (time: 42971 ms)
+Elapsed time for 2 loops: 42971 ms; estimation for 10 loops: 214855 ms
+
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 65343 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=1227283347 (time: 63825 ms)
+Elapsed time for 1 loops: 63825 ms; estimation for 10 loops: 638250 ms
+
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 4420 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Netscape+ appVersion=5.0 (X11; en-US), platform=undefined
+userAgent=Mozilla/5.0 (X11; U; Linux i686; en-US; rv:0.9.4) Gecko/20011126 Netscape6/6.2.1
+java.version=1.3.1, java.vendor=Sun Microsystems Inc.
+os.name=Linux, os.arch=i386, os.version=2.4.18-4GB
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 8236 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+x=41538 (time: 16667 ms)
+Elapsed time for 2 loops: 16667 ms; estimation for 10 loops: 83335 ms
+
+Summary for 10 Loops:
+Benchmark 3: 83335 ms
+Total elapsed time: 26594 ms
+
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Netscape+ appVersion=5.0 (X11; en-US), platform=undefined
+userAgent=Mozilla/5.0 (X11; U; Linux i686; en-US; rv:0.9.4) Gecko/20011126 Netscape6/6.2.1
+java.version=1.3.1, java.vendor=Sun Microsystems Inc.
+os.name=Linux, os.arch=i386, os.version=2.4.18-4GB
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 63625 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=1227283347 (time: 63622 ms)
+Elapsed time for 1 loops: 63622 ms; estimation for 10 loops: 636220 ms
+
+Summary for 10 Loops:
+Benchmark 4: 636220 ms
+Total elapsed time: 129010 ms
+
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Netscape+ appVersion=5.0 (X11; en-US), platform=undefined
+userAgent=Mozilla/5.0 (X11; U; Linux i686; en-US; rv:0.9.4) Gecko/20011126 Netscape6/6.2.1
+java.version=1.3.1, java.vendor=Sun Microsystems Inc.
+os.name=Linux, os.arch=i386, os.version=2.4.18-4GB
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 4444 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+x=27200 (time: 12896 ms)
+Elapsed time for 3 loops: 12896 ms; estimation for 10 loops: 42986 ms
+
+Summary for 10 Loops:
+Benchmark 5: 42986 ms
+Total elapsed time: 17433 ms
+
+
+---
+
+Mozilla (script warning because of long running script ...)
+
+BM Bench v0.4 (JavaScript)
+appCodeName=Mozilla+ appName=Netscape+ appVersion=5.0 (X11; en-US), platform=undefined
+userAgent=Mozilla/5.0 (X11; U; Linux i686; en-US; rv:0.9.8) Gecko/20020204
+java.version=1.3.1_02, java.vendor=Sun Microsystems Inc.
+os.name=Linux, os.arch=i386, os.version=2.4.18-4GB
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 4685 ms)
+Calibration done. Starting measurement with 3 loops to get >=10000 ms
+x=10528 (time: 14038 ms)
+Elapsed time for 3 loops: 14038 ms; estimation for 10 loops: 46793 ms
+
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 74033 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=10528 (time: 4740 ms)
+Elapsed time for 1 loops: 4740 ms; estimation for 10 loops: 47400 ms
+
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 8224 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+...
+
+---
+
+Linux
+
+----------
+AWK
+GNU Awk 3.0.4
+Copyright (C) 1989, 1991-1999 Free Software Foundation.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+BM Bench v0.4 (awk)
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 3000 ms)
+Calibration done. Starting measurement with 4 loops to get >=10000 ms
+x=10528 (time: 11000 ms)
+Elapsed time for 4 loops: 11000 ms; estimation for 10 loops: 27500 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 3000 ms)
+Calibration done. Starting measurement with 4 loops to get >=10000 ms
+x=10528 (time: 12000 ms)
+Elapsed time for 4 loops: 12000 ms; estimation for 10 loops: 30000 ms
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 59000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=41538 (time: 61000 ms)
+Elapsed time for 1 loops: 61000 ms; estimation for 10 loops: 610000 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 15000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=1227283347 (time: 15000 ms)
+Elapsed time for 1 loops: 15000 ms; estimation for 10 loops: 150000 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 25000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=27200 (time: 25000 ms)
+Elapsed time for 1 loops: 25000 ms; estimation for 10 loops: 250000 ms
+Summary for 10 Loops:
+Benchmark 1: 27500 ms
+Benchmark 2: 30000 ms
+Benchmark 3: 610000 ms
+Benchmark 4: 150000 ms
+Benchmark 5: 250000 ms
+Total elapsed time: 229000 ms
+
+real	3m49.639s
+user	3m49.480s
+sys	0m0.160s
+
+----------
+BC
+BM Bench v0.4 (bc)
+Calibrating benchmark 0 with loops=1, n=1000000
+Calibation ignored since we have no time function.
+x=0 (time: 20000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+Error(bench0): x=0
+x=-1 (time: 20000 ms)
+Elapsed time for 1 loops: 20000 ms; estimation for 10 loops: 200000 ms
+Calibrating benchmark 1 with loops=1, n=1000000
+Calibation ignored since we have no time function.
+x=0 (time: 20000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=10528 (time: 20000 ms)
+Elapsed time for 1 loops: 20000 ms; estimation for 10 loops: 200000 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+Calibation ignored since we have no time function.
+x=0 (time: 20000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+Error(bench2): x=0
+x=-1 (time: 20000 ms)
+Elapsed time for 1 loops: 20000 ms; estimation for 10 loops: 200000 ms
+Summary for 10 Loops:
+Benchmark 0: 200000 ms
+Benchmark 1: 200000 ms
+Benchmark 2: 200000 ms
+Total elapsed time: 260000 ms
+0
+
+real	0m4.585s
+user	0m4.580s
+sys	0m0.000s
+----------
+Perl
+
+This is perl, version 5.005_03 built for i586-linux
+
+Copyright 1987-1999, Larry Wall
+
+Perl may be copied only under the terms of either the Artistic License or the
+GNU General Public License, which may be found in the Perl 5.0 source kit.
+
+Complete documentation for Perl, including FAQ lists, should be found on
+this system using `man perl' or `perldoc perl'.  If you have access to the
+Internet, point your browser at http://www.perl.com/, the Perl Home Page.
+
+Error(bench2): x=65535
+BM Bench v0.4 (Perl)
+Perl Version: 5.00503, osname: linux
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=2, n=1000000
+x=10528 (time: 1000 ms)
+Calibrating benchmark 1 with loops=4, n=1000000
+x=10528 (time: 2000 ms)
+Calibration done. Starting measurement with 24 loops to get >=10000 ms
+x=10528 (time: 14000 ms)
+Elapsed time for 24 loops: 14000 ms; estimation for 10 loops: 5833 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+x=-1 (time: 1000 ms)
+Calibrating benchmark 3 with loops=1, n=1000000
+x=41538 (time: 2000 ms)
+Calibration done. Starting measurement with 6 loops to get >=10000 ms
+x=41538 (time: 12000 ms)
+Elapsed time for 6 loops: 12000 ms; estimation for 10 loops: 20000 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 2000 ms)
+Calibration done. Starting measurement with 6 loops to get >=10000 ms
+x=1227283347 (time: 13000 ms)
+Elapsed time for 6 loops: 13000 ms; estimation for 10 loops: 21666 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 1000 ms)
+Calibrating benchmark 5 with loops=2, n=1000000
+x=27200 (time: 4000 ms)
+Calibration done. Starting measurement with 6 loops to get >=10000 ms
+x=27200 (time: 9000 ms)
+Elapsed time for 6 loops: 9000 ms; estimation for 10 loops: 15000 ms
+Summary for 10 Loops:
+Benchmark 1: 5833 ms
+Benchmark 2: -1 ms
+Benchmark 3: 20000 ms
+Benchmark 4: 21666 ms
+Benchmark 5: 15000 ms
+Total elapsed time: 62000 ms
+
+real	1m2.352s
+user	1m2.350s
+sys	0m0.000s
+----------
+Tcl
+application-specific initialization failed: Can't find a usable init.tcl in the following directories: 
+    /usr/lib/tcl7.6 /home/ali/lib/tcl7.6 /home/tcl7.6/library /home/ali/library
+This probably means that Tcl wasn't installed properly.
+
+BM Bench v0.4 (Tcl)
+This is Tcl 7.6 patchlevel 7.6p2
+library: /home/ali/library
+hostname: benchmark.wilo38.de
+Calibrating benchmark 1 with loops=1, n=1000000
+x=10528 (time: 8000 ms)
+Calibration done. Starting measurement with 2 loops to get >=10000 ms
+x=10528 (time: 15000 ms)
+Elapsed time for 2 loops: 15000 ms; estimation for 10 loops: 75000 ms
+Calibrating benchmark 2 with loops=1, n=1000000
+Error(bench 2): x=13568
+x=-1 (time: 13000 ms)
+Calibrating benchmark 3 with loops=1, n=1000000
+Important note: For Tcl we use 1/40 of the problem to get to an end (n=12500)...
+x=1492 (time: 28000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+Important note: For Tcl we use 1/40 of the problem to get to an end (n=12500)...
+x=1492 (time: 27000 ms)
+Elapsed time for 1 loops: 27000 ms; estimation for 10 loops: 270000 ms
+Calibrating benchmark 4 with loops=1, n=1000000
+x=1227283347 (time: 27000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=1227283347 (time: 27000 ms)
+Elapsed time for 1 loops: 27000 ms; estimation for 10 loops: 270000 ms
+Calibrating benchmark 5 with loops=1, n=1000000
+x=27200 (time: 202000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=27200 (time: 203000 ms)
+Elapsed time for 1 loops: 203000 ms; estimation for 10 loops: 2030000 ms
+Summary for 10 Loops:
+Benchmark 1: 75000 ms
+Benchmark 2: -1 ms
+Benchmark 3: 270000 ms
+Benchmark 4: 270000 ms
+Benchmark 5: 2030000 ms
+Total elapsed time: 550000 ms
+
+real	9m9.873s
+user	9m9.870s
+sys	0m0.000s
+----------
+finished.
+
+
+BM Bench v0.3 (StarOffice Basic)
+GUIType=4 (Motif), GUIVersion=0, SystemType=0
+Calibrating benchmark 2 with loops=1, n=1000000
+x=10528 (time: 30000 ms)
+Calibration done. Starting measurement with 1 loops to get >=10000 ms
+x=10528 (time: 31000 ms)
+Elapsed time for 1 loops: 31000 ms; estimation for 10 loops: 310000 ms
+Summary for 10 Loops:
+Benchmark 2: 310000 ms
+Total elapsed time: 61000 ms
+
+
+---
+
+Bywater BASIC Interpreter/Shell, version 2.20 patch level 2
+Copyright (c) 1993, Ted A. Campbell
+Copyright (c) 1995-1997, Jon B. Volkoff
+
+BM Bench v0.3 (bwBasic)
+Calibrating benchmark 2 with loops = 1; n = 1000000
+x = 10528 (time= 45000 ms)
+Calibration done. Starting measurement with 1 loops to get >= 10000 ms
+x = 10528 (time= 44000 ms)
+Elapsed time for 1 loops: 44000 ms; estimation for 10 loops: 440000 ms
+Total elapsed time: 89000 ms
+
+
+real    1m28.784s
+user    1m28.780s
+sys     0m0.000s
+
+---
+
