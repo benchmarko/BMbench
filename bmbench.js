@@ -13,6 +13,7 @@
 // 18.07.2004       added support for JScript (Windows Scripting Host, cscript.exe)
 // 17.01.2006       added support for DMDscript
 // 30.11.2006 0.06  based on version 0.05
+// 16.03.2019       adapted for Node.js
 //
 // Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
@@ -551,9 +552,10 @@ function main(args) {
   var start_t = get_ms();  // memorize start time
   var bench1 = 0;          // first benchmark to test
   var bench2 = 5;          // last benchmark to test
-  var n = 1000000;         // maximum number
+  var n = 1000000,         // maximum number
+    win;
 
-  var win = window.open("","Result","width=640,height=300,resizable=yes,scrollbars=yes,dependent=yes");
+  win = window.open("","Result","width=640,height=300,resizable=yes,scrollbars=yes,dependent=yes");
   if (win.focus) { win.focus(); }
   win.document.open("text/html", "reuse");
 
@@ -612,8 +614,24 @@ function main(args) {
       case 4: // Windows JScript (cscript)
         WScript.Echo(str);
       break;
+      case 5: // Node.js
+		    console.log(str); // or: process.stdout.write(str + "\n") // eslint-ignore-line no-console
+      break;
+      default: // unknown
+		    console.log("ERROR: Unknown jsEngine:" + window.jsEngine4bm); // eslint-ignore-line no-console
+		  break;
     }
   }
+
+function fnGetArguments(args, startIndex) {
+  var aArgs = [], // copy arguments into array
+    i;
+
+  for (i = startIndex; i < args.length; i++) {
+    aArgs[i - startIndex] = args[i];
+  }
+  return aArgs;
+}
 
 if (typeof window == "undefined") { // are we outside of a browser in a standalone JS engine?
   window = new Object(); // NGS: how to avoid warning about undefined global 'window'?
@@ -625,7 +643,10 @@ if (typeof window == "undefined") { // are we outside of a browser in a standalo
   window.js_engine1 = 0; // js engine for writeln
   window.document.writeln = window_writeln1;
   window.alert = window.document.writeln; // same as writeln
-  if (typeof System != "undefined") { // System object is available with NGS JS Engine
+  if ((typeof process === "object") && (typeof process.versions === "object") && (typeof process.versions.node !== "undefined")) { // Node.js
+		window.js_engine1 = 5; // Node.js
+    main(fnGetArguments(process.argv, 2));
+  } else if (typeof System != "undefined") { // System object is available with NGS JS Engine
     window.js_engine1 = 1;
     // convert to integer with NGS JS Engine engine, use Math.floor for others...
     eval("myint = int"); // set integer cast; avoid warning 'int' is reserved identifier in browsers
@@ -633,8 +654,8 @@ if (typeof window == "undefined") { // are we outside of a browser in a standalo
       if ((Math.max(5, 8) != 8) || (Math.pow(0.5, 2) != 0.25)) {
         window.alert("ERROR: Buggy NGS Javascript Engine! Correct b_math.c and try again...");
       } else {
-        ARGS.shift(); // remove program name in ARGV[0]
-        main(ARGS); // start script
+        //ARGS.shift(); // remove program name in ARGV[0]
+        main(fnGetArguments(ARGS, 1)); // start script
       }
     }
   } else if (typeof arguments != "undefined") { // Rhino, SpiderMonkey, DMDScript...
