@@ -105,39 +105,70 @@ var gState = {
 
 //
 // bench00 (Integer 16 bit) TTT TODO: define other BM
-// (alternating sum of 1..n) mod 65536
+// (alternating sum of 1..n)
 //
 function bench00(loops, n, check) {
 	var x = 0,
+		isOdd = n & 1,
 		i;
 
 	while (loops-- > 0 && x === 0) {
-		for (i = 0; i < n; i++) {
+		for (i = 1; i <= n; i++) {
 			x = (i - x) & 0xffff; // much faster than % 65536
 		}
-		x += check;
+		if (isOdd) {
+			x = -x;
+		}
+		x -= check;
+		x &= 0xffff;
 	}
-	return x % 65536;
+	return x;
 }
 
 
 //
-// bench01 (Integer 16/32 bit)
-// (alternating sum of 1..n) mod 65536
+// bench01 (Integer 32 bit)
+// (alternating sum of 1..n)
 function bench01(loops, n, check) {
 	var x = 0,
+		isOdd = n & 1,
 		i;
 
 	while (loops-- > 0 && x === 0) {
-		for (i = 0; i < n; i++) {
-			x = i - x;
+		for (i = 1; i <= n; i++) {
+			x = (i - x) | 0; //myint(i - x); // x = i - x; //hmm, OR always positive: myint(i - x)
 		}
-		x += check;
+		if (isOdd) {
+			x = -x;
+		}
+		x -= check;
 	}
-	return x % 65536;
+	return x; //% 65536;
 }
 
 
+//
+// bench02 (Floating Point, normally 64 bit)
+// (alternating sum of 1..n)
+function bench02(loops, n, check) {
+	var x = 0.0,
+		isOdd = n % 2,
+		i;
+
+	while (loops-- > 0 && x === 0) {
+		for (i = 1; i <= n; i++) {
+			x = i - x;
+		}
+		if (isOdd) {
+			x = -x;
+		}
+		x -= check;
+	}
+	return x;
+}
+
+
+/*
 //
 // bench02 (Floating Point, normally 64 bit)
 // (sum of 1..n) mod 65536
@@ -154,6 +185,7 @@ function bench02(loops, n, checkDouble) {
 	}
 	return x % 65536;
 }
+*/
 
 
 /*
@@ -281,8 +313,14 @@ function bench03(loops, n, check) {
 	var x = 0, // number of primes below n
 		sieve1, i, j, nHalf, m;
 
+	if (n & 1) { // isOdd
+		n += 1; // even
+	}
 	n /= 2; // compute only up to n/2
 
+	if (n & 1) { // isOdd
+		n += 1; // even
+	}
 	nHalf = n / 2;
 
 	sieve1 = new Array(nHalf + 1); // set the size we need, only for odd numbers
@@ -916,11 +954,12 @@ function bench03_blocksize1_ok(loops, n, check) {
 // nth random number number
 // Random number generator taken from
 // Raj Jain: The Art of Computer Systems Performance Analysis, John Wiley & Sons, 1991, page 442-444.
+// (or: https://www.cse.wustl.edu/~jain/cse567-08/ftp/k_26rng.pdf 26.21, Example 26.3; q=127773; 26.45)
 // It needs longs with at least 32 bit.
 // Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347
 function bench04(loops, n, check) {
-	var m = 2147483647, // modulus, do not change!
-		a = 16807, // multiplier
+	var m = 2147483647, // prime number 2^31-1; modulus, do not change!
+		a = 16807, // 7^5, one primitive root; multiplier
 		q = 127773, // m div a
 		r = 2836, // m mod a
 		x = 0, // random value
@@ -993,24 +1032,29 @@ function bench05(loops, n, check) {
 //
 function runBench(bench, loops, n) {
 	var x = 0,
-		check, checkDouble;
+		check;
 
 	switch (bench) {
 	case 0:
-		check = myint(n / 2 * ((n % 2 === 0) ? -1 : 1)) % 65536; // 41248, assuming n even!
+		//check = myint(n / 2 * ((n % 2) ? -1 : 1)) % 65536; // 41248, assuming n even!
+		check = ((n % 2) ? -(n + 1) / 2 : (n / 2)) & 0xffff;
 		x = bench00(loops, n, check);
 		break;
 
 	case 1:
-		check = myint(n / 2 * ((n % 2 === 0) ? -1 : 1)); // assuming n even! (sum should be ...)
+		//check = myint(n / 2 * ((n % 2) ? -1 : 1)); // assuming n even! (sum should be ...)
+		check = (n % 2) ? -(n + 1) / 2 : (n / 2);
 		x = bench01(loops, n, check);
 		break;
 
 	case 2:
 		//check = n / 2.0 * ((n % 2 === 0) ? -1.0 : 1.0); // assuming n even! (sum should be 5.000005E11)
-		checkDouble = (n / 2.0) * (n + 1.0); // assuming n even! (sum should be 5.000005E11)
-		check = checkDouble % 65536;
-		x = bench02(loops, n, checkDouble);
+		//checkDouble = (n / 2.0) * (n + 1.0); // assuming n even! (sum should be 5.000005E11)
+		//check = checkDouble % 65536;
+		//x = bench02(loops, n, checkDouble);
+		//check = (n / 2 * ((n % 2) ? -1 : 1)); // assuming n even! (sum should be ...)
+		check = (n % 2) ? -(n + 1) / 2 : (n / 2);
+		x = bench02(loops, n, check);
 		break;
 
 	case 3:
@@ -1064,7 +1108,8 @@ function strIntFormat(val, digits) {
 	return str;
 }
 
-function strDoubleFormat(val, digits, prec) {
+/*
+function strDoubleFormat_ok1(val, digits, prec) {
 	var str = "", // buffer for one formatted value
 		displPrecAfter = Math.pow(10, 2); // display precision after decimal point
 
@@ -1075,14 +1120,46 @@ function strDoubleFormat(val, digits, prec) {
 		str += ".";
 	}
 
-	// format to prec digits after comma
+	// format to prec digits after comma, beware of exponential numbers, e.g. 1e+23!
 	while ((str.length <= prec) || (str.charAt(str.length - (prec + 1)) !== ".")) {
 		str += "0";
 	}
 	str = strNumFormat(str, digits, " ");
 	return str;
 }
+*/
 
+function strDoubleFormat(val, digits, prec) {
+	var str = "", // buffer for one formatted value
+		displPrecAfter = Math.pow(10, 2), // display precision after decimal point
+		dotPos, count;
+
+	str += String(Math.round(val * displPrecAfter) / displPrecAfter);
+
+	dotPos = str.indexOf(".");
+	// integers do not have a dot yet...
+	if (dotPos < 0) {
+		dotPos = str.length;
+		str += ".";
+	}
+
+	/*
+	// format to prec digits after comma, beware of exponential numbers, e.g. 1e+23!
+	while ((str.length <= prec) || (str.charAt(str.length - (prec + 1)) !== ".")) {
+		str += "0";
+	}
+	*/
+
+	// format to prec digits after comma, beware of exponential numbers, e.g. 1e+23!
+	count = prec + 1 - (str.length - dotPos);
+	while (count > 0) {
+		str += "0";
+		count--;
+	}
+
+	str = strNumFormat(str, digits, " ");
+	return str;
+}
 
 function fnGetDate() {
 	var dt = new Date(),
