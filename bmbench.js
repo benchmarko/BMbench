@@ -14,7 +14,7 @@
 // 17.01.2006       added support for DMDscript
 // 30.11.2006 0.06  based on version 0.05
 // 16.03.2019       adapted for Node.js
-// xx.xx.2019 0.07  bench03, bench04 optimized
+// 05.05.2019 0.07  changed bench 01-03; time interval estimation
 //
 // Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
@@ -133,18 +133,20 @@ function bench00(loops, n, check) {
 
 //
 // bench01 (Integer 32 bit)
-// (alternating sum of 1..n)
+// (arithmetic mean of 1..n)
 function bench01(loops, n, check) {
 	var x = 0,
-		isOdd = n & 1,
+		sum = 0,
 		i;
 
 	while (loops-- > 0 && x === 0) {
+		sum = 0;
 		for (i = 1; i <= n; i++) {
-			x = (i - x) | 0;
-		}
-		if (isOdd) {
-			x = -x;
+			sum += i;
+			if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
+				sum -= n;
+				x++;
+			}
 		}
 		x -= check;
 	}
@@ -154,18 +156,20 @@ function bench01(loops, n, check) {
 
 //
 // bench02 (Floating Point, normally 64 bit)
-// (alternating sum of 1..n)
+// (arithmetic mean of 1..n)
 function bench02(loops, n, check) {
-	var x = 0.0,
-		isOdd = n % 2,
+	var x = 0,
+		sum = 0.0,
 		i;
 
 	while (loops-- > 0 && x === 0) {
+		sum = 0.0;
 		for (i = 1; i <= n; i++) {
-			x = i - x;
-		}
-		if (isOdd) {
-			x = -x;
+			sum += i;
+			if (sum >= n) {
+				sum -= n;
+				x++;
+			}
 		}
 		x -= check;
 	}
@@ -182,14 +186,7 @@ function bench03(loops, n, check) {
 	var x = 0, // number of primes below n
 		sieve1, i, j, nHalf, m;
 
-	if (n & 1) { // isOdd
-		n += 1; // even
-	}
-	n /= 2; // compute only up to n/2
-
-	if (n & 1) { // isOdd
-		n += 1; // even
-	}
+	n = (n / 2) | 0; // compute only up to n/2
 	nHalf = n >> 1; // div 2
 
 	sieve1 = new Array(nHalf + 1); // set the size we need, only for odd numbers
@@ -302,6 +299,102 @@ function bench05(loops, n, check) {
 }
 
 
+function bench06(loops, n, check) {
+	var x = 0,
+		cnt, i;
+
+	while (loops-- > 0 && x === 0) {
+		cnt = 0;
+		for (i = 1; i <= n; i++) {
+			x += i;
+			if (x >= n) { // avoid numbers above 2*n: divide by n by subtraction
+				x -= n;
+				cnt++;
+			}
+		}
+		x = cnt;
+		x -= check;
+	}
+	return x;
+}
+
+
+/*
+function bench06_t1(loops, n, check) {
+	var x = 0,
+		cnt = 0,
+		i;
+
+	while (loops-- > 0 && x === 0) {
+		cnt = 0;
+		for (i = 1; i <= n; i++) {
+			x += i;
+			if (x >= n) { // avoid numbers above 2*n: divide by n by subtraction
+				x -= n;
+				cnt++;
+			}
+		}
+		x = cnt;
+		x -= check;
+	}
+	return x;
+}
+*/
+
+/*
+function bench06_t2(loops, n, check) {
+	var x = 0,
+		i;
+
+	while (loops-- > 0 && x === 0) {
+		for (i = 1; i <= n; i++) {
+			x += i;
+		}
+		x = x / n | 0;
+		x -= check;
+	}
+	return x;
+}
+*/
+
+/*
+function bench06_t3(loops, n, check) {
+	var x = 0,
+		i;
+
+	while (loops-- > 0 && x === 0) {
+		//for (i = 1; i <= n / 2; i++) {
+			//x += i;
+			//x += (n + 1 - i);
+			//x -= n;
+		//	x++;
+		//}
+		//x++;
+		//x = x / n | 0;
+		x = n / 2 | 0;
+		x -= check;
+	}
+	return x;
+}
+*/
+
+/*
+//https://de.wikibooks.org/wiki/Algorithmensammlung:_Zahlentheorie:_Fibonacci-Folge
+function bench06_t0(loops, n, check) {
+	var a = 1,
+		b = 1,
+		i;
+
+	for (i = 1; i <= n; i++) {
+		gState.fnLog("DEBUG: i=" + i + ", a=" + a + " b=" + b);
+		a += b;
+		b += a;
+	}
+	return -1;
+}
+*/
+
+
 //
 // run a benchmark
 // in: bench = benchmark to use
@@ -320,12 +413,12 @@ function runBench(bench, loops, n) {
 		break;
 
 	case 1:
-		check = (n % 2) ? -(n + 1) / 2 : (n / 2);
+		check = myint((n + 1) / 2);
 		x = bench01(loops, n, check);
 		break;
 
 	case 2:
-		check = (n % 2) ? -(n + 1) / 2 : (n / 2);
+		check = myint((n + 1) / 2);
 		x = bench02(loops, n, check);
 		break;
 
@@ -342,6 +435,11 @@ function runBench(bench, loops, n) {
 	case 5:
 		check = 27200;
 		x = bench05(loops, n, check);
+		break;
+
+	case 6: // TEST
+		check = myint((n + 1) / 2);
+		x = bench06(loops, n, check);
 		break;
 
 	default:

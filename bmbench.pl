@@ -17,12 +17,19 @@
 
 use strict;
 
-my $PRG_VERSION = "0.06";
+my $PRG_VERSION = "0.07";
 my $PRG_LANGUAGE = "Perl";
 
 
 $::TimeHiResFunc = undef();
 
+my %gState = (
+  useHiRes => 1, # can be switched off for testing time with second resolution
+  tsType => '', # type of time stamp source
+  tsPrecMs => 0, # measured time stamp precision
+  tsPrecCnt => 0, # time stamp count (calls) per precision interval (until time change)
+  tsMeasCnt => 0, # last measured count
+);
 
 #
 # General description for benchmark test functions
@@ -41,12 +48,10 @@ $::TimeHiResFunc = undef();
 # bench00 (Integer 16 bit)
 # (sum of 1..n) mod 65536
 #
-sub bench00($$) {
+sub bench00($$$) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n) = @_;
+  my($loops, $n, $check) = @_;
   my $x = 0;
-  my $sum1 = (($n / 2) * ($n + 1)) & 0xffff; # assuming n even!
-  # sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
   my $n_div_65536 = ($n >> 16) & 0xffff;
   my $n_mod_65536 = $n & 0xffff;
   #print "DEBUG: n=$n, sum1=$sum1, n_div_65536=$n_div_65536, n_mod_65536=$n_mod_65536\n";
@@ -64,68 +69,55 @@ sub bench00($$) {
     }
     $x &= 0xffff;
     #print "DEBUG: x0=$x, x-sum1=". ($x - $sum1) ."\n";
-    if ($loops > 0) {  # some more loops left?
-      #print "DEBUG: x=$x, x-sum1=". ($x - $sum1) ."\n";
-      $x -= $sum1;     # yes, set x back to 0 (assuming n even)
-      if ($x != 0) {   # now x must be 0 again
-        $x++;          # force error for many wrong computations
-        last;          # Error
-      }
-    }
+    $x -= $check;
   }
-  return ($x & 0xffff);
+  return $x & 0xffff;
 }
 
 
 #
-# bench01 (Integer 16/32 bit)
-# (sum of 1..n) mod 65536
+# bench01 (Integer 32 bit)
+# (average of 1..n)
 #
-sub bench01($$) {
+sub bench01($$$) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n) = @_;
+  my($loops, $n, $check) = @_;
   my $x = 0;
-  my $sum1 = ($n / 2) * ($n + 1); # assuming n even! (32 bit sum should be 1784293664)
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-  while ($loops-- > 0) {
-    for (my $i = $n; $i > 0; $i--) {
-      $x += $i;
+  while ($loops-- > 0 && $x == 0) {
+    my $sum = 0;
+    for (my $i = 1; $i <= $n; $i++) {
+      $sum += $i;
+			if ($sum >= $n) { # to avoid numbers above 2*n, divide by n using subtraction
+				$sum -= $n;
+				$x++;
+			}
     }
-    if ($loops > 0) {  # some more loops left?
-      $x -= $sum1;     # yes, set x back to 0 (assuming n even)
-      if ($x != 0) {   # now x must be 0 again
-        $x++;          # force error for many wrong computations
-        last;          # Error
-      }
-    }
+    $x -= $check;
   }
-  return ($x & 0xffff);
+  return $x;
 }
 
 
 #
 # bench02 (Floating Point, normally 64 bit)
-# (sum of 1..n) mod 65536
+# (average of 1..n)
 #
-sub bench02($$) {
-  my($loops, $n) = @_;
+sub bench02($$$) {
+  my($loops, $n, $check) = @_;
   my $x = 0;
-  my $sum1 = ($n / 2) * ($n + 1); # assuming n even! (32 bit sum should be 1784293664)
   # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
   while ($loops-- > 0) {
-    for (my $i = $n; $i > 0; $i--) {
-      $x += $i;
+    my $sum = 0.0;
+    for (my $i = 1; $i <= $n; $i++) {
+      $sum += $i;
+			if ($sum >= $n) { # to avoid numbers above 2*n, divide by n using subtraction
+				$sum -= $n;
+				$x++;
+			}
     }
-    if ($loops > 0) {  # some more loops left?
-      $x -= $sum1;     # yes, set x back to 0 (assuming n even)
-      if ($x != 0) {   # now x must be 0 again
-        $x++;          # force error for many wrong computations
-        last;          # Error
-      }
-    }
+    $x -= $check;
   }
-  return ($x - int($x / 65536) * 65536); # return ($x % 65536);
-  # some Perl versions (e.g. 5.00503) seem to have a bug with modulus so use explicit computation...
+  return $x;
 }
 
 
@@ -134,9 +126,9 @@ sub bench02($$) {
 # number of primes below n (Sieve of Eratosthenes)
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 #
-sub bench03($$) {
+sub bench03($$$) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n) = @_;
+  my($loops, $n, $check) = @_;
   $n /= 2;    # compute only up to n/2 
   my $x = 0; # number of primes below n
   my $sieve = 0;
@@ -164,16 +156,9 @@ sub bench03($$) {
         $x++;
       }
     }
-    # check prime count
-    if ($loops > 0) {  # some more loops left?
-      $x -= 41538;     # yes, set x back to 0 (number of primes below 1000000)
-      if ($x != 0) {   # now x must be 0 again
-        $x++;          # force error for many wrong computations
-        last;          # Error
-      }
-    }
+    $x -= $check;
   }
-  return($x);
+  return $x;
 }
 
 
@@ -190,11 +175,13 @@ sub BENCH04_M() { 2147483647; } # modulus, do not change!
 sub BENCH04_A() { 16807; }      # multiplier
 sub BENCH04_Q() { 127773; }     # m div a
 sub BENCH04_R() { 2836; }       # m mod a
-sub bench04($$) {
+
+sub bench04($$$) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n) = @_;
-  my $x = 1; # last random value
+  my($loops, $n, $check) = @_;
+  my $x = 0; # last random value
   while ($loops-- > 0) {
+		$x++; # start with 1=last random value
     for (my $i = 1; $i <= $n; $i++) {
       my $x_div_q = $x / BENCH04_Q();  # int(...)
       my $x_mod_q = $x - BENCH04_Q() * $x_div_q;
@@ -203,14 +190,7 @@ sub bench04($$) {
         $x += BENCH04_M(); # x is new random number
       }
     }
-    if ($loops > 0) {
-      $x -= 1227283347;
-      if ($x != 0) {   # now x must be 0 again
-        $x++;
-        last;          # Error
-      }
-      $x++; # start with 1 again
-    }
+    $x -= $check;
   }
   return $x;
 }
@@ -221,9 +201,9 @@ sub bench04($$) {
 # n over n/2 mod 65536 (Pascal's triangle)
 # (we just need to store the last 2 lines of computation)
 #
-sub bench05($$) {
+sub bench05($$$) {
   use integer; # we need integer arithmetic
-  my($loops, $n) = @_;
+  my($loops, $n, $check) = @_;
   my $x = 0;
   $n = int($n / 500);
   my $k = int($n / 2);
@@ -252,13 +232,7 @@ sub bench05($$) {
       }
     }
     $x += $pas1[$k] & 0xffff; # % 65536
-    if ($loops > 0) {
-      $x -= 27200;
-      if ($x != 0) {   # now x must be 0 again
-        $x++;
-        last;          # Error
-      }
-    }
+    $x -= $check;
   }
   return $x;
 }
@@ -325,41 +299,42 @@ sub bench05_array_ok1($$) {
 sub run_bench($$$) {
   my($bench, $loops, $n) = @_;
   my $x = 0;
-  my $check1 = 0;
+  my $check = 0;
   if ($bench == 0) {
-    $x = bench00($loops, $n);
-    $check1 = 10528;
+    $check = 10528;
+    $x = bench00($loops, $n, $check);
 
   } elsif ($bench == 1) {
-    $x = bench01($loops, $n);
-    $check1 = 10528;
+    $check = int(($n + 1) / 2);
+    $x = bench01($loops, $n, $check);
 
   } elsif ($bench == 2) {
-    $x = bench02($loops, $n);
-    $check1 = 10528;
+    $check = int(($n + 1) / 2);
+    $x = bench02($loops, $n, $check);
 
   } elsif ($bench == 3) {
-    $x = bench03($loops, $n);
-    $check1 = 41538;
+    $check = 41538;
+    $x = bench03($loops, $n, $check);
 
   } elsif ($bench == 4) {
-    $x = bench04($loops, $n);
-    $check1 = 1227283347;
+    $check = 1227283347;
+    $x = bench04($loops, $n, $check);
 
   } elsif ($bench == 5) {
-    $x = bench05($loops, $n);
-    $check1 = 27200;
+    $check = 27200;
+    $x = bench05($loops, $n, $check);
   
   } else {
     print STDERR "Error: Unknown benchmark ", $bench, "\n";
-    $check1 = $x + 1; # force error
+    $check = -1;
   }
 
-  if ($check1 != $x) {
+  $x += $check;
+  if ($check != $x) {
     print STDERR "Error(bench", $bench, "): x=", $x, "\n";
     $x = -1; # exit
   }
-  return($x);
+  return $x;
 }
 
 
@@ -371,8 +346,9 @@ sub run_bench($$$) {
 # otherwise time()
 #
 sub private_init_HiRes() {
-  if (eval { require Time::HiRes; }) { # Time::HiRes::time() will be a float to 6 decimal places
+  if ($gState{useHiRes} && eval { require Time::HiRes; }) { # Time::HiRes::time() will be a float to 6 decimal places
     $::TimeHiResFunc = \&Time::HiRes::time;
+    $gState{tsType} = 'HiRes';
   } elsif (eval { require 'syscall.ph'; }) {
     # ...otherwise try to use a syscall to gettimeofday, which will also return a float
     my $TIMEVAL_T = "QQ"; # for 64 bit Perl
@@ -384,10 +360,12 @@ sub private_init_HiRes() {
       syscall(&SYS_gettimeofday, $tval, 0) != -1 or die "gettimeofday: $!";
       my @time1 = unpack($TIMEVAL_T, $tval);
       return $time1[0] + ($time1[1] / 1_000_000);
-    }
+    };
+    $gState{tsType} = 'syscall';
   } else {
     # ...otherwise use time() to return an integral number of seconds.
     $::TimeHiResFunc = sub { time(); }; # is it possible to get a function pointer directly on time()?
+    $gState{tsType} = 'time';
   }
 }
 
@@ -407,6 +385,51 @@ sub get_ms() {
 }
 
 
+sub correctTime($$) {
+  my($tMeas0, $measCount) = @_;
+	my $tsPrecMs = $gState{tsPrecMs};
+	my $tsPrecCnt = $gState{tsPrecCnt};
+
+	if ($measCount > $tsPrecCnt) {
+		$measCount = $tsPrecCnt; # fix
+	}
+	my $tMeas = $tMeas0 + $tsPrecMs * (($tsPrecCnt - $measCount) / $tsPrecCnt); # use start ts + correction
+	return $tMeas;
+}
+
+sub getPrecMs($) {
+  my($stopFlg) = @_;
+	my $measCount = 0;
+  my $tMeas;
+
+	my $tMeas0 = get_ms();
+	do {
+		$tMeas = get_ms();
+		$measCount++;
+	} while ($tMeas == $tMeas0);
+	if ($stopFlg) {
+		$tMeas = correctTime($tMeas0, $measCount);
+	}
+	$gState{tsMeasCnt} = $measCount; # memorize last count
+	return $tMeas;
+}
+
+# usually only neede if time precision is low, e.g. one second
+sub determineTsPrecision() {
+	my $tMeas0 = getPrecMs(0);
+	my $tMeas1 = getPrecMs(0);
+	$gState{tsPrecMs} = $tMeas1 - $tMeas0;
+	$gState{tsPrecCnt} = $gState{tsMeasCnt};
+
+  # do it again
+	$tMeas0 = $tMeas1;
+	$tMeas1 = getPrecMs(0);
+	if ($gState{tsMeasCnt} > $gState{tsPrecCnt}) { # taker maximum count
+		$gState{tsPrecCnt} = $gState{tsMeasCnt};
+		$gState{tsPrecMs} = $tMeas1 - $tMeas0;
+	}
+}
+
 # Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
 sub checkbits_int1() {
   use integer; # we need integer
@@ -423,15 +446,18 @@ sub checkbits_int1() {
 }
 
 sub checkbits_double1() {
+  local $SIG{__WARN__} = sub { warn $_[0] }; #we could catch warning "Lost precision when incrementing"
   my $num = 1.0;
   my $last_num = 0.0;
   my $bits = 0;
+  my $numBeforeInc;
   do {
     $last_num = $num;
     $num *= 2.0;
+    $numBeforeInc = $num; # to stop after first warning "Lost precision when incrementing"
     $num++;
     $bits++;
-  } while ( ((($num - 1.0) / 2.0) == $last_num) && ($bits < 101) );
+  } while ( ($num != $numBeforeInc) && ((($num - 1.0) / 2.0) == $last_num) && ($bits < 101) );
   return $bits;
 }
 
@@ -439,8 +465,8 @@ sub checkbits_double1() {
 sub print_info() {
   my $perl_version = $];
   $perl_version =~ tr/\n/;/;
-  print("BM Bench v", $PRG_VERSION, " (", $PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(), ") $perl_version, osname: $^O\n");
-  print("(c) Marco Vieth, 2006\n");
+  print("BM Bench v", $PRG_VERSION, " (", $PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(),  " tsType:", $gState{tsType}, " tsMs:", $gState{tsPrecMs}, " tsCnt:", $gState{tsPrecCnt}, ") $perl_version, osname: $^O\n");
+  print("(c) Marco Vieth, 2002-2019\n");
   print("Date: ". localtime(time()) ."\n");
   #system("uname -a");        
 }
@@ -460,6 +486,52 @@ sub print_results($$$) {
 }
 
 
+sub measureBench($$) {
+  my($bench, $n) = @_;
+  my $cali_ms = 1001; # const
+  my $delta_ms = 100; # const
+  my $max_ms = 10000; # const
+
+  my $loops = 1; # number of loops
+  my $x = 0;     # result from benchmark
+  my $t1 = 0;    # measured time
+  my $t2 = 0;    # estimated time
+  my $rc = 0;
+
+  printf("Calibrating benchmark %d with n=%d\n", $bench, $n);
+  while (!$rc) {
+    $t1 = getPrecMs(0); #get_ms()
+    $x = run_bench($bench, $loops, $n);
+    $t1 = getPrecMs(1) - $t1; #get_ms() - $t1
+
+    my $t_delta = ($t2 > $t1) ? ($t2 - $t1) : ($t1 - $t2); # compute difference abs(measures-estimated)
+    my $loops_p_sec = ($t1 > 0) ? ($loops * 1000.0 / $t1) : 0;
+    printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", $loops_p_sec, $t1, $loops, $t_delta, $x);
+    if ($x == -1) { # some error?
+      #$bench_res1[$bench] = -1;
+      #last; # (can only exit while, if not in sub block)
+      $rc = -1;
+    } elsif (($t2 > 0) &&  ($t_delta < $delta_ms)) { # do we have some estimated/expected time smaller than delta_ms=100? 
+      #$bench_res1[$bench] = $loops_p_sec; # set loops per sec
+      $rc = $loops_p_sec; # yeah, set measured loops per sec
+      printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", $bench, $PRG_LANGUAGE, $loops_p_sec, $t1, $loops, $t_delta);
+      #last;
+    } elsif ($t1 > $max_ms) {
+      printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", $bench, $PRG_LANGUAGE, $max_ms);
+      #$bench_res1[$bench] = -1;
+      #last;
+      $rc = -1;
+    } else {
+      my $scale_fact = (($t1 < $cali_ms) && ($t1 > 0)) ? int((($cali_ms + 100) / $t1) + 1) : 2;
+        # scale a bit up to 1100 ms (cali_ms+100)
+      $loops *= $scale_fact;
+      $t2 = $t1 * $scale_fact;
+    }
+  }
+  return $rc;
+}
+
+
 sub start_bench($$$) {
   my($bench1, $bench2, $n) = @_;
   my $cali_ms = 1001; # const
@@ -470,50 +542,13 @@ sub start_bench($$$) {
 
   my @bench_res1 = ();
   for (my $bench = $bench1; $bench <= $bench2; $bench++) {
-    my $loops = 1; # number of loops
-    my $x = 0;     # result from benchmark
-    my $t1 = 0;    # measured time
-    my $t2 = 0;    # estimated time
-
-    printf("Calibrating benchmark %d with n=%d\n", $bench, $n);
-    while (1) {
-      $t1 = get_ms();
-      $x = run_bench($bench, $loops, $n);
-      $t1 = get_ms() - $t1;
-
-      my $t_delta = ($t2 > $t1) ? ($t2 - $t1) : ($t1 - $t2); # compute difference abs(measures-estimated)
-      my $loops_p_sec = ($t1 > 0) ? ($loops * 1000.0 / $t1) : 0;
-      printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", $loops_p_sec, $t1, $loops, $t_delta, $x);
-      if ($x == -1) { # some error?
-        $bench_res1[$bench] = -1;
-        last; # (can only exit while, if not in sub block)
-      }
-      if ($t2 > 0) { # do we have some estimated/expected time? 
-        if ($t_delta < $delta_ms) { # smaller than delta_ms=100? 
-          $bench_res1[$bench] = $loops_p_sec; # set loops per sec
-          printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", $bench, $PRG_LANGUAGE, $bench_res1[$bench], $t1, $loops, $t_delta);
-          last;
-        }
-      }
-
-      if ($t1 > $max_ms) {
-        printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", $bench, $PRG_LANGUAGE, $max_ms);
-        $bench_res1[$bench] = -1;
-        last;
-      }
-      {
-        my $scale_fact = (($t1 < $cali_ms) && ($t1 > 0)) ? int((($cali_ms + 100) / $t1) + 1) : 2;
-          # scale a bit up to 1100 ms (cali_ms+100)
-        $loops *= $scale_fact;
-        $t2 = $t1 * $scale_fact;
-      }
-    }
+    my $rc =  measureBench($bench, $n);
+    $bench_res1[$bench] = $rc;
   }
 
   print_results($bench1, $bench2, \@bench_res1);
   return 0;
 }
-
 
 
 sub main($) {
@@ -535,6 +570,7 @@ sub main($) {
     $n = $ARGV[2];
   }
   
+  determineTsPrecision();
   my $rc = start_bench($bench1, $bench2, $n);
   
   printf("Total elapsed time: %d ms\n", get_ms() - $start_t);

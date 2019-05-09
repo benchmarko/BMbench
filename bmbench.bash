@@ -27,7 +27,8 @@
 
 # Note: bash does only integer, zsh can both integer and fp!
 # zsh has very slow arrays (seems to be exponential time to access high indices)
-
+#
+# needs commands "printf", "bc", "date"
 
 #
 # zsh:
@@ -55,12 +56,33 @@
 # - Functions
 # [ function ] name () { list; }
 #
+
+#
+# Checked with SpellCheck: https://www.shellcheck.net/
 #
 
-PRG_VERSION="0.06";
+set -euo pipefail
+IFS=$'\n\t'
+
+set +e # can we use "set -e" with arithmetic expressions?
+
+PRG_VERSION="0.07";
 PRG_LANGUAGE="bash";
 
 ####################################
+
+typeset -a gState_fact=(20 20 20 20 20 4); # benchmark simplification factors for n
+typeset -a gState_result=("" "" "" 2762 872041851 12864); # benchmark simplification results
+
+#typeset -a gState_fact=("" "" "" 20 4 2); # benchmark simplification factors for n
+#typeset -a gState_result=("" "" "" 2762 838931758 43584); # benchmark simplification results
+
+#gState_fact[3]=20;     # bench03 reduction factor for n
+#gState_result[3]=2762; #result for factor 20 (for factor 1 it would be 41538)
+#gState_fact[4]=4;     # bench04 reduction factor for n
+#gState_result[4]=838931758; #result for factor 4 (for factor 1 it would be 1227283347)
+#gState_fact[5]=2;     # bench05 reduction factor for n
+#gState_result[5]=43584; #result for factor 2 (factor 1 it would be 27200)
 
 
 #
@@ -79,12 +101,11 @@ PRG_LANGUAGE="bash";
 # (sum of 1..n) mod 65536
 #
 bench00() {
-  local loops=$1 n=$2;
-  typeset -i sum1 n_div_65536 n_mod_65536 i j;
-  local sum1=0 n_div_65536=0 n_mod_65536=0 i=0 j=0;
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+  typeset -i n_div_65536 n_mod_65536 i j;
+  local n_div_65536=0 n_mod_65536=0 i=0 j=0;
   x=0; # global!
-  ((sum1=((n / 2) * (n + 1)) % 65536)); # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
   ((n_div_65536=(n / 65536)));
   ((n_mod_65536=(n % 65536)));
 
@@ -98,12 +119,9 @@ bench00() {
      ((x += j--));
     done;
     ((x %= 65536));
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x -= sum1));     # yes, set x back to 0 (assuming n even)
-      if [ "$x" -ne 0 ]; then # now x must be 0 again
-        ((x++));
-        break;       # error
-      fi;
+    ((x -= check));
+    if [ "$x" -ne 0 ]; then
+      break;
     fi;
   done;
   ((x %= 65536));
@@ -112,106 +130,114 @@ bench00() {
 
 
 #
-# bench01 (Integer 16/32 bit)
-# (sum of 1..n) mod 65536
+# bench01 (Integer 32 bit)
+# (arithmetic mean of 1..n)
 #
-bench01() {
-#in: loops, n
-  local loops=$1 n=$2;
-  typeset -i sum1 i;
-  local sum1=0 i=0;
-  ((sum1=(n / 2) * (n + 1))); # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-  x=0;
+bench01_ok_unused() {
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+  typeset -i isum i ix;
+  local isum i ix=0;
   for (( ; loops-- ; )); do
-    #echo "DEBUG: bench01: loops=$loops, sum1=$sum1"
-    for (( i = n ; i ; )); do ((x += i--)); done;
-    #echo "DEBUG: bench01: x=$x"
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x -= sum1));     # yes, set x back to 0 (assuming n even)
-      if [ "$x" -ne 0 ]; then # now x must be 0 again
-        ((x++));
-        break;       # error
+    isum=0
+    for (( i = 1 ; i <= n ; i++, isum += i )); do
+      if [ "$isum" -gt "$n" ]; then
+        ((isum -= n, ix++));
       fi;
+    done;
+    ((ix -= check));
+    if [ "$ix" -ne 0 ]; then
+      break;
     fi;
   done;
-  ((x %= 65536));
-  # returns x
+  x=ix # return x (global)
 }
+
+
+bench01() {
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+  typeset -i sum i ix=0;
+  for (( ; loops-- ; )); do
+    sum=0;
+    for (( i = 1 ; i <= n ; i++ )); do
+      (( sum+=i, sum>n ? sum -= n, ix++ : 0 ));
+    done;
+    ((ix -= check));
+    if [ "$ix" -ne 0 ]; then
+      break;
+    fi;
+  done;
+  x=ix # return x (global)
+}
+
 
 
 #
 # bench02 (Floating Point, normally 64 bit)
-# (sum of 1..n) mod 65536
+# (arithmetic mean of 1..n)
 #
 bench02_zsh() {
-#in: loops, n
-  typeset -i i;
-  local loops=$1 n=$2;
-  local sum1_f x_f i;
-  ((sum1_f=(n / 2.0) * (n + 1.0))); # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-  x_f=0.0;
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+  typeset -i i ix;
+  local sum i ix=0;
   for (( ; loops-- ; )); do
-    for (( i = n ; i ; )); do ((x_f += i--)); done;
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x_f -= sum1_f));     # yes, set x back to 0 (assuming n even)
-      if [ "$x_f" -ne 0.0 ]; then # now x must be 0 again
-        ((x_f++));
-        break;       # error
+    sum=0.0 # zsh has floating point
+    for (( i = 1 ; i <= n ; i++ )); do
+      ((sum += i));
+      if [ "$sum" -gt "$n" ]; then
+        ((sum -= n));
+        ((ix++));
       fi;
+    done;
+    ((ix -= check));
+    if [ "$ix" -ne 0 ]; then
+      break;
     fi;
   done;
-  ((x_f %= 65536.0));
-  x=x_f;
-  # returns x
+  x=ix # return x (global)
 }
 
 
 bench02_bash() {
-#in: loops, n
-  typeset -i i;
-  local loops=$1 n=$2;
-  local sum1_f x_f i;
-  ((sum1_f=(n / 2) * (n + 1))); # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-  x_f=0;
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+  typeset -i i ix;
+  local sum i ix=0;
   for (( ; loops-- ; )); do
-    for (( i = n ; i ; )); do ((x_f += i--)); done;
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x_f -= sum1_f));     # yes, set x back to 0 (assuming n even)
-      if [ "$x_f" -ne 0 ]; then # now x must be 0 again
-        ((x_f++));
-        break;       # error
+    sum=0
+    for (( i = 1 ; i <= n ; i++ )); do
+      ((sum += i));
+      if [ "$sum" -gt "$n" ]; then
+        ((sum -= n));
+        ((ix++));
       fi;
+    done;
+    ((ix -= check));
+    if [ "$ix" -ne 0 ]; then
+      break;
     fi;
   done;
-  ((x_f %= 65536));
-  x=x_f;
-  # returns x
+  x=ix # return x (global)
 }
 
-
-g_fact_bench03=20;     # benchmark reduction factor
-g_result_bench03=2762; #result for factor 20 (for factor 1 it would be 41538)
 
 # bench03 (Integer)
 # number of primes below n (Sieve of Eratosthenes)
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 # (No bit array available but zsh as max array index of 262144 (and gets very slow), so simulate bit array...)
 bench03() {
-#in: loops, n
-  local loops=$1 n=$2;
-  typeset -i i j test1;
-  local i=0 j=0 test1=0;
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+  typeset -i i=0 j=0 test1=0;
+  typeset -a sieve1=();
 
-  ((n /= g_fact_bench03)); # reduce by a factor
-  echo "Note: $g_sh has a very slow array implementation, so reduce n by factor $g_fact_bench03 to $n."
+  #((n /= g_fact_bench03)); # reduce by a factor
+  #echo "Note: $g_sh has a very slow array implementation, so reduce n by factor $g_fact_bench03 to $n."
 
   ((n /= 2)); # compute only up to n/2
   x=0; # number of primes below n
-  typeset -a sieve1;
-  #local sieve1; # do we need local??
   i=0; ((sieve1[i>>3] &= ~(1 << (i & 7))));
   i=1; ((sieve1[i>>3] &= ~(1 << (i & 7))));
 
@@ -245,20 +271,14 @@ bench03() {
     done;
 
     # check prime count
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x -= g_result_bench03));     # yes, set x back to 0 (number of primes below 1000000)
-      if [ "$x" -ne 0 ]; then # now x must be 0 again
-        ((x++));
-        break;       # error
-      fi;
+    ((x -= check));
+    if [ "$x" -ne 0 ]; then # now x must be 0 again
+      break;       # error
     fi;
   done;
   # returns x
 }
 
-
-g_fact_bench04=4; # benchmark reduction factor
-g_result_bench04=838931758; #result for factor 4 (for factor 1 it would be 1227283347)
 
 #
 # bench04 (Integer 32 bit)
@@ -268,47 +288,83 @@ g_result_bench04=838931758; #result for factor 4 (for factor 1 it would be 12272
 # It needs longs with at least 32 bit.
 # Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 #
-bench04() {
-#in: loops, n
-  local loops=$1 n=$2;
+bench04_ok1_unused() {
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
 
-  ((n /= g_fact_bench04)); # reduce by a factor
-  echo "Note: $g_sh has a very slow computations, so reduce n by factor $g_fact_bench04 to $n."
+  #((n /= g_fact_bench04)); # reduce by a factor
+  #echo "Note: $g_sh has a very slow computations, so reduce n by factor $g_fact_bench04 to $n."
 
-  typeset -i bench04_M bench04_A bench04_Q bench04_R;
-  local bench04_M=2147483647; # modulus, do not change!
-  local bench04_A=16807;      # multiplier
-  local bench04_Q=127773;     # m div a
-  local bench04_R=2836;       # m mod a
+  #typeset -i bench04_M bench04_A bench04_Q bench04_R;
+  #local bench04_M=2147483647; # modulus, do not change!
+  #local bench04_A=16807;      # multiplier
+  #local bench04_Q=127773;     # m div a
+  #local bench04_R=2836;       # m mod a
+  typeset -ir bench04_M=2147483647 bench04_A=16807 bench04_Q=127773 bench04_R=2836;
+  # M=modulus, A=multiplier, Q=M div A, R=M mod A
+  typeset -i i=0 x_div_q=0 x_mod_q=0;
 
-  typeset -i i x_div_q x_mod_q;
-  local i=0 x_div_q=0 x_mod_q=0;
-
-  x=1;                # last random value
+  x=0;                # last random value
   for (( ; loops-- ; )); do
+    ((x++)) # start with 1=last random value
     for (( i = 1 ; i <= n ; i++ )); do
-      ((x_div_q = (x / bench04_Q))); # int
+      ((x_div_q = (x / bench04_Q))); # int!
       ((x_mod_q = x - bench04_Q * x_div_q));
       ((x = bench04_A * x_mod_q - bench04_R * x_div_q));
       if [ "$x" -le 0 ]; then
         ((x += bench04_M)); # x is new random number
       fi;
     done;
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x -= g_result_bench04));     # now x must be 0
-      if [ "$x" -ne 0 ]; then # now x must be 0 again
-        ((x++));
-        break;       # error
-      fi;
-      ((x++)); # start with 1 again
+    ((x -= check));
+    if [ "$x" -ne 0 ]; then # now x must be 0 again
+      break;       # error
     fi;
   done;
   # returns x
 }
 
 
-g_fact_bench05=2; # benchmark reduction factor
-g_result_bench05=43584; #result for factor 2 (for factor 1 it would be 27200)
+bench04() {
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
+
+  #((n /= g_fact_bench04)); # reduce by a factor
+  #echo "Note: $g_sh has a very slow computations, so reduce n by factor $g_fact_bench04 to $n."
+
+  #typeset -i bench04_M bench04_A bench04_Q bench04_R;
+  #local bench04_M=2147483647; # modulus, do not change!
+  #local bench04_A=16807;      # multiplier
+  #local bench04_Q=127773;     # m div a
+  #local bench04_R=2836;       # m mod a
+  #typeset -ir bench04_M=2147483647 bench04_A=16807 bench04_Q=127773 bench04_R=2836;
+  # M=modulus, A=multiplier, Q=M div A, R=M mod A
+  #typeset -i i=0 x_div_q=0 x_mod_q=0;
+  typeset -i i=0;
+
+  x=0;                # last random value
+  for (( ; loops-- ; )); do
+    ((x++)) # start with 1=last random value
+    for (( i = 1 ; i <= n ; i++ )); do
+      #(( x = 16807 * (x % 127773) - 2836 * ((x / 127773) | 0), x<0 ? x += 2147483647 : 0 ));
+      (( x = 16807 * (x % 127773) - 2836 * ((x / 127773) | 0) ))
+      (( x<0 ? x += 2147483647 : 0 ));
+
+      #"x =  A     * (x % Q     ) - R    * (x div Q)"
+
+      #((x_mod_q = x - bench04_Q * x_div_q));
+      #((x = bench04_A * x_mod_q - bench04_R * x_div_q));
+      #if [ "$x" -le 0 ]; then
+      #  ((x += bench04_M)); # x is new random number
+      #fi;
+    done;
+    ((x -= check));
+    if [ "$x" -ne 0 ]; then # now x must be 0 again
+      break;       # error
+    fi;
+  done;
+  # returns x
+}
+
 
 #
 # bench05 (Integer 32 bit) (list implementation)
@@ -316,14 +372,14 @@ g_result_bench05=43584; #result for factor 2 (for factor 1 it would be 27200)
 # (we just need to store the last 2 lines of computation)
 #
 bench05() {
-#in: loops, n
-  local loops=$1 n=$2;
+#in: loops, n, check; out: x
+  local loops=$1 n=$2 check=$3;
 
-  ((n /= g_fact_bench05)); # reduce by a factor
-  echo "Note: $g_sh has a very slow array implementation, so reduce n by factor $g_fact_bench05 to $n."
+  #((n /= g_fact_bench05)); # reduce by a factor
+  #echo "Note: $g_sh has a very slow array implementation, so reduce n by factor $g_fact_bench05 to $n."
 
-  typeset -i k pas1 pas2 i min1 j test1;
-  local k=0 pas1=0 pas2=0 i=0 min1=0 j=0 test1=0;
+  typeset -i k=0 i=0 min1=0 j=0 test1=0;
+  typeset -a pas1=() pas2=();
 
   x=0;
 
@@ -333,11 +389,6 @@ bench05() {
   if [ $((n - k)) -lt $k ]; then
     ((k = n - k)); # keep k minimal with  n over k  =  n over n-k
   fi;
-
-  typeset -a pas1;
-  typeset -a pas2;
-  #pas1 = ();
-  #pas2 = ();
 
   for (( ; loops-- ; )); do
     pas1[0]=1;
@@ -370,12 +421,9 @@ bench05() {
     done;
     ((x += pas1[k] % 65536));
     #echo "DEBUG: bench05: x=$x"
-    if [ "$loops" -gt 0 ]; then # some more loops left?
-      ((x -= g_result_bench05)); # normally 27200
-      if [ "$x" -ne 0 ]; then # now x must be 0 again
-        ((x++));
-        break;       # error
-      fi;
+    ((x -= check));
+    if [ "$x" -ne 0 ]; then # now x must be 0 again
+      break;       # error
     fi;
   done;
   # returns x
@@ -392,51 +440,74 @@ bench05() {
 run_bench() {
 #(bench, loops, n,    x, check1) {
   local bench=$1 loops=$2 n=$3;
-  typeset -i check1;
-  local check1=0;
+  typeset -i check;
+  local check=${gState_result[$bench]}; # if available
   x=0;
-  #echo "DEBUG: run_bench";
   case "$bench" in
     0)
-      bench00 $loops $n; # special version optimized for 16 bit
-      check1=10528;
+      #check=10528;
+      ((check=((n / 2) * (n + 1)) % 65536)); # assuming n even!
+      bench00 "$loops" "$n" "$check"; # special version optimized for 16 bit
     ;;
 
     1)
-      bench01 $loops $n;
-      check1=10528;
+      ((check=(n + 1) / 2));
+      bench01 "$loops" "$n" "$check";
     ;;
 
     2)
-      bench02_$g_sh $loops $n; # for bash or zsh
-      check1=10528;
+      ((check=(n + 1) / 2));
+      bench02_"$g_sh" "$loops" "$n" "$check"; # for bash or zsh
     ;;
 
     3)
-      bench03 $loops $n;
-      check1=$g_result_bench03;
+      #check=${gState_result[$bench]};
+      bench03 "$loops" "$n" "$check";
     ;;
 
     4)
-      bench04 $loops $n;
-      check1=g_result_bench04; # normally 1227283347
+      #check=g_result_bench04; # normally 1227283347
+      bench04 "$loops" "$n" "$check";
     ;;
 
     5)
-      bench05 $loops $n;
-      check1=g_result_bench05; # normally 27200; # 58336; 43584;
+      #check=g_result_bench05; # normally 27200; # 58336; 43584;
+      bench05 "$loops" "$n" "$check";
     ;;
 
     *)
       echo "Error: Unknown benchmark: $bench";
-      ((check1=x+1)); # force error
+      check=-1
     ;;
   esac;
-  if [ "$check1" -ne "$x" ]; then
+
+  ((x += check));
+  if [ "$x" -ne "$check" ]; then
     echo "Error(bench$bench): x=$x";
     x=-1; # exit
   fi;
 }
+
+
+#for bash: integer div with floating point result
+#https://stackoverflow.com/questions/12147040/division-in-script-and-floating-point/24431665#24431665
+divf_unused() {
+#dividend and divisor
+  if [ "$2" -eq 0 ]; then
+    echo division by 0;
+    exit;
+  fi
+  local p=12                            # precision
+  local c=${c:-0}                       # precision counter
+  local d=.                             # decimal separator
+  local r=$(($1/$2)); echo -n $r        # result of division
+  local m=$((r*$2))
+  [ "$c" -eq 0 ] && [ "$m" -ne "$1" ] && echo -n "$d"
+  [ "$1" -eq "$m" ] || [ "$c" -eq "$p" ] && return
+  local e=$(($1-m))
+  ((c=c+1))
+  divf_unused $((e*10)) "$2" # recursive
+} 
 
 
 get_ms() {
@@ -445,13 +516,77 @@ get_ms() {
 }
 
 
+correctTime() {
+  local tMeas0=$1 measCount=$2;
+  typeset -i tsPrecMs tsPrecCnt tMeas;
+  local tsPrecMs=$gState_tsPrecMs;
+  local tsPrecCnt=$gState_tsPrecCnt;
+  local tMeas;
+
+  if [ "$measCount" -gt "$tsPrecCnt" ]; then
+    measCount=$tsPrecCnt; # fix
+  fi;
+  #echo "DDD0: correctTime: $tMeas0 + $tsPrecMs * ( $tsPrecCnt - $measCount) / $tsPrecCnt";
+  (( tMeas = tMeas0 + (tsPrecMs * (tsPrecCnt - measCount) / tsPrecCnt) )); # use start ts + correction
+  correctTime=$tMeas; # return
+  #echo "DDD1: correctTime=tMeas=$tMeas";
+}
+
+getPrecMs() {
+  local stopFlg=$1;
+  typeset -i measCount tMeas tMeas0;
+  local measCount=0;
+  local tMeas;
+
+  get_ms;
+  local tMeas0=$get_ms;
+
+  tMeas=tMeas0;
+  while [ "$tMeas" -eq "$tMeas0" ]; do
+    get_ms; 
+    tMeas=$get_ms;
+    ((measCount++));
+  done;
+  if [ "$stopFlg" -eq "1" ]; then
+    correctTime $tMeas0 $measCount;
+    tMeas=$correctTime;
+  fi;
+  gState_tsMeasCnt=$measCount; # memorize last count
+  getPrecMs=$tMeas; # return
+  #echo "DDD: getPrecMs=$getPrecMs measCount=$measCount"
+}
+
+# usually only needed if time precision is low, e.g. one second
+determineTsPrecision() {
+  getPrecMs 0;
+  local tMeas0=$getPrecMs;
+  getPrecMs 0;
+  local tMeas1=$getPrecMs;
+  ((gState_tsPrecMs = tMeas1 - tMeas0));
+  gState_tsPrecCnt=$gState_tsMeasCnt;
+
+  #echo "DDD0: determineTsPrecision: tsPrecMs=$gState_tsPrecMs tsPrecCnt=$gState_tsPrecCnt";
+
+  # do it again
+  tMeas0=$tMeas1;
+  #echo "DDD1h1: $tMeas0 $tMeas1";
+  getPrecMs 0;
+  tMeas1=$getPrecMs;
+  #echo "DDD1h1: $tMeas0 $tMeas1";
+  if [ "$gState_tsMeasCnt" -gt "$gState_tsPrecCnt" ]; then # taker maximum count
+    gState_tsPrecCnt=$gState_tsMeasCnt;
+    ((gState_tsPrecMs = tMeas1 - tMeas0));
+  fi;
+  #echo "DDD1: determineTsPrecision: tsPrecMs=$gState_tsPrecMs tsPrecCnt=$gState_tsPrecCnt";
+}
+
+
 # Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
 checkbits_int1() {
 # num, last_num, bits
   typeset -i num last_num num2 bits;
   local num=1 last_num=0 num2=0 bits=0;
-  #while [ ((($num - 1) / 2) -eq $last_num) && ($bits < 101) ]; do
-  while [ 1 ]; do
+  while true; do
     last_num=$num;
     ((num *= 2));
     ((num++));
@@ -470,8 +605,7 @@ checkbits_double1_bash() {
   typeset -i bits;
   local num_f=1 last_num_f=0 num2_f=0;
   local bits=0;
-  #while [ ((($num - 1) / 2) -eq $last_num) && ($bits < 101) ]; do
-  while [ 1 ]; do
+  while true; do
     last_num_f=$num_f;
     ((num_f *= 2));
     ((num_f++));
@@ -491,8 +625,7 @@ checkbits_double1_zsh() {
   typeset -i bits;
   local num_f=1.0 last_num_f=0.0 num2_f=0.0;
   local bits=0;
-  #while [ ((($num - 1) / 2) -eq $last_num) && ($bits < 101) ]; do
-  while [ 1 ]; do
+  while true; do
     last_num_f=$num_f;
     ((num_f *= 2.0));
     ((num_f++));
@@ -507,6 +640,7 @@ checkbits_double1_zsh() {
 
 
 print_info() {
+  set +u
   if [ "$ZSH_VERSION" ]; then
     g_sh='zsh';
     g_sh_version="$ZSH_NAME $ZSH_VERSION $MACHTYPE";
@@ -517,13 +651,14 @@ print_info() {
     g_sh='bash'; # assume bash
     g_sh_version="???";
   fi;
+  set -u
 
   checkbits_int1;
   checkbits_double1_$g_sh; # bash or zsh
 
-  echo "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:$checkbits_int1 double:$checkbits_double1) $g_sh_version";
-  echo "(c) Marco Vieth, 2006";
-  echo "Date:" `date`; # call external date
+  echo "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:$checkbits_int1 double:$checkbits_double1 tsMs:$gState_tsPrecMs tsCnt:$gState_tsPrecCnt) $g_sh_version";
+  echo "(c) Marco Vieth, 2006-2019";
+  echo "Date:" "$(date)"; # call external date
 }
 
 
@@ -535,45 +670,112 @@ print_results() {
 #TTT
   echo -n "BMR ($PRG_LANGUAGE) : ";
   for (( bench = bench1; bench <= bench2; bench++ )); do
-    echo -n "${bench_res1[bench]} ";
-    #printf "%9.2f " $((${bench_res1[$bench]}/10)); #TTT
+    #echo -n "${bench_res1[bench]} ";
+    #echo "DEBUG: print_results: ${bench_res1[$bench]}";
+    
+    #LC_ALL=C printf "%9.2f " $((${bench_res1[$bench]}))e-3;
+    LC_ALL=C printf "%9.3f " $((${bench_res1[$bench]}))e-3;
+
+    ##printf "%9.2f " $((${bench_res1[$bench]}/10)); #TTT
   done;
   echo "";
   echo "";
 }
 
 
-
-start_bench() {
-#(bench1, bench2, n,    cali_ms, delta_ms, max_ms, bench, loops, x, t1, t2, t_delta, loops_p_sec, scale_fact) {
-  local bench1=$1 bench2=$2 n=$3;
+measure_bench() {
+#(bench, n,    cali_ms, delta_ms, max_ms, bench, loops, x, t1, t2, t_delta, loops_p_sec, scale_fact)
+  local bench=$1 n=$2;
 
   typeset -i cali_ms delta_ms max_ms;
-  typeset -i loops x t1 t2 t_delta formatted_bench_res;
-  #loops_p_sec scale_fact
+  typeset -i loops x t1 t2 t_delta;
 
   local cali_ms=1001; # const
   local delta_ms=100; # const
   local max_ms=10000; # const
 
+  local loops=1; # number of loops
+  local x=0;     # result from benchmark
+  local t1=0;    # measured time
+  local t2=0;    # estimated time
+  local scale_fact;
+
+  #echo "DDD: ${gState_fact[$bench]}";
+  if [ "${gState_fact[$bench]}" ]; then
+    ((n /= gState_fact[bench])); # reduce by a factor
+    echo "Note: $g_sh is rather slow, so reduce n by factor ${gState_fact[$bench]} to $n.";
+  fi;
+
+  rc=0;
+  echo "Calibrating benchmark $bench with n=$n";
+  while [ "$rc" -eq 0 ]; do
+    getPrecMs 0;
+    t1=$getPrecMs;
+    run_bench "$bench" "$loops" "$n";
+    getPrecMs 1;
+    ((t1=getPrecMs-t1));
+
+    local t_delta=0;
+    # compute difference abs(measures-estimated)
+    if [ "$t2" -gt "$t1" ]; then
+      ((t_delta = t2 - t1));
+    else
+      ((t_delta = t1 - t2));
+    fi;
+
+    local loops_p_sec=0;
+    if [ "$t1" -gt 0 ]; then
+      if [ "$g_sh" = 'zsh' ]; then
+        ((loops_p_sec = (loops * 1000000.0) / t1)); #use factor 1e6 instead of 1e3 here
+      else
+        #loops_p_sec=$(echo "scale=0; ($loops * 1000000) / $t1" | bc); # we use factor 1e6, so we can use scale=0
+        ((loops_p_sec = (loops * 1000000) / t1)); #use factor 1e6 instead of 1e3 here
+      fi
+    fi;
+
+    LC_ALL=C printf "%10.3f/s (time=%5d ms, loops=%7d, delta=%5d ms, x=$x)\n" "${loops_p_sec}"e-3 $t1 $loops $t_delta;
+    if [ "$x" -eq -1 ]; then # some error?
+      rc=-1;
+    elif [ "$t2" -gt 0 ] && [ "$t_delta" -lt "$delta_ms" ]; then # do we have some estimated/expected time smaller than delta_ms=100?
+      rc=$loops_p_sec;
+      ##printf -v formatted_bench_res "%.3f" bench_res1[$bench];
+      echo -n "Benchmark $bench ($PRG_LANGUAGE): ";
+      LC_ALL=C printf "%.3f" $((loops_p_sec))e-3;
+      echo "/s (time=$t1 ms, loops=$loops, delta=$t_delta ms)";
+    elif [ "$t1" -gt $max_ms ]; then 
+      echo "Benchmark $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
+      rc=-1;
+    else
+      if [ "$t1" -lt "$cali_ms" ] && [ "$t1" -gt 0 ]; then
+        ((scale_fact = ((cali_ms + 100) / t1) + 1)); # '/' is integer division!
+      else
+        scale_fact=2;
+      fi;
+      # scale a bit up to 1100 ms (cali_ms+100)
+      ((loops *= scale_fact));
+      ((t2 = t1 * scale_fact));
+    fi;
+  done;
+
+  # correct...
+  if [ "$rc" -ge 0 ] && [ "${gState_fact[$bench]}" ]; then
+    ((rc /= gState_fact[bench]));
+    echo -n "Note: Estimated runtime for benchmark $bench corrected by factor ${gState_fact[$bench]}: ";
+    LC_ALL=C printf "%.3f\n" "$rc"e-3;
+  fi;
+
+  # return rc
+}
+
+
+
+start_bench() {
+#(bench1, bench2, n,    cali_ms, delta_ms, max_ms, bench, loops, x, t1, t2, t_delta, loops_p_sec, scale_fact)
+  local bench1=$1 bench2=$2 n=$3;
+
   print_info;
   
-
-
-#    if [ "$g_sh" = 'zsh' ]; then
-#     echo "DDD: yes";
-#   else
-#     echo "DDD: no: $g_sh";
-#   fi
-
-  
   typeset -a bench_res1;
-
-#    bench_res1[$bench1]=5.4; #0.654;
-#    echo "DDD: ${bench_res1[$bench1]}";
-#    print_results $bench1 $bench2; # $bench_res1;
-#    return 0;
-
 
   #typeset -a g_bench_facts; # benchmark simplification factors
   #typeset -a g_bench_results; # benchmark simplificatiopn factors
@@ -581,145 +783,30 @@ start_bench() {
   #echo "DEBUG: bench1=$bench1, bench2=$bench2, n=$n";
 
   for (( bench = bench1; bench2 + 1 - bench; bench++ )); do
-    local loops=1; # number of loops
-    local x=0;     # result from benchmark
-    local t1=0;    # measured time
-    local t2=0;    # estimated time
-
-    echo "Calibrating benchmark $bench with n=$n";
-    while [ 1 ]; do
-      get_ms; t1=$get_ms;
-      run_bench $bench $loops $n;
-      get_ms; ((t1=get_ms-t1));
-
-      local t_delta=0;
-      # compute difference abs(measures-estimated)
-      if [ "$t2" -gt "$t1" ]; then
-        ((t_delta = t2 - t1));
-      else
-        ((t_delta = t1 - t2));
-      fi;
-
-      local loops_p_sec=0;
-      if [ "$t1" -gt 0 ]; then
-        if [ "$g_sh" = 'zsh' ]; then
-          ((loops_p_sec = (loops * 1000.0) / t1));
-        else
-          #((loops_p_sec = (loops * 1000 * 1000) / t1)); #TTT
-          #loops_p_sec=$(echo -e "scale=3\n$loops*1000/$t1\nquit" | bc); #TTT
-          loops_p_sec=$(echo "scale=3; $loops * 1000 / $t1" | bc); #TTT
-          loops_p_sec="0$loops_p_sec"; #TTT
-        fi
-#      else
-#        loops_p_sec=0;
-      fi;
-
-      printf "%10.3f/s (time=%5d ms, loops=%7d, delta=%5d ms, x=$x)\n" $loops_p_sec $t1 $loops $t_delta;
-      if [ "$x" -eq -1 ]; then # some error?
-        bench_res1[$bench]=-1;
-        break; # (check: can only exit while, if not in sub block?)
-      fi;
-      if [ "$t2" -gt 0 ]; then # do we have some estimated/expected time? 
-        if [ "$t_delta" -lt "$delta_ms" ]; then # smaller than delta_ms=100? 
-          bench_res1[$bench]=$loops_p_sec; # set loops per sec
-          #printf -v formatted_bench_res "%.3f" bench_res1[$bench];
-          echo -n "Benchmark $bench ($PRG_LANGUAGE): ";
-          printf "%.3f" ${bench_res1[$bench]};
-          echo "/s (time=$t1 ms, loops=$loops, delta=$t_delta ms)";
-          break;
-        fi;
-      fi;
-
-      if [ "$t1" -gt $max_ms ]; then 
-        echo "Benchmark $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
-        bench_res1[$bench]=-1;
-        break;
-      fi;
-
-      if [ "$t1" -lt "$cali_ms" ] && [ "$t1" -gt 0 ]; then
-        ((scale_fact = ((cali_ms + 100) / t1) + 1)); # '/' is integer division!
-      else
-        scale_fact=2;
-      fi;
-        # scale a bit up to 1100 ms (cali_ms+100)
-      ((loops *= scale_fact));
-      ((t2 = t1 * scale_fact));
-    done;
+    measure_bench "$bench" "$n";
+    #echo "DEBUG1: $rc";
+    bench_res1[$bench]=$rc;
   done;
-
-  # correct fact... TTT
-  for (( bench = bench1; bench <= bench2; bench++ )); do
-    if [ "$bench" -ge 3 ]; then # starting with benchmark 3
-      ((i=g_fact_bench0${bench})); # get simplification factor
-        echo "bench=$bench, i=$i";
-      if [ "$i" -gt 1 ]; then
-        ((bench_res1[bench] *= i));
-        echo "Note: Estimated runtime for benchmark $bench corrected by factor $i: ${bench_res1[bench]}";
-      fi;
-    fi;
-  done;
-
+ 
   #print_results $bench1 $bench2 $bench_res1;
-  print_results $bench1 $bench2; # $bench_res1;
-  return 0;
+  print_results "$bench1" "$bench2"; # $bench_res1;
+  start_bench=0; #return
 }
 
 ###
 
-muell() {
-    # calibration
-  for (( bench = bench1; bench2 + 1 - bench; bench++ )); do
-    while [ "$t1" -lt 1001 ]; do # we want at least 1 sec calibration time
-      echo "Calibrating benchmark $bench with loops=$loops, n=$n";
-      get_ms; t1=$get_ms;
-      run_bench $bench $loops $n;
-      get_ms; ((t1=get_ms-t1));
-      echo "x=$x (time: $t1 ms)";
-      ((loops *= 2));
-      if [ "$x" -eq -1 ]; then
-        break;
-      fi;
-    done;
-    if [ "$x" -ne -1 ]; then
-      ((loops /= 2)); # div 2
-      ((loops *= ((min_ms / t1) + 1))); # integer division!
-      echo "Calibration done. Starting measurement with $loops loops to get >=$min_ms ms";
-      # measurement
-      get_ms; t1=$get_ms;
-      run_bench $bench $loops $n;
-      get_ms; ((t1=get_ms-t1));
-      echo "x=$x (time: $t1 ms)";
-      ((t1=t1 * 10 / loops)); # int  #bench_res1[bench] = int(t1 * 10 / loops); # int
-      bench_res1[$bench]=$t1;
-      echo "Elapsed time for $loops loops: $t1 ms; estimation for 10 loops: ${bench_res1[$bench]} ms";
-    else
-      bench_res1[$bench]=-1;
-    fi;
-  done;
 
-  for (( bench = bench1; bench <= bench2; bench++ )); do
-    if [ "$bench" -ge 3 ]; then # starting with benchmark 3
-      ((i=g_fact_bench0${bench})); # get simplification factor
-        echo "bench=$bench, i=$i";
-      if [ "$i" -gt 1 ]; then
-        ((bench_res1[bench] *= i));
-        echo "Note: Estimated runtime for benchmark $bench corrected by factor $i: ${bench_res1[bench]}";
-      fi;
-    fi;
-  done;
-
-  echo "Times for all benchmarks (10 loops, ms):";
-  echo -n "BM Results (bash)       : ";
-  for (( bench = bench1; bench <= bench2; bench++ )); do
-    echo -n "${bench_res1[bench]} ";
-    #printf("%7d ", bench_res1[bench]);
-  done;
-  echo "";
-  get_ms; ((start_t=get_ms - start_t));
-  echo "Total elapsed time: $start_t ms";
+g1_unused() {
+  echo "g1"
+  local g1=$SECONDS;
+  echo "g2"
+  #local area=$(($1 * $2))
+  #set +e;
+  ((g1*=1000));
+  #set -e;
+  echo "g3"
   return 0;
 }
-
 
 main() {
   typeset -i argc;
@@ -731,9 +818,11 @@ main() {
   local bench1=0;       # first benchmark to test
   local bench2=5;       # last benchmark to test
   local n=1000000;      # maximum number
-
-  get_ms; start_t=$get_ms;
-
+  
+  get_ms;
+  #echo "DEBUG: main";
+  start_t=$get_ms;
+  
   if [ "$argc" -ge 1 ]; then
     bench1=$1; #$argv2[0];
     bench2=$bench1; # set also last benchmark
@@ -745,23 +834,26 @@ main() {
     n=$3; #${argv2[2]};
   fi;
 
-  local rc;
-  start_bench $bench1 $bench2 $n;  rc=$start_bench;
+  determineTsPrecision;
+  start_bench "$bench1" "$bench2" "$n";
+  local rc=$start_bench;
 
-  get_ms; ((start_t=get_ms - start_t));
+  get_ms;
+  ((start_t=get_ms - start_t));
   echo "Total elapsed time: $start_t ms";
   return $rc;
 }
 
 #######################################
 
-
+set +u
 if [ "$ZSH_VERSION" ]; then
   #echo "DEBUG: zsh: ksh arrays...";
   set -o KSH_ARRAYS # for zsh: array indices start with 0
 fi
+set -u
 
-main $*;
+main "$@"; # or: "$*";
 
 exit;
 
