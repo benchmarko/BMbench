@@ -9,13 +9,13 @@ Concerning the tests, it allows to compare the performance of different language
 different implementations of the same language and maybe
 the same language on different operating systems.
 
-[![Build Status](https://travis-ci.com/benchmarko/BMbench.svg?branch=master)](https://travis-ci.com/benchmarko/BMbench)
+[![Build Status](https://travis-ci.com/benchmarko/BMbench.org?branch=master)](https://travis-ci.com/benchmarko/BMbench)
 
-[![Build Status](https://travis-ci.com/benchmarko/BMbench.svg?branch=dev07)](https://travis-ci.com/benchmarko/BMbench) (dev07)
+[![Build Status](https://travis-ci.com/benchmarko/BMbench.org?branch=dev07)](https://travis-ci.com/benchmarko/BMbench) (dev07)
 
 ## Changes
 
-### 0.62 (07.06.20177)
+### 0.62 (07.06.2017)
 
 - Adapted scripts: kt (Kotlin)
 

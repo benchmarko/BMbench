@@ -109,31 +109,40 @@ var gState = {
 
 
 //
-// bench00 (Integer 16 bit) TTT TODO: define other BM
-// (alternating sum of 1..n)
+// bench00 (Integer 16 bit)
+// (sum of 1..n) % 65536
 //
 function bench00(loops, n, check) {
 	var x = 0,
-		isOdd = n & 1,
-		i;
+		nDiv65536 = (n >> 16),
+		nMod65536 = (n & 0xffff),
+		i, j;
 
 	while (loops-- > 0 && x === 0) {
-		for (i = 1; i <= n; i++) {
-			x = (i - x) | 0; // & 0xffff; // much faster than % 65536
+		for (i = nDiv65536; i > 0; i--) {
+			for (j = 32767; j > 0; j--) {
+				x += j;
+			}
+			for (j = -32768; j < 0; j++) {
+				x += j;
+			}
 		}
-		if (isOdd) {
-			x = -x;
+		for (j = nMod65536; j > 0; j--) {
+			x += j;
 		}
-		x -= check;
 		x &= 0xffff;
+		x -= check;
 	}
-	return x;
+	return x & 0xffff;
 }
 
 
 //
 // bench01 (Integer 32 bit)
 // (arithmetic mean of 1..n)
+// (to avoid numbers above 2*n, divide by n using subtraction)
+// bench01(loops, 1000000, (1000000 + 1) / 2) | 0)
+//
 function bench01(loops, n, check) {
 	var x = 0,
 		sum = 0,
@@ -143,7 +152,7 @@ function bench01(loops, n, check) {
 		sum = 0;
 		for (i = 1; i <= n; i++) {
 			sum += i;
-			if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
+			if (sum >= n) {
 				sum -= n;
 				x++;
 			}
@@ -193,7 +202,7 @@ function bench03(loops, n, check) {
 	// gState.fnLog("DEBUG: nHalf=" + (nHalf) + ", sieve1.length=" + sieve1.length);
 	while (loops-- > 0 && x === 0) {
 		// initialize sieve
-		for (i = 0; i <= nHalf; i += 1) {
+		for (i = 0; i <= nHalf; i++) {
 			sieve1[i] = 0; // odd numbers are possible primes
 		}
 		// compute primes
@@ -217,7 +226,7 @@ function bench03(loops, n, check) {
 			if (!sieve1[i]) {
 				x++;
 			}
-			i += 1;
+			i++;
 		}
 		x -= check;
 	}
@@ -244,7 +253,7 @@ function bench04(loops, n, check) {
 	while (loops-- > 0 && x === 0) {
 		x++; // start with 1=last random value
 		for (i = 0; i < n; i++) {
-			x = a * (x % q) - r * ((x / q) | 0); // myint(x / q)
+			x = a * (x % q) - r * ((x / q) | 0); // x div q
 			if (x <= 0) {
 				x += m; // x is new random number
 			}
@@ -299,102 +308,6 @@ function bench05(loops, n, check) {
 }
 
 
-function bench06(loops, n, check) {
-	var x = 0,
-		cnt, i;
-
-	while (loops-- > 0 && x === 0) {
-		cnt = 0;
-		for (i = 1; i <= n; i++) {
-			x += i;
-			if (x >= n) { // avoid numbers above 2*n: divide by n by subtraction
-				x -= n;
-				cnt++;
-			}
-		}
-		x = cnt;
-		x -= check;
-	}
-	return x;
-}
-
-
-/*
-function bench06_t1(loops, n, check) {
-	var x = 0,
-		cnt = 0,
-		i;
-
-	while (loops-- > 0 && x === 0) {
-		cnt = 0;
-		for (i = 1; i <= n; i++) {
-			x += i;
-			if (x >= n) { // avoid numbers above 2*n: divide by n by subtraction
-				x -= n;
-				cnt++;
-			}
-		}
-		x = cnt;
-		x -= check;
-	}
-	return x;
-}
-*/
-
-/*
-function bench06_t2(loops, n, check) {
-	var x = 0,
-		i;
-
-	while (loops-- > 0 && x === 0) {
-		for (i = 1; i <= n; i++) {
-			x += i;
-		}
-		x = x / n | 0;
-		x -= check;
-	}
-	return x;
-}
-*/
-
-/*
-function bench06_t3(loops, n, check) {
-	var x = 0,
-		i;
-
-	while (loops-- > 0 && x === 0) {
-		//for (i = 1; i <= n / 2; i++) {
-			//x += i;
-			//x += (n + 1 - i);
-			//x -= n;
-		//	x++;
-		//}
-		//x++;
-		//x = x / n | 0;
-		x = n / 2 | 0;
-		x -= check;
-	}
-	return x;
-}
-*/
-
-/*
-//https://de.wikibooks.org/wiki/Algorithmensammlung:_Zahlentheorie:_Fibonacci-Folge
-function bench06_t0(loops, n, check) {
-	var a = 1,
-		b = 1,
-		i;
-
-	for (i = 1; i <= n; i++) {
-		gState.fnLog("DEBUG: i=" + i + ", a=" + a + " b=" + b);
-		a += b;
-		b += a;
-	}
-	return -1;
-}
-*/
-
-
 //
 // run a benchmark
 // in: bench = benchmark to use
@@ -408,7 +321,7 @@ function runBench(bench, loops, n) {
 
 	switch (bench) {
 	case 0:
-		check = ((n % 2) ? -(n + 1) / 2 : (n / 2)) & 0xffff;
+		check = ((n / 2) * (n + 1)) & 0xffff;
 		x = bench00(loops, n, check);
 		break;
 
@@ -437,11 +350,6 @@ function runBench(bench, loops, n) {
 		x = bench05(loops, n, check);
 		break;
 
-	case 6: // TEST
-		check = myint((n + 1) / 2);
-		x = bench06(loops, n, check);
-		break;
-
 	default:
 		gState.fnLog("Error: Unknown benchmark " + bench);
 		check = -1;
@@ -461,7 +369,7 @@ function strNumFormat(s, iLen, sFillChar) {
 	var i;
 
 	s = String(s);
-	for (i = s.length; i < iLen; i += 1) {
+	for (i = s.length; i < iLen; i++) {
 		s = sFillChar + s;
 	}
 	return s;
@@ -590,7 +498,7 @@ function printResults(bench1, bench2, benchRes) {
 	str += ": ";
 
 	for (bench = bench1; bench <= bench2; bench++) {
-		str += strDoubleFormat(benchRes[bench], 9, 2) + " ";
+		str += strDoubleFormat(benchRes[bench], 9, 3) + " ";
 	}
 	gState.fnLog(str + "\n");
 }
@@ -605,28 +513,29 @@ function measureBench(bench, n) {
 		loops = 1, // number of loops
 		tMeas, // measured time
 		tEsti = 0, // estimated time
-		rc = 0,
+		throughput = 0,
 		x, // result from benchmark
 		tDelta, loopsPerSec, scaleFact;
 
 	gState.fnLog("Calibrating benchmark " + bench + " with n=" + n);
 
-	while (!rc && !gState.bWantStop) {
+	while (!throughput && !gState.bWantStop) {
 		tMeas = fnGetPrecMs(); // start measurement when time changes
 		x = runBench(bench, loops, n);
 		tMeas = fnGetPrecMs(1) - tMeas; // stop measurement and count until time changes
 
 		tDelta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
 		loopsPerSec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
-		gState.fnLog(strDoubleFormat(loopsPerSec, 10, 3) + "/s (time=" + strIntFormat(myint(tMeas), 5) + " ms, loops=" + strIntFormat(loops, 7) + ", delta=" + strIntFormat(myint(tDelta), 5) + " ms, x=" + x);
+		gState.fnLog(strDoubleFormat(loopsPerSec, 10, 3) + "/s (time=" + strDoubleFormat(tMeas, 9, 3) + " ms, loops=" + strIntFormat(loops, 7) + ", delta=" + strDoubleFormat(tDelta, 9, 3) + " ms, x=" + x + ")");
+		//TTT gState.fnLog(strDoubleFormat(loopsPerSec, 10, 3) + " loops/s (" + strIntFormat(loops, 7) + " /" + strDoubleFormat(tMeas, 9, 3) + " ms) (delta=" + strDoubleFormat(tDelta, 9, 3) + " ms, x=" + x + ")");
 		if (x === -1) { // some error?
-			rc = -1;
+			throughput = -1;
 		} else if ((tEsti > 0) && (tDelta < deltaMs)) { // estimated time already? smaller than delta_ms=100?
-			rc = loopsPerSec; // yeah, set measured loops per sec
-			gState.fnLog("Benchmark " + bench + " (" + prgLanguage + "): " + strDoubleFormat(loopsPerSec, 0, 3) + "/s (time=" + tMeas + " ms, loops=" + loops + ", delta=" + tDelta + " ms)");
+			throughput = loopsPerSec; // yeah, set measured loops per sec
+			gState.fnLog("Benchmark " + bench + " (" + prgLanguage + "): " + strDoubleFormat(loopsPerSec, 0, 3) + "/s (time=" + strDoubleFormat(tMeas, 0, 3) + " ms, loops=" + loops + ", delta=" + strDoubleFormat(tDelta, 0, 3) + " ms)");
 		} else if (tMeas > maxMs) {
 			gState.fnLog("Benchmark " + bench + " (" + prgLanguage + "): Time already > " + maxMs + " ms. No measurement possible.");
-			rc = -1;
+			throughput = (loopsPerSec) ? -loopsPerSec : 0; // cannot rely on measurement, so set to negative
 		} else {
 			scaleFact = ((tMeas < caliMs) && (tMeas > 0)) ? myint((caliMs + 100) / tMeas) + 1 : 2;
 			// scale a bit up to 1100 ms (cali_ms+100)
@@ -634,7 +543,7 @@ function measureBench(bench, n) {
 			tEsti = tMeas * scaleFact;
 		}
 	}
-	return rc;
+	return throughput;
 }
 
 
@@ -663,7 +572,7 @@ function doBench() {
 
 	rc = measureBench(bench, n);
 	gState.benchRes[bench] = rc;
-	bench += 1;
+	bench++;
 	if (bench <= gState.bench2 && !gState.bWantStop) {
 		gState.bench = bench;
 		fnSetTimeout(doBench, 100);
@@ -674,8 +583,7 @@ function doBench() {
 
 
 function getMsPerformanceNow() {
-	//return ((performance.now() / 1000) | 0) * 1000; // TEST: only second resolution
-	//return ((performance.now() / 100) | 0) * 100; // TEST: only 100 ms resolution
+	// return ((performance.now() / 1000) | 0) * 1000; // TEST: only second resolution
 	return performance.now(); // ms
 }
 
@@ -701,16 +609,12 @@ function initMsGetter() {
 }
 
 
-function correctTime(tMeas0, measCount) {
-	var tsPrecMs = gState.tsPrecMs,
-		tsPrecCnt = gState.tsPrecCnt,
-		tMeas;
+function correctTime(tMeas, measCount) {
+	var tsPrecCnt = gState.tsPrecCnt;
 
-	if (measCount > tsPrecCnt) {
-		measCount = tsPrecCnt; // fix
+	if (measCount < tsPrecCnt) {
+		tMeas += gState.tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // ts + correction
 	}
-	tMeas = tMeas0 + tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // use start ts + correction
-	//gState.fnLog("DEBUG: tMeas=" + tMeas + ", measCount=" + measCount + ", tsPrecCnt=" + tsPrecCnt);
 	return tMeas;
 }
 
@@ -720,15 +624,16 @@ function getPrecMs(stopFlg) {
 		tMeas0, tMeas;
 
 	tMeas0 = fnGetMs();
-	do {
+	tMeas = tMeas0;
+	while (tMeas <= tMeas0) {
 		tMeas = fnGetMs();
 		measCount++;
-	} while (tMeas === tMeas0);
-	//gState.fnLog("DEBUG: tMeas_diff=" + (tMeas - tMeas1) + ", measCount=" + measCount + ", tMeas=" + tMeas);
-	if (stopFlg) {
-		tMeas = correctTime(tMeas0, measCount);
 	}
-	gState.tsMeasCnt = measCount; // memorize last count
+
+	if (stopFlg) {
+		tMeas = correctTime(tMeas0, measCount); // for stop: use first ts + correction
+	}
+	gState.tsMeasCnt = measCount; // memorize count
 	return tMeas;
 }
 
@@ -744,11 +649,10 @@ function determineTsPrecision() {
 	// do it again
 	tMeas0 = tMeas1;
 	tMeas1 = getPrecMs();
-	if (gState.tsMeasCnt > gState.tsPrecCnt) { // taker maximum count
+	if (gState.tsMeasCnt > gState.tsPrecCnt) { // take maximum count
 		gState.tsPrecCnt = gState.tsMeasCnt;
 		gState.tsPrecMs = tMeas1 - tMeas0;
 	}
-	//gState.fnLog("Timer: precision: " + gState.tsPrecMs + " count: " + gState.tsPrecCnt);
 	gState.fnGetPrecMs = getPrecMs;
 }
 
@@ -760,7 +664,6 @@ function startBench(oArgs) {
 		gState.fnLog("DEBUG: startBench: No args.");
 		return;
 	}
-	//gState.fnLog("DEBUG: startBench: called with " + oArgs);
 
 	for (sKey in oArgs) {
 		if (!oArgs.hasOwnProperty || oArgs.hasOwnProperty(sKey)) {

@@ -41,9 +41,12 @@ public class bmbench extends java.applet.Applet {
   private static int gState_tsMeasCnt = 0; // last measured count
 
 
+  
+  /*
   private static class gState {
     int tsMeasCnt = 0;
   };
+  */
 
   //
   // General description for benchmark test functions
@@ -60,6 +63,7 @@ public class bmbench extends java.applet.Applet {
   //
   // bench00 (Integer 16 bit)
   // (sum of 1..n) mod 65536
+  // can be computed with short
   //
   private static int bench00(int loops, int n, int check) {
     short x = 0; // short is -32767..32768
@@ -86,7 +90,7 @@ public class bmbench extends java.applet.Applet {
 
   //
   // bench01 (Integer 16/32 bit)
-  // (average of 1..n)
+  // (arithmetic mean of 1..n)
   //
   private static int bench01(int loops, int n, int check) {
     int x = 0;
@@ -107,7 +111,7 @@ public class bmbench extends java.applet.Applet {
 
   //
   // bench02 (Floating Point, normally 64 bit)
-  // (average of 1..n)
+  // (arithmetic mean of 1..n)
   //
   private static int bench02(int loops, int n, int check) {
     int x = 0;
@@ -162,47 +166,14 @@ public class bmbench extends java.applet.Applet {
         if (!sieve1[i]) {
           x++;
         }
-        i += 1;
+        i++;
       }
       x -= check;
     }
     return x;
   }
 
-  /*
-  private static int bench03(int loops, int n, int check) {
-    n /= 2; // compute only up to n/2
-    int x = 0; // number of primes below n
-    boolean sieve1[] = new boolean[n+1];
-    sieve1[0] = false;
-    sieve1[1] = false;
-    while (loops-- > 0) {
-      // initialize sieve
-      for (int i = 2; i <= n; i++) {
-        sieve1[i] = true;
-      }
-      // compute primes
-      for (int i = 2; (i * i) <= n; i++) {
-        if (sieve1[i]) {
-          for (int j = i * i; j <= n; j += i) {
-            sieve1[j] = false;
-          }
-        }
-      }
-      // count primes
-      for (int i = 0; i <= n; i++) {
-        if (sieve1[i]) {
-          x++;
-        }
-      }
-      // check prime count
-      x -= check;
-    }
-    return x;
-  }
-  */
-
-
+ 
   //
   // bench04 (Integer 32 bit)
   // nth random number number
@@ -220,10 +191,7 @@ public class bmbench extends java.applet.Applet {
     while (loops-- > 0 && x == 0) {
       x++; // start with 1
       for (int i = n; i > 0; i--) {
-        //int x_div_q = x / q;
-        //int x_mod_q = x - q * x_div_q;
-        //x = a * x_mod_q - r * x_div_q;
-        x = a * (x % q) - r * (x / q);
+        x = a * (x % q) - r * (x / q); // x div q
         if (x <= 0) {
           x += m; // x is new random number
         }
@@ -266,11 +234,12 @@ public class bmbench extends java.applet.Applet {
           pas1[i_mod_2][min1 + 1] = 2 * pas1[i_mod_2 ^ 1][min1];
         }
       }
-      x += pas1[n % 2][k] & 0xffff; // % 65536
+      x += pas1[n % 2][k] & 0xffff;
       x -= check;
     }
     return x;
   }
+
 
   //
   // run a benchmark
@@ -346,31 +315,29 @@ public class bmbench extends java.applet.Applet {
   }
 
 
-  private static long correctTime(long tMeas0, int measCount) {
-    long tsPrecMs = gState_tsPrecMs;
+  private static long correctTime(long tMeas, int measCount) {
     int tsPrecCnt = gState_tsPrecCnt;
-    long tMeas;
 
-    if (measCount > tsPrecCnt) {
-      measCount = tsPrecCnt; // fix
+    if (measCount < tsPrecCnt) {
+      tMeas += gState_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // ts + correction
     }
-    tMeas = tMeas0 + tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // use start ts + correction
     return tMeas;
   }
 
   private static long getPrecMs(boolean stopFlg) {
-      int measCount = 0;
-      long tMeas;
+    int measCount = 0;
 
     long tMeas0 = get_ms();
-    do {
+    long tMeas = tMeas0;
+    while (tMeas0 <= tMeas) {
       tMeas = get_ms();
       measCount++;
-    } while (tMeas == tMeas0);
-    if (stopFlg) {
-      tMeas = correctTime(tMeas0, measCount);
     }
-    gState_tsMeasCnt = measCount; // memorize last count
+
+    if (stopFlg) {
+      tMeas = correctTime(tMeas0, measCount); // for stop: use first ts + correction
+    }
+    gState_tsMeasCnt = measCount; // memorize count
     return tMeas;
   }
 
@@ -521,7 +488,7 @@ public class bmbench extends java.applet.Applet {
     }
     str += ": ";
     for (int bench = bench1; bench <= bench2; bench++) {
-      str += mynumformat1_d(bench_res1[bench], 9, 2) + ' ';
+      str += mynumformat1_d(bench_res1[bench], 9, 3) + ' ';
     }
     System.out.println(str);
     System.out.println("");
@@ -533,44 +500,45 @@ public class bmbench extends java.applet.Applet {
     final int max_ms = 10000;
     int loops = 1; // number of loops
     int x;     // result from benchmark
-    long t1 = 0;   // measured time
-    long t2 = 0;   // estimated time
-    double rc = 0;
-    System.out.println("Calibrating benchmark " + bench + " with n=" + n);
-    while(rc == 0) {
-      t1 = getPrecMs(false); //get_ms();
-      x = run_bench(bench, loops, n);
-      t1 = getPrecMs(true) - t1; //get_ms() - t1;
+    long tMeas = 0;   // measured time
+    long tEsti = 0;   // estimated time
+    double throughput = 0;
 
-      long t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); // compute difference abs(measures-estimated)
-      double loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
-      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_i((int)t1, 5) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_i((int)t_delta, 5) + " ms, x=" + x);
+    System.out.println("Calibrating benchmark " + bench + " with n=" + n);
+    while (throughput == 0) {
+      tMeas = getPrecMs(false);
+      x = run_bench(bench, loops, n);
+      tMeas = getPrecMs(true) - tMeas;
+
+      long t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
+      double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
+      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_i((int)tMeas, 5) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_i((int)t_delta, 5) + " ms, x=" + x);
       if (x == -1) { // some error?
-        rc = -1;
-      } else if ((t2 > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
-        rc = loops_p_sec; // yeah, set measured loops per sec
-        System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0, 3) + "/s (time=" + t1 + " ms, loops=" + loops + ", delta=" + t_delta + " ms)");
-      } else if (t1 > max_ms) {
+        throughput = -1;
+      } else if ((tEsti > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
+        throughput = loops_p_sec; // yeah, set measured loops per sec
+        System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0, 3) + "/s (time=" + tMeas + " ms, loops=" + loops + ", delta=" + t_delta + " ms)");
+      } else if (tMeas > max_ms) {
         System.out.println("Benchmark " + bench + " (" + prg_language + "): Time already > " + max_ms + " ms. No measurement possible.");
-        rc = -1;
+        throughput = (loops_p_sec > 0) ? -loops_p_sec : 0; // cannot rely on measurement, so set to negative
       } else {
-        int scale_fact = ((t1 < cali_ms) && (t1 > 0)) ? (int)((cali_ms + 100) / t1) + 1 : 2;
+        int scale_fact = ((tMeas < cali_ms) && (tMeas > 0)) ? (int)((cali_ms + 100) / tMeas) + 1 : 2;
         // scale a bit up to 1100 ms (cali_ms+100)
         loops *= scale_fact;
-        t2 = t1 * scale_fact;
+        tEsti = tMeas * scale_fact;
       }
     }
-    return rc;
+    return throughput;
   }
 
   private static int start_bench(int bench1, int bench2, int n) {
     print_info();
 
-    double bench_res[] = new double[bench2+1];
+    double bench_res[] = new double[bench2 + 1];
 
     for (int bench = bench1; bench <= bench2; bench++) {
-      double rc = measureBench(bench, n);
-      bench_res[bench]  = rc;
+      double throughput = measureBench(bench, n);
+      bench_res[bench] = throughput;
     }
 
     print_results(bench1, bench2, bench_res);
