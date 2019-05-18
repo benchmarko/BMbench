@@ -8,9 +8,15 @@ C 14.05.2002  0.02  bench1 = (sum 1..n) mod 65536
 C 20.07.2002  0.04  extended version
 C 24.01.2003  0.05  output format changed
 C
+C
+C
+C Usage (gfortran):
+C gfortran.exe -O2 -Wall -Wsurprising -Wunused -o bmbench_f bmbench.f
+C bmbench [bench1] [bench2] [n]
+C
 C Usage (g77):
 C g77 -O2 -Wall -Wsurprising -Wunused -fpedantic bmbench.f -o bmbench
-C .\bmbench [bench] [n]
+C bmbench [bench] [n]
 C
 C Testing (g77):
 C -Wno-globals -Wimplicit -fbounds-check
@@ -43,23 +49,22 @@ C        X = X + 1
 C      ENDIF
 C      X = MOD(X, 65536)
 C
-C Maybe we can use AND()...
-C
-C
-C
+C Maybe we can use AND().
 C
 C Performance:
 C - Use PARAMETERS(...) to define constants!
 C
 C
+C
       PROGRAM bmbench
       IMPLICIT NONE
-C IARGC(), CALL GETARG are not very portable but supported on most UNIX plattforms...
-      EXTERNAL GETARG
-C pass function GETARG to main...
-C Normally we would use "CALL MAIN(IARGC(), GETARG)" nut f2c has no IARGC()
-      CALL MAIN(0, GETARG)
+C IARGC(), CALL GETARG are not very portable but supported on most UNIX plattforms.
+C GETARG is intrinsic for GCU fortran (gfortran), external for f2c?
+C (Do not know, how to pass intrinsic function GETARG to main, so we call in in xxx directly)
+C (f2c has no IARGC())
+      CALL MAIN()
       END
+C
 C
 C
 C
@@ -411,13 +416,15 @@ C
 C
 C get_numarg - get numerical arguments
 C
-      INTEGER FUNCTION GET_NUMARG(IDX, ARGV)
+      INTEGER FUNCTION GET_NUMARG(IDX)
       INTEGER IDX
-      EXTERNAL ARGV
+C      EXTERNAL ARGV
+C     For GNU fortran GETARG is intrinsic and not external
+      INTRINSIC GETARG 
       INTEGER NUM
       CHARACTER*25 CHBUF
 C call the parameter function "ARGV" which is normally GETARG...
-      CALL ARGV(IDX, CHBUF)
+      CALL GETARG(IDX, CHBUF)
 C      PRINT *, 'DEBUG: get_numarg: argv =--', CHBUF(:1), '--'
 C     Check if first character is a number between 0 and 9...
       IF ((CHBUF(:1) .GE. "0") .AND. (CHBUF(:1) .LE. "9")) THEN
@@ -527,9 +534,7 @@ C
 C
 C   main
 C
-      SUBROUTINE MAIN(ARGC, ARGV)
-      INTEGER ARGC
-      EXTERNAL ARGV
+      SUBROUTINE MAIN()
 C      IMPLICIT INTEGER (A-Z)
       INTEGER MAX_BENCH
       PARAMETER (MAX_BENCH = 5)
@@ -548,13 +553,13 @@ C declare functions...
       N = 1000000
       MIN_MS = 10000
 C
-C We don't use ARGC but scan numbers from ARGV until -1...
-      IF (GET_NUMARG(1, ARGV) .NE. -1) THEN
-        BENCH1 = GET_NUMARG(1, ARGV)
-        IF (GET_NUMARG(2, ARGV) .NE. -1) THEN
-          BENCH2 = GET_NUMARG(2, ARGV)
-          IF (GET_NUMARG(3, ARGV) .NE. -1) THEN
-            N = GET_NUMARG(3, ARGV)
+C We don't use ARGC but scan numbers from GETARG until -1...
+      IF (GET_NUMARG(1) .NE. -1) THEN
+        BENCH1 = GET_NUMARG(1)
+        IF (GET_NUMARG(2) .NE. -1) THEN
+          BENCH2 = GET_NUMARG(2)
+          IF (GET_NUMARG(3) .NE. -1) THEN
+            N = GET_NUMARG(3)
           ENDIF
         ENDIF
       ENDIF

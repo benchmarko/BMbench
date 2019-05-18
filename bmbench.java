@@ -70,7 +70,7 @@ public class bmbench extends java.applet.Applet {
     short n_div_65536 = (short)(n >> 16);
     short n_mod_65536 = (short)(n & 0xffff);
     //System.out.println("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
-    while (loops-- > 0) {
+    while (loops-- > 0 && x == 0) {
       for (int i = n_div_65536; i > 0; i--) {
         for (short j = 32767; j > 0; j--) {
           x += j;
@@ -82,6 +82,7 @@ public class bmbench extends java.applet.Applet {
       for (short j = n_mod_65536; j > 0; j--) {
         x += j;
       }
+      //x &= 0xffff; // not needed because x is short
       x -= check;
     }
     return (int)(x & 0xffff);
@@ -140,6 +141,7 @@ public class bmbench extends java.applet.Applet {
     int x = 0; // number of primes below n
     int nHalf = n >> 1;
     boolean sieve1[] = new boolean[nHalf + 1];
+
     while (loops-- > 0 && x == 0) {
       // initialize sieve
       for (int i = 0; i <= nHalf; i++) {
@@ -304,7 +306,7 @@ public class bmbench extends java.applet.Applet {
   // return a long to avoid overflows...
   //
   private static long get_ms() {
-    return (System.currentTimeMillis());
+    return System.currentTimeMillis();
   }
 
 
@@ -329,7 +331,7 @@ public class bmbench extends java.applet.Applet {
 
     long tMeas0 = get_ms();
     long tMeas = tMeas0;
-    while (tMeas0 <= tMeas) {
+    while (tMeas <= tMeas0) {
       tMeas = get_ms();
       measCount++;
     }
@@ -513,6 +515,7 @@ public class bmbench extends java.applet.Applet {
       long t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
       double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
       System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_i((int)tMeas, 5) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_i((int)t_delta, 5) + " ms, x=" + x);
+
       if (x == -1) { // some error?
         throughput = -1;
       } else if ((tEsti > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?

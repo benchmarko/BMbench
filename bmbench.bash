@@ -6,6 +6,7 @@
 # 05.09.2003 0.01
 # 06.09.2003 0.05  all benchmark tests 0..5 implemented but arrays are very slow...
 # 30.04.2008 0.06  based on version 0.05
+# 10.05.2019 0.07
 #
 #
 # Usage:
@@ -14,7 +15,7 @@
 # zsh bmbench.bash [bench1] [bench2] [n]
 #
 #
-
+#
 #
 # Bash performance
 #- For loop is faster than while
@@ -24,18 +25,18 @@
 # - expressions: implicit value on integers 'i' is faster than '$i'
 #
 #
-
+#
 # Note: bash does only integer, zsh can both integer and fp
 # zsh has very slow arrays (seems to be exponential time to access high indices)
 # zsh has max array index of 262144 (and gets very slow)
 #
 # needs commands "printf", "bc", "date"
-
+#
 #
 # zsh:
 #zrecompile -p -U -z $zwc $files
 #
-
+#
 # Bash:
 #
 # - Arithmetic
@@ -57,11 +58,11 @@
 # - Functions
 # [ function ] name () { list; }
 #
-
+#
 #
 # Checked with SpellCheck: https://www.shellcheck.net/
 #
-
+#
 set -euo pipefail
 IFS=$'\n\t'
 LC_ALL=C
@@ -407,7 +408,7 @@ getPrecMs() {
   tMeas0=$rc;
   tMeas=$tMeas0;
   while [ "$tMeas" -le "$tMeas0" ]; do
-    get_ms; 
+    get_ms;
     tMeas=$rc;
     ((measCount++));
   done;
@@ -574,7 +575,7 @@ measure_bench() {
       echo -n "Benchmark $bench ($PRG_LANGUAGE): ";
       printf "%.3f" $((loops_p_tsec))e-3;
       echo "/s (time=$t1 ms, loops=$loops, delta=$t_delta ms)";
-    elif [ "$t1" -gt $max_ms ]; then 
+    elif [ "$t1" -gt $max_ms ]; then
       echo "Benchmark $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
       result=-1;
     else
@@ -605,12 +606,12 @@ start_bench() {
   typeset -a bench_res1;
 
   print_info;
-  
+
   for (( bench = bench1; bench2 + 1 - bench; bench++ )); do
     measure_bench "$bench" "$n";
     bench_res1[$bench]=$rc;
   done;
- 
+
   print_results "$bench1" "$bench2";
   rc=0; # return
 }
@@ -621,7 +622,7 @@ main() {
   typeset -i argc=$#;
   typeset -i start_t=0 bench1=0 bench2=5 n=1000000 exitCode=0;
   # start_t=start time bench1=first benchmark to test bench2=last benchmark to test n=maximum number rc=return code
-  
+
   get_ms;
   start_t=$rc;
 
