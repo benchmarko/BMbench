@@ -92,8 +92,8 @@ var gState = {
 		fnDone: null // callback when done
 	},
 	myint = null,
-	prgVersion = "0.07",
-	prgLanguage = "JavaScript";
+	gPrgVersion = "0.07",
+	gPrgLanguage = "JavaScript";
 
 
 //
@@ -456,7 +456,7 @@ function checkbitsDouble() {
 function getInfo() {
 	var str, jls;
 
-	str = "BM Bench v" + prgVersion + " (" + prgLanguage + ") -- (int:" + checkbitsInt() + " double:" + checkbitsDouble() + " tsType:" + gState.tsType + " tsMs:" + gState.tsPrecMs + " tsCnt:" + gState.tsPrecCnt + ")";
+	str = "BM Bench v" + gPrgVersion + " (" + gPrgLanguage + ") -- (int:" + checkbitsInt() + " double:" + checkbitsDouble() + " tsType:" + gState.tsType + " tsMs:" + gState.tsPrecMs + " tsCnt:" + gState.tsPrecCnt + ")";
 
 	if (typeof navigator !== "undefined") { // only in browsers...
 		str += " appCodeName=" + navigator.appCodeName + ", appName=" + navigator.appName
@@ -491,8 +491,8 @@ function printResults(bench1, bench2, benchRes) {
 		i,
 		bench;
 
-	str = "\nThroughput for all benchmarks (loops per sec):\nBMR (" + prgLanguage + ")";
-	for (i = prgLanguage.length; i < maxLanguageLen; i++) {
+	str = "\nThroughput for all benchmarks (loops per sec):\nBMR (" + gPrgLanguage + ")";
+	for (i = gPrgLanguage.length; i < maxLanguageLen; i++) {
 		str += " ";
 	}
 	str += ": ";
@@ -532,13 +532,18 @@ function measureBench(bench, n) {
 			throughput = -1;
 		} else if ((tEsti > 0) && (tDelta < deltaMs)) { // estimated time already? smaller than delta_ms=100?
 			throughput = loopsPerSec; // yeah, set measured loops per sec
-			gState.fnLog("Benchmark " + bench + " (" + prgLanguage + "): " + strDoubleFormat(loopsPerSec, 0, 3) + "/s (time=" + strDoubleFormat(tMeas, 0, 3) + " ms, loops=" + loops + ", delta=" + strDoubleFormat(tDelta, 0, 3) + " ms)");
+			gState.fnLog("Benchmark " + bench + " (" + gPrgLanguage + "): " + strDoubleFormat(loopsPerSec, 0, 3) + "/s (time=" + strDoubleFormat(tMeas, 0, 3) + " ms, loops=" + loops + ", delta=" + strDoubleFormat(tDelta, 0, 3) + " ms)");
 		} else if (tMeas > maxMs) {
-			gState.fnLog("Benchmark " + bench + " (" + prgLanguage + "): Time already > " + maxMs + " ms. No measurement possible.");
-			throughput = (loopsPerSec) ? -loopsPerSec : 0; // cannot rely on measurement, so set to negative
+			gState.fnLog("Benchmark " + bench + " (" + gPrgLanguage + "): Time already > " + maxMs + " ms. No measurement possible.");
+			throughput = (loopsPerSec) ? -loopsPerSec : -1; // cannot rely on measurement, so set to negative
 		} else {
-			scaleFact = ((tMeas < caliMs) && (tMeas > 0)) ? myint((caliMs + 100) / tMeas) + 1 : 2;
-			// scale a bit up to 1100 ms (cali_ms+100)
+			if (tMeas === 0) {
+				scaleFact = 50;
+			} else if (tMeas < caliMs) {
+				scaleFact = myint((caliMs + 100) / tMeas) + 1; // scale a bit up to 1100 ms (cali_ms+100)
+			} else {
+				scaleFact = 2;
+			}
 			loops *= scaleFact;
 			tEsti = tMeas * scaleFact;
 		}
@@ -641,6 +646,9 @@ function getPrecMs(stopFlg) {
 function determineTsPrecision() {
 	var tMeas0, tMeas1;
 
+	initMsGetter();
+	gState.startMs = gState.fnGetMs(); // memorize start time
+
 	tMeas0 = getPrecMs();
 	tMeas1 = getPrecMs();
 	gState.tsPrecMs = tMeas1 - tMeas0;
@@ -670,9 +678,6 @@ function startBench(oArgs) {
 			gState[sKey] = oArgs[sKey];
 		}
 	}
-
-	initMsGetter();
-	gState.startMs = gState.fnGetMs(); // memorize start time
 
 	determineTsPrecision();
 	gState.fnLog(getInfo());

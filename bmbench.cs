@@ -18,8 +18,8 @@
 //   bmbench.exe [bench1] [bench2] [n]
 //
 // - Mono (since 1.1.5):
-//   mcs -optimize -out:bmbench_mono.exe bmbench.cs
-//   mono bmbench.exe  (on Windows also without mono -> use MS .NET)
+//   mcs -optimize -out:bmbench_cs_mono.exe bmbench.cs
+//   mono bmbench_cs.exe  (on Windows also without mono -> use MS .NET)
 //  [Disassemble: monodis.exe --output=bmbench_mono.txt bmbench_mono.exe]
 //
 
@@ -27,13 +27,12 @@ using System;
 
 class Bmbench {
 
-  static String prg_version = "0.07";
-  static String prg_language = "C#";
-
-  static long gState_startTs = 0;
-  private static double gState_tsPrecMs = 0; // measured time stamp precision
-  private static int gState_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
-  private static int gState_tsMeasCnt = 0; // last measured count
+  static String g_prg_version = "0.07";
+  static String g_prg_language = "C#";
+  private static long g_startTs = 0;
+  private static double g_tsPrecMs = 0; // measured time stamp precision
+  private static int g_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
+  private static int g_tsMeasCnt = 0; // last measured count
 
   //private static System.Globalization.NumberFormatInfo nfi = new System.Globalization.CultureInfo("en-US", false).NumberFormat;
   private static IFormatProvider nfi = System.Globalization.CultureInfo.InvariantCulture; //new System.Globalization.CultureInfo("en-US", false).NumberFormat;
@@ -270,7 +269,7 @@ class Bmbench {
 
       default:
         Console.Error.WriteLine("Error: Unknown benchmark " + bench);
-        check = x + 1;
+        check = -1;
         break;
     }
 
@@ -293,7 +292,7 @@ class Bmbench {
   // get timestamp since program start
   // int should be enough
   static int get_ts() {
-      return (int)(get_raw_ts() - gState_startTs);
+      return (int)(get_raw_ts() - g_startTs);
   }
 
   // convert timestamp to ms
@@ -301,11 +300,14 @@ class Bmbench {
     return ts / 10000.0;
   }
 
-  static double correctTime(double tMeas, int measCount) {
-    int tsPrecCnt = gState_tsPrecCnt;
+  static double correctTime(double tMeas, double tMeas2, int measCount) {
+    int tsPrecCnt = g_tsPrecCnt;
 
     if (measCount < tsPrecCnt) {
-      tMeas += gState_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // ts + correction
+      tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // ts + correction
+      if (tMeas > tMeas2) {
+        tMeas = tMeas2; // cannot correct
+      }
     }
     return tMeas;
   }
@@ -319,27 +321,29 @@ class Bmbench {
       tMeas = get_ts();
       measCount++;
     }
-    gState_tsMeasCnt = measCount; // memorize count
+    g_tsMeasCnt = measCount; // memorize count
     //Console.WriteLine("DEBUG: getPrecMs: measCount=" + measCount + " ts=" + tMeas);
 
     // for stop: use first ts + correction
-    double tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), measCount);
+    double tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount);
     return tMeasD;
   }
 
   // usually only needed if time precision is low, e.g. one second
   static void determineTsPrecision() {
+    g_startTs = get_raw_ts(); // memorize start time
+
     double tMeas0 = getPrecMs(false);
     double tMeas1 = getPrecMs(false);
-    gState_tsPrecMs = tMeas1 - tMeas0;
-    gState_tsPrecCnt = gState_tsMeasCnt;
+    g_tsPrecMs = tMeas1 - tMeas0;
+    g_tsPrecCnt = g_tsMeasCnt;
 
     // do it again
     tMeas0 = tMeas1;
     tMeas1 = getPrecMs(false);
-    if (gState_tsMeasCnt > gState_tsPrecCnt) { // taker maximum count
-      gState_tsPrecCnt = gState_tsMeasCnt;
-      gState_tsPrecMs = tMeas1 - tMeas0;
+    if (g_tsMeasCnt > g_tsPrecCnt) { // taker maximum count
+      g_tsPrecCnt = g_tsMeasCnt;
+      g_tsPrecMs = tMeas1 - tMeas0;
     }
   }
 
@@ -414,7 +418,7 @@ class Bmbench {
 
     string cs_version = "Runtime: " + getruntime1() + ", " + version1 + ", " + Environment.OSVersion.ToString();
 
-    Console.WriteLine("BM Bench v" + prg_version + " (" + prg_language + ") -- (int:" + checkbits_int1() + " double:" + checkbits_double1() + " tsMs:" + gState_tsPrecMs.ToString("", nfi) + " tsCnt:" + gState_tsPrecCnt + ") " + cs_version);
+    Console.WriteLine("BM Bench v" + g_prg_version + " (" + g_prg_language + ") -- (int:" + checkbits_int1() + " double:" + checkbits_double1() + " tsMs:" + g_tsPrecMs.ToString("", nfi) + " tsCnt:" + g_tsPrecCnt + ") " + cs_version);
     Console.WriteLine("(c) Marco Vieth, 2006-2019");
     Console.WriteLine(getdate1());
   }
@@ -423,8 +427,8 @@ class Bmbench {
   static void print_results(int bench1, int bench2, double[] bench_res1) {
     const int max_language_len1 = 10;
     Console.WriteLine("\nThroughput for all benchmarks (loops per sec):");
-    string str = "BMR (" + prg_language + ")";
-    for (int i = prg_language.Length; i < max_language_len1; i++) {
+    string str = "BMR (" + g_prg_language + ")";
+    for (int i = g_prg_language.Length; i < max_language_len1; i++) {
       str += " ";
     }
     str += ": ";
@@ -442,34 +446,41 @@ class Bmbench {
     const int max_ms = 10000;
     int loops = 1; // number of loops
     int x = 0;     // result from benchmark
-    double t1 = 0;   // measured time
-    double t2 = 0;   // estimated time
+    double tMeas = 0;   // measured time
+    double tEsti = 0;   // estimated time
     double throughput = 0;
 
     Console.WriteLine("Calibrating benchmark {0} with n={1}", bench, n);
     while (throughput == 0) {
-      t1 = getPrecMs(false); //conv_ms(get_ts()); //getPrecMs(false);
+      tMeas = getPrecMs(false); //conv_ms(get_ts()); //getPrecMs(false);
       x = run_bench(bench, loops, n);
-      t1 = getPrecMs(true) - t1; //conv_ms(get_ts()) - t1; //getPrecMs(true) - t1;
+      tMeas = getPrecMs(true) - tMeas; //conv_ms(get_ts()) - t1; //getPrecMs(true) - t1;
 
-      double t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); // compute difference abs(measures-estimated)
-      double loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
-      Console.WriteLine("{0,10}/s (time={1,9} ms, loops={2,7}, delta={3,9} ms, x={4})", loops_p_sec.ToString("F3", nfi), t1.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi), x);
+      double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
+      double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
+      Console.WriteLine("{0,10}/s (time={1,9} ms, loops={2,7}, delta={3,9} ms, x={4})", loops_p_sec.ToString("F3", nfi), tMeas.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi), x);
 
       if (x == -1) { // some error?
         throughput = -1;
-      } else if ((t2 > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
+      } else if ((tEsti > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
           throughput = loops_p_sec; // yeah, set measured loops per sec
-          Console.WriteLine("Benchmark {0} ({1}): {2}/s (time={3} ms, loops={4}, delta={5} ms)", bench, prg_language, loops_p_sec.ToString("F3", nfi), t1.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi));
-      } else if (t1 > max_ms) {
-        Console.WriteLine("Benchmark {0} ({1}): Time already > {2} ms. No measurement possible.", bench, prg_language, max_ms);
-        throughput = (loops_p_sec > 0) ? -loops_p_sec : 0; // cannot rely on measurement, so set to negative
+          Console.WriteLine("Benchmark {0} ({1}): {2}/s (time={3} ms, loops={4}, delta={5} ms)", bench, g_prg_language, loops_p_sec.ToString("F3", nfi), tMeas.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi));
+      } else if (tMeas > max_ms) {
+        Console.WriteLine("Benchmark {0} ({1}): Time already > {2} ms. No measurement possible.", bench, g_prg_language, max_ms);
+        throughput = (loops_p_sec > 0) ? -loops_p_sec : -1; // cannot rely on measurement, so set to negative
       } else {
-        //int scale_fact = ((t1 < cali_ms) && (t1 > 0)) ? (int)((cali_ms + 100) / t1) + 1 : 2;
-        int scale_fact = (t1 == 0) ? 50 : (t1 < cali_ms) ? (int)((cali_ms + 100) / t1) + 1 : 2;
-        // scale a bit up to 1100 ms (cali_ms+100)
+        //int scale_fact = ((tMeas < cali_ms) && (tMeas > 0)) ? (int)((cali_ms + 100) / tMeas) + 1 : 2;
+        //double scale_fact = (tMeas == 0) ? 50 : (tMeas < cali_ms) ? ((cali_ms + 100) / tMeas) : 2;
+        int scale_fact;
+        if (tMeas == 0) {
+				  scale_fact = 50;
+			  } else if (tMeas < cali_ms) {
+  				scale_fact = (int)((cali_ms + 100) / tMeas) + 1; // scale a bit up to 1100 ms (cali_ms+100)
+        } else {
+          scale_fact = 2;
+        }
         loops *= scale_fact;
-        t2 = t1 * scale_fact;
+        tEsti = tMeas * scale_fact;
       }
     }
     return throughput;
@@ -494,7 +505,6 @@ class Bmbench {
 
   
   public static int Main(string[] args) {
-    gState_startTs = get_raw_ts(); // memorize start time
     int bench1 = 0;          // first benchmark to test
     int bench2 = 5;          // last benchmark to test
     int n = 1000000;         // maximum number
@@ -509,7 +519,6 @@ class Bmbench {
     if (args.Length > 2) {
       n = int.Parse(args[2]);
     }
-
     determineTsPrecision();
     int rc = start_bench(bench1, bench2, n);
     

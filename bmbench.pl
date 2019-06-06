@@ -17,19 +17,16 @@
 
 use strict;
 
-my $PRG_VERSION = "0.07";
-my $PRG_LANGUAGE = "Perl";
+my $G_PRG_VERSION = "0.07";
+my $G_PRG_LANGUAGE = "Perl";
 
-
-$::TimeHiResFunc = undef();
-
-my %gState = (
-  useHiRes => 1, # can be switched off for testing time with second resolution
-  tsType => '', # type of time stamp source
-  tsPrecMs => 0, # measured time stamp precision
-  tsPrecCnt => 0, # time stamp count (calls) per precision interval (until time change)
-  tsMeasCnt => 0, # last measured count
-);
+my $g_allowHiRes = 1; #1; # can be switched off for testing time with second resolution
+my $g_TimeHiResFunc = undef();
+my $g_tsType = ''; # type of time stamp source
+my $g_startTs = 0;
+my $g_tsPrecMs = 0; # measured time stamp precision
+my $g_tsPrecCnt = 0; # time stamp count (calls) per precision interval (until time change)
+my $g_tsMeasCnt = 0; # last measured count
 
 #
 # General description for benchmark test functions
@@ -171,92 +168,6 @@ sub bench03($$$) {
 }
 
 
-=for nobody
-sub bench03_unused1($$$) {
-  use integer; # it is possible to use integer arithmetic
-  my($loops, $n, $check) = @_;
-  $n /= 2;    # compute only up to n/2 
-  my $nHalf = $n >> 1; # div 2
-  my $x = 0; # number of primes below n
-  my $m;
-  my $i;
-  my $j;
-  my $sieve = 0;
-
-  #vec($sieve, 0, 1) = 0;
-  #vec($sieve, 1, 1) = 0;
-
-  while ($loops-- > 0 && $x == 0) {
-    # initialize sieve
-    for ($i = 0; $i <= $nHalf; $i++) {
-      vec($sieve, $i, 1) = 0; # odd numbers are possible primes
-    }
-    # compute primes
-    $i = 0;
-		$m = 3;
-		while ($m * $m < $n) {
-      if (!vec($sieve, $i, 1)) {
-        $x++;
-				$j = ($m * $m - 3) >> 1; # div 2
-				while ($j < $nHalf) {
-          vec($sieve, $j, 1) = 1;
-					$j += $m;
-				}
-			}
-			$i++;
-			$m += 2; # or: =2 * $i + 3;
-    }
-
-    # count remaining primes
-    while ($i <= $nHalf) {
-      if (!vec($sieve, $i, 1)) {
-        $x++;
-      }
-      $i++;
-    }
-    $x -= $check;
-  }
-  return $x;
-}
-
-sub bench03_unused2($$$) {
-  use integer; # it is possible to use integer arithmetic
-  my($loops, $n, $check) = @_;
-  $n /= 2;    # compute only up to n/2 
-  my $x = 0; # number of primes below n
-  my $sieve = 0;
-  vec($sieve, 0, 1) = 0;
-  vec($sieve, 1, 1) = 0;
-  while ($loops-- > 0 && $x == 0) {
-    # initialize sieve
-    for (my $i = 2; $i <= $n; $i++) {
-      vec($sieve, $i, 1) = 1;
-    }
-    # this init does not work:
-    # my $sieve = chr(0xff) x (($n / 16) + 1); vec($sieve, 0, 1) = 0; vec($sieve, 1, 1) = 0;
-
-    # compute primes
-    for (my $i = 2; ($i * $i) <= $n; $i++) {
-      if (vec($sieve, $i, 1)) {
-        for (my $j = $i * $i; $j <= $n; $j += $i) {
-          vec($sieve, $j, 1) = 0;
-        }
-      }
-    }
-    # count primes
-    for (my $i = 0; $i <= $n; $i++) {
-      if (vec($sieve, $i, 1)) {
-        $x++;
-      }
-    }
-    $x -= $check;
-  }
-  return $x;
-}
-=cut
-
-
-
 #
 # bench04 (Integer 32 bit)
 # nth random number number
@@ -382,32 +293,32 @@ sub run_bench($$$) {
 
 #
 # Initialize HiRes timer
-# Set $::TimeHiResFunc to the timing function to use
+# Set $g_TimeHiResFunc to the timing function to use
 # Time::HiRes::time, if available
 # syscall(gettimeofday), if available
 # otherwise time()
 #
 sub private_init_HiRes() {
-  if ($gState{useHiRes} && eval { require Time::HiRes; }) { # Time::HiRes::time() will be a float to 6 decimal places
-    $::TimeHiResFunc = \&Time::HiRes::time;
-    $gState{tsType} = 'HiRes';
+  if ($g_allowHiRes && eval { require Time::HiRes; }) { # Time::HiRes::time() will be a float to 6 decimal places
+    $g_TimeHiResFunc = \&Time::HiRes::time;
+    $g_tsType = 'HiRes';
   } elsif (eval { require 'syscall.ph'; }) {
     # ...otherwise try to use a syscall to gettimeofday, which will also return a float
     my $TIMEVAL_T = "QQ"; # for 64 bit Perl
     if (!eval { pack($TIMEVAL_T, ()); }) {
       $TIMEVAL_T = "LL"; # for 32 bit
     }
-    $::TimeHiResFunc = sub {
+    $g_TimeHiResFunc = sub {
       my $tval = pack($TIMEVAL_T, ());
       syscall(&SYS_gettimeofday, $tval, 0) != -1 or die "gettimeofday: $!";
       my @time1 = unpack($TIMEVAL_T, $tval);
       return $time1[0] + ($time1[1] / 1_000_000);
     };
-    $gState{tsType} = 'syscall';
+    $g_tsType = 'syscall';
   } else {
     # ...otherwise use time() to return an integral number of seconds.
-    $::TimeHiResFunc = sub { time(); }; # is it possible to get a function pointer directly on time()?
-    $gState{tsType} = 'time';
+    $g_TimeHiResFunc = sub { time(); }; # is it possible to get a function pointer directly on time()?
+    $g_tsType = 'time';
   }
 }
 
@@ -419,18 +330,30 @@ sub private_init_HiRes() {
 # Maybe it would also be possible to use execution time:
 # my($user, $system) = times(); return(($user+$system) * 1000);
 #
-sub get_ms() {
+sub get_raw_ts() {
   # call private_init_HiRes() first!
-  return(&$::TimeHiResFunc() * 1000);
+  return &$g_TimeHiResFunc();
+}
+
+sub get_ts() {
+      return get_raw_ts() - $g_startTs;
+}
+
+sub conv_ms($) {
+    my($ts) = @_;
+    return $ts * 1000;
 }
 
 
-sub correctTime($$) {
-  my($tMeas, $measCount) = @_;
-	my $tsPrecCnt = $gState{tsPrecCnt};
+sub correctTime($$$) {
+  my($tMeas, $tMeas2, $measCount) = @_;
+	my $tsPrecCnt = $g_tsPrecCnt;
 
 	if ($measCount < $tsPrecCnt) {
-  	$tMeas += $gState{tsPrecMs} * (($tsPrecCnt - $measCount) / $tsPrecCnt); # use start ts + correction
+  	$tMeas += $g_tsPrecMs * (($tsPrecCnt - $measCount) / $tsPrecCnt); # use start ts + correction
+    if ($tMeas > $tMeas2) {
+        $tMeas = $tMeas2; # cannot correct
+    }
 	}
 	return $tMeas;
 }
@@ -440,33 +363,36 @@ sub getPrecMs($) {
 	my $measCount = 0;
   my $tMeas;
 
-	my $tMeas0 = get_ms();
+	my $tMeas0 = get_ts();
   $tMeas = $tMeas0;
 	while ($tMeas <= $tMeas0) {
-		$tMeas = get_ms();
+		$tMeas = get_ts();
 		$measCount++;
 	}
+	$g_tsMeasCnt = $measCount; # memorize last count
 
-	if ($stopFlg) {
-		$tMeas = correctTime($tMeas0, $measCount);
-	}
-	$gState{tsMeasCnt} = $measCount; # memorize last count
-	return $tMeas;
+	# if ($stopFlg) {
+	# 	$tMeas = correctTime(conv_ms($tMeas0), conv_ms($tMeas), $measCount);
+	# }
+  my $tMeasD = (!$stopFlg) ? conv_ms($tMeas) : correctTime(conv_ms($tMeas0), conv_ms($tMeas), $measCount);
+	return $tMeasD;
 }
 
-# usually only neede if time precision is low, e.g. one second
 sub determineTsPrecision() {
+  private_init_HiRes();
+  $g_startTs = get_raw_ts(); # memorize start time
+
 	my $tMeas0 = getPrecMs(0);
 	my $tMeas1 = getPrecMs(0);
-	$gState{tsPrecMs} = $tMeas1 - $tMeas0;
-	$gState{tsPrecCnt} = $gState{tsMeasCnt};
+	$g_tsPrecMs = $tMeas1 - $tMeas0;
+	$g_tsPrecCnt = $g_tsMeasCnt;
 
   # do it again
 	$tMeas0 = $tMeas1;
 	$tMeas1 = getPrecMs(0);
-	if ($gState{tsMeasCnt} > $gState{tsPrecCnt}) { # taker maximum count
-		$gState{tsPrecCnt} = $gState{tsMeasCnt};
-		$gState{tsPrecMs} = $tMeas1 - $tMeas0;
+	if ($g_tsMeasCnt > $g_tsPrecCnt) { # taker maximum count
+		$g_tsPrecCnt = $g_tsMeasCnt;
+		$g_tsPrecMs = $tMeas1 - $tMeas0;
 	}
 }
 
@@ -505,7 +431,7 @@ sub checkbits_double1() {
 sub print_info() {
   my $perl_version = $];
   $perl_version =~ tr/\n/;/;
-  print("BM Bench v", $PRG_VERSION, " (", $PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(),  " tsType:", $gState{tsType}, " tsMs:", $gState{tsPrecMs}, " tsCnt:", $gState{tsPrecCnt}, ") $perl_version, osname: $^O\n");
+  print("BM Bench v", $G_PRG_VERSION, " (", $G_PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(),  " tsType:", $g_tsType, " tsMs:", $g_tsPrecMs, " tsCnt:", $g_tsPrecCnt, ") $perl_version, osname: $^O\n");
   print("(c) Marco Vieth, 2002-2019\n");
   print("Date: ". localtime(time()) ."\n");
   #system("uname -a");        
@@ -517,7 +443,7 @@ sub print_results($$$) {
   my $max_language_len1 = 10;
   
   print("\nThroughput for all benchmarks (loops per sec):\n");
-  print "BMR (", $PRG_LANGUAGE .")". (' ' x ($max_language_len1 - length($PRG_LANGUAGE))), ": ";
+  print "BMR (", $G_PRG_LANGUAGE .")". (' ' x ($max_language_len1 - length($G_PRG_LANGUAGE))), ": ";
   for (my $bench = $bench1; $bench <= $bench2; $bench++) {
     printf("%9.3f ", $bench_res1_r->[$bench]);
   }
@@ -546,18 +472,27 @@ sub measureBench($$) {
 
     my $t_delta = ($tEsti > $tMeas) ? ($tEsti - $tMeas) : ($tMeas - $tEsti); # compute difference abs(measures-estimated)
     my $loops_p_sec = ($tMeas > 0) ? ($loops * 1000.0 / $tMeas) : 0;
-    printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", $loops_p_sec, $tMeas, $loops, $t_delta, $x);
+    printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms, x=%d)\n", $loops_p_sec, $tMeas, $loops, $t_delta, $x);
     if ($x == -1) { # some error?
       $throughput = -1;
     } elsif (($tEsti > 0) &&  ($t_delta < $delta_ms)) { # do we have some estimated/expected time smaller than delta_ms=100? 
       $throughput = $loops_p_sec; # yeah, set measured loops per sec
-      printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", $bench, $PRG_LANGUAGE, $loops_p_sec, $tMeas, $loops, $t_delta);
+      printf("Benchmark %d (%s): %.3f/s (time=%9.3f ms, loops=%d, delta=%9.3f ms)\n", $bench, $G_PRG_LANGUAGE, $loops_p_sec, $tMeas, $loops, $t_delta);
     } elsif ($tMeas > $max_ms) {
-      printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", $bench, $PRG_LANGUAGE, $max_ms);
-      $throughput = -1;
+      printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", $bench, $G_PRG_LANGUAGE, $max_ms);
+      #$throughput = -1;
+      $throughput = ($loops_p_sec) ? -$loops_p_sec : -1; # cannot rely on measurement, so set to negative
     } else {
-      my $scale_fact = (($tMeas < $cali_ms) && ($tMeas > 0)) ? int((($cali_ms + 100) / $tMeas) + 1) : 2;
-        # scale a bit up to 1100 ms (cali_ms+100)
+      #my $scale_fact = (($tMeas < $cali_ms) && ($tMeas > 0)) ? int((($cali_ms + 100) / $tMeas) + 1) : 2;
+      #my $scale_fact = ($tMeas == 0) ? 50 : ($tMeas < $cali_ms) ? int((($cali_ms + 100) / $tMeas) + 1) : 2;
+      my $scale_fact;
+      if ($tMeas == 0) {
+        $scale_fact = 50;
+      } elsif ($tMeas < $cali_ms) {
+        $scale_fact = int((($cali_ms + 100) / $tMeas) + 1); # scale a bit up to 1100 ms (cali_ms+100)
+      } else {
+        $scale_fact = 2;
+      }
       $loops *= $scale_fact;
       $tEsti = $tMeas * $scale_fact;
     }
@@ -587,8 +522,6 @@ sub start_bench($$$) {
 
 sub main($) {
   #my(@ARGV) = @_;
-  private_init_HiRes();
-  my $start_t = get_ms(); # memorize start time
   my $bench1 = 0;     # first benchmark to test
   my $bench2 = 5;     # last benchmark to test
   my $n = 1000000;    # maximum number
@@ -608,7 +541,7 @@ sub main($) {
   determineTsPrecision();
   my $rc = start_bench($bench1, $bench2, $n);
   
-  printf("Total elapsed time: %d ms\n", get_ms() - $start_t);
+  printf("Total elapsed time: %d ms\n", conv_ms(get_ts()) | 0);
   return $rc;
 }
 

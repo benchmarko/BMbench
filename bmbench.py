@@ -44,13 +44,14 @@ import sys # for flush()
 #check this: https://www.numpy.org/  used at: http://zwmiller.com/blogs/python_data_structure_speed.html
 #import numpy as np
 
-PRG_VERSION = "0.07"
-PRG_LANGUAGE = "Python"
+G_PRG_VERSION = "0.07"
+G_PRG_LANGUAGE = "Python"
 
 
-gState_tsPrecMs = 0 # measured time stamp precision
-gState_tsPrecCnt = 0 # time stamp count (calls) per precision interval (until time change)
-gState_tsMeasCnt = 0 # last measured count
+g_startTs = 0
+g_tsPrecMs = 0 # measured time stamp precision
+g_tsPrecCnt = 0 # time stamp count (calls) per precision interval (until time change)
+g_tsMeasCnt = 0 # last measured count
 
 #
 # General description for benchmark test functions
@@ -281,55 +282,75 @@ def run_bench(bench, loops, n):
   return x
 
 
+
+def get_raw_ts():
+  return time.time()
+
+def get_ts():
+  #global g_startTs
+  return get_raw_ts() - g_startTs
+
+def conv_ms(ts):
+    return ts * 1000
+
 #
 # get timestamp in milliseconds
 # out: x = time in ms
 #
-def get_ms():
-  return time.time() * 1000
+#def get_ms_xxx():
+#  return time.time() * 1000
 
 
 #
 #
 
-def correctTime(tMeas, measCount):
-  tsPrecCnt = gState_tsPrecCnt
+def correctTime(tMeas, tMeas2,  measCount):
+  tsPrecCnt = g_tsPrecCnt
+  #print('DEBUG: tsPrecCnt='+ str(tsPrecCnt))
 
   if (measCount < tsPrecCnt):
-    tMeas += gState_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt) # ts + correction
+    tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt) # ts + correction
+    if (tMeas > tMeas2):
+      tMeas = tMeas2 # cannot correct
 
   return tMeas
 
 
 def getPrecMs(stopFlg):
-  global gState_tsMeasCnt
+  global g_tsMeasCnt
   measCount = 0
-  tMeas0 = get_ms()
+  tMeas0 = get_ts()
   tMeas = tMeas0
   while (tMeas == tMeas0):
-    tMeas = get_ms()
+    tMeas = get_ts()
     measCount += 1
-  if (stopFlg):
-    tMeas = correctTime(tMeas0, measCount) # for stop: use first ts + correction
-  gState_tsMeasCnt = measCount # memorize last count
-  return tMeas
+
+  g_tsMeasCnt = measCount # memorize last count
+
+  if (not stopFlg):
+    tMeasD = conv_ms(tMeas)
+  else:
+    tMeasD = correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount) # for stop: use first ts + correction
+  return tMeasD
 
 
-# usually only neede if time precision is low, e.g. one second
 def determineTsPrecision():
-  global gState_tsPrecMs
-  global gState_tsPrecCnt
+  global g_tsPrecMs
+  global g_tsPrecCnt
+  global g_startTs
+  g_startTs = get_raw_ts() # memorize start time
+  
   tMeas0 = getPrecMs(False)
   tMeas1 = getPrecMs(False)
-  gState_tsPrecMs = tMeas1 - tMeas0
-  gState_tsPrecCnt = gState_tsMeasCnt
+  g_tsPrecMs = tMeas1 - tMeas0
+  g_tsPrecCnt = g_tsMeasCnt
 
   #do it again
   tMeas0 = tMeas1
   tMeas1 = getPrecMs(False)
-  if (gState_tsMeasCnt > gState_tsPrecCnt): # taker maximum count
-    gState_tsPrecCnt = gState_tsMeasCnt
-    gState_tsPrecMs = tMeas1 - tMeas0
+  if (g_tsMeasCnt > g_tsPrecCnt): # taker maximum count
+    g_tsPrecCnt = g_tsMeasCnt
+    g_tsPrecMs = tMeas1 - tMeas0
 
 #
 #
@@ -377,10 +398,10 @@ def checkbits_double1():
 
 
 def print_info():
-  global gState_tsPrecMs
+  global g_tsPrecMs
   python_version = sys.version.replace('\n', '')
-  print('BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(PRG_VERSION, PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()), end=' ')
-  print("tsMs:" + str(gState_tsPrecMs), "tsCnt:" + str(gState_tsPrecCnt) + ")", end=' ')
+  print('BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(G_PRG_VERSION, G_PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()), end=' ')
+  print("tsMs:" + str(g_tsPrecMs), "tsCnt:" + str(g_tsPrecCnt) + ")", end=' ')
   print('version: '+ python_version +'; platform:', sys.platform)
   print('(c) Marco Vieth, 2006-2019')
   print('Date:', time.ctime(time.time()))
@@ -389,8 +410,8 @@ def print_info():
 def print_results(bench_res1):
   max_language_len1 = 10
   print('\nThroughput for all benchmarks (loops per sec):')
-  print('BMR ('+ PRG_LANGUAGE +')'+ (' ' * (max_language_len1 - len(PRG_LANGUAGE))) + ': ', end=' ')
-  #(' ' x ($max_language_len1 - length($PRG_LANGUAGE))), ": ";
+  print('BMR ('+ G_PRG_LANGUAGE +')'+ (' ' * (max_language_len1 - len(G_PRG_LANGUAGE))) + ': ', end=' ')
+  #(' ' x ($max_language_len1 - length($G_PRG_LANGUAGE))), ": ";
 
   for br in bench_res1:
     print("%9.3f " % (br), end=' ')
@@ -405,50 +426,58 @@ def measureBench(bench, n):
   loops = 1  # number of loops
 
   x = 0      # result from benchmark
-  t1 = 0     # measured time
-  t2 = 0     # estimated time
-  rc = 0
+  tMeas = 0     # measured time
+  tEsti = 0     # estimated time
+  throughput = 0
 
   print("Calibrating benchmark %d with n=%d" % (bench, n))
-  while (rc == 0):
-    t1 = getPrecMs(False)
+  while (throughput == 0):
+    tMeas = getPrecMs(False)
     x = run_bench(bench, loops, n)
-    t1 = getPrecMs(True) - t1
+    tMeas = getPrecMs(True) - tMeas
 
-    if (t2 > t1):
-      t_delta = t2 - t1
+    if (tEsti > tMeas):
+      t_delta = tEsti - tMeas
     else:
-      t_delta = t1 - t2 # compute difference abs(measures-estimated)
+      t_delta = tMeas - tEsti # compute difference abs(measures-estimated)
 
     loops_p_sec = 0
-    if (t1 > 0):
-      loops_p_sec = loops * 1000.0 / t1
+    if (tMeas > 0):
+      loops_p_sec = loops * 1000.0 / tMeas
 
-    print("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)" % (loops_p_sec, t1, loops, t_delta, x))
+    print("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms, x=%d)" % (loops_p_sec, tMeas, loops, t_delta, x))
     if (x == -1): # some error?
-      rc = -1
+      throughput = -1
 
-    elif (t2 > 0) and (t_delta < delta_ms): # do we have some estimated/expected time smaller than delta_ms=100?
-      rc = loops_p_sec # yeah, set measured loops per sec
-      print("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)" % (bench, PRG_LANGUAGE, loops_p_sec, t1, loops, t_delta))
+    elif (tEsti > 0) and (t_delta < delta_ms): # do we have some estimated/expected time smaller than delta_ms=100?
+      throughput = loops_p_sec # yeah, set measured loops per sec
+      print("Benchmark %d (%s): %.3f/s (time=%9.3f ms, loops=%d, delta=%9.3f ms)" % (bench, G_PRG_LANGUAGE, loops_p_sec, tMeas, loops, t_delta))
 
-    elif (t1 > max_ms):
-      print("Benchmark %d (%s): Time already > %d ms. No measurement possible." % (bench, PRG_LANGUAGE, max_ms))
+    elif (tMeas > max_ms):
+      print("Benchmark %d (%s): Time already > %d ms. No measurement possible." % (bench, G_PRG_LANGUAGE, max_ms))
       if (loops_p_sec > 0):
-        rc = -loops_p_sec # cannot rely on measurement, so set to negative
+        throughput = -loops_p_sec # cannot rely on measurement, so set to negative
       else:
-        rc = -1
+        throughput = -1
 
     else:
+      # scale_fact = 2
+      # if ((tMeas < cali_ms) and (tMeas > 0)):
+      #   scale_fact = int(((cali_ms + 100) / tMeas) + 1) # scale a bit up to 1100 ms (cali_ms+100)
       scale_fact = 2
-      if ((t1 < cali_ms) and (t1 > 0)):
-        scale_fact = int(((cali_ms + 100) / t1) + 1) # scale a bit up to 1100 ms (cali_ms+100)
+      if (tMeas == 0):
+        scale_fact = 50
+      elif (tMeas < cali_ms):
+        #scale_fact = ((cali_ms + 100) / tMeas) # scale a bit up to 1100 ms (cali_ms+100)
+        scale_fact = int(((cali_ms + 100) / tMeas) + 1) # scale a bit up to 1100 ms (cali_ms+100) (stay with int)
+      else:
+        scale_fact = 2
 
       loops *= scale_fact
-      t2 = t1 * scale_fact
+      tEsti = tMeas * scale_fact
 
     sys.stdout.flush()
-  return rc
+  return throughput
 
 
 def start_bench(bench1, bench2, n):
@@ -457,14 +486,13 @@ def start_bench(bench1, bench2, n):
   print_info()
 
   for bench in range(bench1, bench2 + 1):
-    rc = measureBench(bench, n)
-    bench_res.append(rc)
+    throughput = measureBench(bench, n)
+    bench_res.append(throughput)
 
   print_results(bench_res)
 
 
 def main(argv=[]):
-  start_t = get_ms()  # memorize start time
   bench1 = 0          # first benchmark to test
   bench2 = 5          # last benchmark to test
   n = 1000000         # maximum number
@@ -482,7 +510,7 @@ def main(argv=[]):
 
   determineTsPrecision()
   start_bench(bench1, bench2, n)
-  print("Total elapsed time: %d ms" % (get_ms() - start_t))
+  print("Total elapsed time: %d ms" % conv_ms(get_ts()))
 
 
 

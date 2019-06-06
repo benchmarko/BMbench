@@ -19,6 +19,9 @@
 '   ??? /optimize bmbench.vb
 '   bmbench.exe [bench1] [bench2] [n]
 '
+' - Mono (since 1.1.5):
+'   vbc -optimize -out:bmbench_vb_mono.exe bmbench.vb
+'   mono bmbench_vb_mono.exe  (on Windows also without mono -> use MS .NET)
 '
 ' Compatability:
 ' VB 6.0 -> VB .NET: Long -> Integer, Integer -> Short
@@ -37,14 +40,15 @@ Imports System
 
 Public Module Module1
 
-    Dim prg_version as String = "0.07"
-    Dim prg_language as String = "VB"
+    Dim g_prg_version as String = "0.07"
+    Dim g_prg_language as String = "VB"
 
-    Dim gState_tsPrecCnt = 0
-    Dim gState_tsPrecMs = 0
-    Dim gState_tsMeasCnt = 0
+    Dim g_startTs As Long = 0
+    Dim g_tsPrecMs As Double = 0
+    Dim g_tsPrecCnt As Integer = 0
+    Dim g_tsMeasCnt As Integer = 0
 
-'    Dim nfi As System.Globalization.NumberFormatInfo = new System.Globalization.CultureInfo("en-US", false).NumberFormat
+   ' Dim nfi As System.Globalization.NumberFormatInfo = new System.Globalization.CultureInfo("en-US", false).NumberFormat
     Dim nfi As IFormatProvider = System.Globalization.CultureInfo.InvariantCulture
   
 
@@ -341,62 +345,74 @@ Public Module Module1
         Return x
     End Function
 
-    '
-    ' get timestamp in milliseconds
-    ' out: x = time in ms
-    '
-    Function get_ms() As Long
-        'get_ms = Microsoft.VisualBasic.DateAndTime.Timer * 1000
-        ' or: System.DateTime.Now.Ticks / 10000 'returns 100ns ticks
-        Return System.DateTime.Now.Ticks / 10000 'returns 100ns ticks
+
+    Function get_raw_ts() As Long
+        Return System.DateTime.Now.Ticks 'returns 100ns ticks
+        'Return (System.DateTime.Now.Ticks \ 100000) * 100000 'simulate 10 ms resolution
+        'Return (System.DateTime.Now.Ticks \ 10000000) * 10000000 'simulate 1000 ms resolution
+        'or: Microsoft.VisualBasic.DateAndTime.Timer * 1000
     End Function
 
-
-    Function getdate1() As String
-        Dim dtfi as System.Globalization.DateTimeFormatInfo = new System.Globalization.CultureInfo("de-DE", false).DateTimeFormat
-        Return System.DateTime.Now.ToString(dtfi) 'always German format
+    ' get timestamp since program start
+    ' Integer should be enough
+    Function get_ts() As Integer
+        return get_raw_ts() - g_startTs
     End Function
 
+    ' convert timestamp to ms
+    Function conv_ms(ByVal ts As Integer) as Double
+        return ts / 10000.0
+    End Function
 
-    Function correctTime(ByVal tMeas As Long, ByVal measCount As Integer) As Long
-        Dim tsPrecCnt = gState_tsPrecCnt
+    Function correctTime(ByVal tMeas As Double, ByVal tMeas2 As Double, ByVal measCount As Integer) As Double
+        Dim tsPrecCnt As Integer = g_tsPrecCnt
 
         If measCount < tsPrecCnt Then
-        tMeas += gState_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt) ' ts + correction
+            tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt) ' ts + correction
+            If tMeas > tMeas2 Then
+                tMeas = tMeas2 'cannot correct
+            End If
         End If
         return tMeas
     End Function
 
-    Function getPrecMs(ByVal stopFlg as Boolean) As Long
+    Function getPrecMs(ByVal stopFlg as Boolean) As Double
         Dim measCount As Integer = 0
 
-        Dim tMeas0 As Long = get_ms()
-        Dim tMeas = tMeas0
+        Dim tMeas0 As Integer = get_ts()
+        Dim tMeas As Integer = tMeas0
         While tMeas <= tMeas0
-            tMeas = get_ms()
+            tMeas = get_ts()
+            'System.Console.WriteLine("DEBUG: getPrecMs: tMeas=" & tMeas)
             measCount += 1
         End While
+        g_tsMeasCnt = measCount ' memorize count
 
+        Dim tMeasD As Double
         If stopFlg Then
-            tMeas = correctTime(tMeas0, measCount) 'for stop: use first ts + correction
+            tMeasD = correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount) 'for stop: use first ts + correction
+        Else
+            tMeasD = conv_ms(tMeas)
         End If
-        gState_tsMeasCnt = measCount ' memorize count
-        return tMeas
+        'System.Console.WriteLine("DEBUG: tMeasD=" & tMeasD & ", tMeas=" & tMeas)
+        return tMeasD
     End Function
 
     'usually only needed if time precision is low, e.g. one second
     Sub determineTsPrecision()
-        Dim tMeas0 As Long = getPrecMs(false)
-        Dim tMeas1 As Long = getPrecMs(false)
-        gState_tsPrecMs = (tMeas1 - tMeas0)
-        gState_tsPrecCnt = gState_tsMeasCnt
+        g_startTs = get_raw_ts() 'memorize start time
+
+        Dim tMeas0 As Double = getPrecMs(false)
+        Dim tMeas1 As Double = getPrecMs(false)
+        g_tsPrecMs = (tMeas1 - tMeas0)
+        g_tsPrecCnt = g_tsMeasCnt
 
         ' do it again
         tMeas0 = tMeas1
         tMeas1 = getPrecMs(false)
-        If gState_tsMeasCnt > gState_tsPrecCnt Then 'taker maximum count
-            gState_tsPrecCnt = gState_tsMeasCnt
-            gState_tsPrecMs = (tMeas1 - tMeas0)
+        If g_tsMeasCnt > g_tsPrecCnt Then 'taker maximum count
+            g_tsPrecCnt = g_tsMeasCnt
+            g_tsPrecMs = tMeas1 - tMeas0
         End If
     End Sub
 
@@ -432,14 +448,50 @@ Public Module Module1
         Return bits
     End Function
 
+    Function getdate1() As String
+        Dim dtfi as System.Globalization.DateTimeFormatInfo = new System.Globalization.CultureInfo("de-DE", false).DateTimeFormat
+        Return System.DateTime.Now.ToString(dtfi) 'always German format
+    End Function
+
+
+'TODO https://stackoverflow.com/questions/8413922/programmatically-determining-mono-runtime-version
+'TODO https://stackoverflow.com/questions/4178129/how-to-determine-the-revision-from-which-current-mono-runtime-was-built-and-inst
+
+    Function getruntime1() As String
+        'Dim type1 As Type = Type.GetType("Mono.Runtime")
+        Dim runtimeName As String = GetType(object).FullName 'howto??
+        
+        'Dim runtimeName As String = TypeName(object)
+        'Dim runtimeName As String = (TypeOf object).FullName 'howto??
+        'Dim runtimeName As String = type1.FullName 'howto??
+        Dim runtimeVersion As String = System.Environment.Version.ToString()
+        ' 'System.Environment.Version' shows more info than 'System.Reflection.Assembly.GetExecutingAssembly().ImageRuntimeVersion'
+
+        Select Case runtimeName
+        Case "System.RuntimeType"
+            runtimeName = "Microsoft .NET Framework"
+        Case "System.MonoType"
+            'runtimeName = "Mono"
+            'call Mono.Runtime.GetDisplayName()...
+            Dim runtimeNameVersion As String = GetType(object).Assembly.GetType("Mono.Runtime").InvokeMember("GetDisplayName", System.Reflection.BindingFlags.InvokeMethod Or System.Reflection.BindingFlags.NonPublic Or System.Reflection.BindingFlags.Static Or System.Reflection.BindingFlags.DeclaredOnly Or System.Reflection.BindingFlags.ExactBinding, Nothing, Nothing, Nothing)
+            Dim parts() As String = runtimeNameVersion.Split(" ".ToCharArray(), 2)
+            runtimeName = parts(0)
+            runtimeVersion = parts(1)
+        Case "System.Reflection.ClrType"
+            runtimeName = "DotGNU Portable.NET"
+        Case Else
+            runtimeName = "<" & runtimeName & ">"
+        End Select
+        Return runtimeName & " " & runtimeVersion
+    End Function
 
     Sub print_info()
-        Dim version1 As String = System.Environment.OSVersion.ToString()
+        Dim version1 As String = "Runtime: " & getruntime1() & ", " & System.Environment.OSVersion.ToString()
         Try
           version1 = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version().ToString() & ", " & version1
         Catch ex As System.Security.SecurityException
         End Try
-        System.Console.WriteLine("BM Bench v" & prg_version & " (" & prg_language & ") -- (int:" & checkbits_int1() & " double:" & checkbits_double1() & " tsMs:" & gState_tsPrecMs & " tsCnt:" & gState_tsPrecCnt & ") " & version1)
+        System.Console.WriteLine("BM Bench v" & g_prg_version & " (" & g_prg_language & ") -- (int:" & checkbits_int1() & " double:" & checkbits_double1() & " tsMs:" & g_tsPrecMs & " tsCnt:" & g_tsPrecCnt & ") " & version1)
         System.Console.WriteLine("(c) Marco Vieth, 2006-2019")
         System.Console.WriteLine(getdate1())
     End Sub
@@ -449,9 +501,9 @@ Public Module Module1
         Dim max_language_len1 As Integer = 10
         System.Console.WriteLine()
         System.Console.WriteLine("Throughput for all benchmarks (loops per sec):")
-        Dim str As String = "BMR (" + prg_language + ")"
+        Dim str As String = "BMR (" + g_prg_language + ")"
         Dim i As Integer
-        For i = prg_language.Length To max_language_len1 
+        For i = g_prg_language.Length To max_language_len1 
             str += " "
         Next i
 
@@ -463,14 +515,14 @@ Public Module Module1
     End Sub
 
 
-    Function measureBench(ByVal bench As Integer, ByVal n As Integer)
+    Function measureBench(ByVal bench As Integer, ByVal n As Integer) As Double
         Dim cali_ms As Integer = 1001 '401 '1001 TTT
         Dim delta_ms As Integer = 100 '150 '100 TTT
         Dim max_ms As Integer = 10000
         Dim loops as Integer = 1 'number of loops
         Dim x as Integer 'result from benchmark
-        Dim tMeas as Long = 0 'measured time
-        Dim tEsti as Long = 0  'estimated time
+        Dim tMeas as Double = 0 'measured time
+        Dim tEsti as Double = 0  'estimated time
         Dim throughput As Double = 0
 
         System.Console.WriteLine("Calibrating benchmark " & bench & " with n=" & n)
@@ -479,7 +531,7 @@ Public Module Module1
             x = run_bench(bench, loops, n)
             tMeas = getPrecMs(true) - tMeas
 
-            Dim t_delta As Long
+            Dim t_delta As Double
             If tEsti > tMeas Then 'compute difference abs(measures-estimated)
                 t_Delta = tEsti - tMeas
             Else
@@ -493,26 +545,32 @@ Public Module Module1
                 loops_p_sec = 0
             End If
            
-            System.Console.WriteLine("{0,10}/s (time={1,5} ms, loops={2,7}, delta={3,5} ms, x={4})", loops_p_sec.ToString("F3", nfi), tMeas, loops, t_delta, x)
+            System.Console.WriteLine("{0,10}/s (time={1,9} ms, loops={2,7}, delta={3,9} ms, x={4})", loops_p_sec.ToString("F3", nfi), tMeas.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi), x)
 
-            If (x = -1) Then 'some error?
+            If x = -1 Then 'some error?
                 throughput = -1
-            Else If ((tEsti > 0) And (t_delta < delta_ms)) Then 'do we have some estimated/expected time smaller than delta_ms=100?
+            Else If (tEsti > 0) And (t_delta < delta_ms) Then 'do we have some estimated/expected time smaller than delta_ms=100?
                 throughput = loops_p_sec 'yeah, set measured loops per sec
-                System.Console.WriteLine("Benchmark {0} ({1}): {2}/s (time={3} ms, loops={4}, delta={5} ms)", bench, prg_language, loops_p_sec.ToString("F3", nfi), tMeas, loops, t_delta)
-            Else If (tMeas > max_ms) Then
-                System.Console.WriteLine("Benchmark {0} ({1}): Time already > {2} ms. No measurement possible.", bench, prg_language, max_ms)
+                System.Console.WriteLine("Benchmark {0} ({1}): {2}/s (time={3} ms, loops={4}, delta={5} ms)", bench, g_prg_language, loops_p_sec.ToString("F3", nfi), tMeas.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi))
+            Else If tMeas > max_ms Then
+                System.Console.WriteLine("Benchmark {0} ({1}): Time already > {2} ms. No measurement possible.", bench, g_prg_language, max_ms)
                 If loops_p_sec > 0 Then
                     throughput = -loops_p_sec 'cannot rely on measurement, so set to negative
                 Else
-                    throughput = 0
+                    throughput = -1
                 End If
             Else
-                Dim scale_fact As Integer = 2
-                If (tMeas < cali_ms) And (tMeas > 0) Then
-                    scale_fact = ((cali_ms + 100) / tMeas) + 1
-                    ' scale a bit up to 1100 ms (cali_ms+100)
+
+                Dim scale_fact As Integer
+                If tMeas = 0 Then
+                    scale_fact = 50
+                Else If tMeas < cali_ms Then
+                    scale_fact = ((cali_ms + 100) / tMeas) + 1 'for Integer
+                    'scale a bit up to 1100 ms (cali_ms+100)
+                Else 
+                    scale_fact = 2
                 End If
+                'System.Console.WriteLine("DEBUG: scale_fact=" & scale_fact & ", tMeas=" & tMeas & ", cali_ms=" & cali_ms)
                 loops *= scale_fact
                 tEsti = tMeas * scale_fact
             End If
@@ -557,12 +615,11 @@ Public Module Module1
 
 
     Public Sub Main()
-        Dim start_t As Long = get_ms() 'memorize start time
         Dim bench1 As Integer = 0 '0 first benchmark to test
         Dim bench2 As Integer = 5 '5 'last benchmark to test
         Dim n As Integer = 1000000 'maximum number
 
-        Dim args = GetCommandLineArgs()
+        Dim args() As String = GetCommandLineArgs()
 
         If (args.Length >= 2) Then
             If (args(1) <> "") Then
@@ -578,8 +635,8 @@ Public Module Module1
         End If
 
         determineTsPrecision()
-        Dim rc =  start_bench(bench1, bench2, n)
-        System.Console.WriteLine("Total elapsed time: " & (get_ms() - start_t) & " ms")
+        Dim rc As Integer =  start_bench(bench1, bench2, n)
+        System.Console.WriteLine("Total elapsed time: " & Convert.ToInt32(conv_ms(get_ts())) & " ms")
     End Sub
 
 End Module

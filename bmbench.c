@@ -42,35 +42,35 @@
 #include <time.h>  /* only to get date with ctime(), time() */
 #include <string.h> /* strcat */
 
-/* #define Use_Windows */
-#ifdef Use_Windows
+#ifdef _WIN32 /* Visual C++ */
 #include <sys/timeb.h>
+#if _MSC_VER
+#define MY_VERSION "Microsoft C/C++-Compiler %d\n", _MSC_VER
+#endif
 #else
 #include <sys/time.h> /* gettimeofday */
 #endif
 
 #ifdef __GNUC__
-#define MY_VERSION "Compiled with GCC %d.%d\n", __GNUC__, __GNUC_MINOR__
+#define MY_VERSION "GCC %d.%d\n", __GNUC__, __GNUC_MINOR__
 #endif
-
 
 #if !defined MY_VERSION
 #define MY_VERSION "Compiled on ??\n"
 #endif
 
 
-typedef /* unsigned long */ double bmtime_t;
-
-struct gState_t {
-	char tsType[20]; /* type of time stamp source */
-	bmtime_t tsPrecMs; /* measured time stamp precision */
-	int tsPrecCnt; /* time stamp count (calls) per precision interval (until time change) */
-	int tsMeasCnt; /* last measured count */
+struct bm_timeval {
+  long tv_sec;
+  long tv_usec;
 };
 
-static struct gState_t gState = {
-	"", 0, 0, 0
-};
+static struct bm_timeval g_start_ts = { 0, 0 };
+
+/* static char g_tsType[20] = ""; */ /* type of time stamp source */
+static double g_tsPrecMs = 0; /* measured time stamp precision */
+static int g_tsPrecCnt = 0; /* time stamp count (calls) per precision interval (until time change) */
+static int g_tsMeasCnt = 0; /* last measured count */
 
 
 /*
@@ -89,8 +89,8 @@ static struct gState_t gState = {
  * bench00 (Integer 16 bit)
  * (sum of 1..n) mod 65536
  */
-static int bench00(int loops, int n, short int check) {
-  short int x = 0;
+static int bench00(int loops, int n, unsigned short int check) {
+  unsigned short int x = 0;
   /* short int sum1 = (short int)((n / 2) * (n + 1)); */ /* assuming n even! */
   /* (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit) */
   unsigned int n_div_65536 = (unsigned int)(n >> 16);
@@ -169,7 +169,7 @@ static int bench03(int loops, int n, int check) {
   n /= 2; /* compute only up to n/2 */
   int nHalf = n >> 1;
 
-  sieve_t *sieve = malloc((nHalf + 1) * sizeof(sieve_t));
+  sieve_t *sieve = (sieve_t *)malloc(((unsigned)nHalf + 1) * sizeof(sieve_t));
   if (sieve == NULL) {
     return -1; /* error */
   }
@@ -263,7 +263,7 @@ static int bench05(int loops, int n_p, int check) {
   }
 
   for (i = 0; i < 2; i++) {
-    pas1[i] = malloc((k + 1) * sizeof(pas_t));
+    pas1[i] = (pas_t *)malloc(((unsigned)k + 1) * sizeof(pas_t));
     if (pas1[i] == NULL) {
       return -1; /* error */
     }
@@ -315,7 +315,7 @@ static int run_bench(int bench, int loops, int n) {
   switch(bench) {
     case 0:
 	    check = ((n / 2) * (n + 1)) & 0xffff; // short int
-      x = bench00(loops, n, check);
+      x = bench00(loops, n, (unsigned short int)check);
     break;
 
     case 1:
@@ -358,31 +358,63 @@ static int run_bench(int bench, int loops, int n) {
 }
 
 
-/*
- * get timestamp in milliseconds
- * out: x = time in ms
- *
- * We return double even if we only do short measurements
- */
-static bmtime_t get_ms(void) {
-  //static bmtime_t initialTime = 0;
-  bmtime_t ltime;
-#ifndef Use_Windows
+static struct bm_timeval get_raw_ts(void) {
+  struct bm_timeval bmtv;
+#ifdef _WIN32
+  struct _timeb tb;
+  _ftime(&tb);
+  //ltime = (bmtime_t)tb.time * 1000.0 + tb.millitm;
+  bmtv.tv_sec = tb.time;
+  bmtv.tv_usec = tb.millitm * 1000;
+#else // e.g. gcc
   struct timeval tv;
   gettimeofday(&tv, NULL);
-  ltime = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+  //ltime = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+  bmtv.tv_sec = tv.tv_sec;
+  bmtv.tv_usec = tv.tv_usec;
   /*
   if (!initialTime) {
     initialTime = ltime;
   }
   ltime -= initialTime;
   */
-#else
-  struct _timeb tb;
-  _ftime(&tb);
-  ltime = (bmtime_t)tb.time * 1000.0 + tb.millitm;
 #endif
-  return(ltime);
+  return bmtv;
+}
+
+
+/* https://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html */
+static int timeval_subtract(struct bm_timeval *result, struct bm_timeval *x, struct bm_timeval *y) {
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  /* Compute the time remaining to wait. tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
+
+static int get_ts(void) {
+  struct bm_timeval bmtv = get_raw_ts();
+  struct bm_timeval restv;
+
+  timeval_subtract(&restv, &bmtv, &g_start_ts);
+  return restv.tv_sec * 1000000 + restv.tv_usec;
+}
+
+static double conv_ms(int ts) {
+    return ts / 1000.0;
 }
 
 
@@ -393,52 +425,54 @@ static time_t *get_time1(void) {
 }
 
 
-static bmtime_t correctTime(bmtime_t tMeas, int measCount) {
-  int tsPrecCnt = gState.tsPrecCnt;
+static double correctTime(double tMeas, double tMeas2, int measCount) {
+  int tsPrecCnt = g_tsPrecCnt;
 
   if (measCount < tsPrecCnt) {
-    tMeas += gState.tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); // ts + correction
+    tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); // ts + correction
     //printf("DEBUG: correctTime: tMeas=%f cntDiff=%d corr=%f\n", tMeas, (tsPrecCnt - measCount), tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt));
     //printf("DEBUG: \n");
-    //TTT bench01(1000, 1000000, ((1000000 + 1) / 2) | 0);    
+    //TTT bench01(1000, 1000000, ((1000000 + 1) / 2) | 0); 
+    if (tMeas > tMeas2) {
+        tMeas = tMeas2; // cannot correct
+    }   
   }
   return tMeas;
 }
 
-static bmtime_t getPrecMs(int stopFlg) {
+static double getPrecMs(int stopFlg) {
   int measCount = 0;
 
-//return get_ms(); //TTT
-  bmtime_t tMeas0 = get_ms();
-  bmtime_t tMeas = tMeas0;
+  int tMeas0 = get_ts();
+  int tMeas = tMeas0;
   while (tMeas <= tMeas0) {
-    tMeas = get_ms();
+    tMeas = get_ts();
     measCount++;
   }
+  g_tsMeasCnt = measCount; /* memorize count */
 
-  if (stopFlg) {
-    tMeas = correctTime(tMeas0, measCount); /* for stop: use first ts + correction */
-  }
-  gState.tsMeasCnt = measCount; /* memorize count */
-  return tMeas;
+  double tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount);
+  return tMeasD;
 }
 
 /* usually only needed if time precision is low, e.g. one second */
-static void determineTsPrecision() {
-  bmtime_t tMeas0 = getPrecMs(0);
-  bmtime_t tMeas1 = getPrecMs(0);
-  gState.tsPrecMs = tMeas1 - tMeas0;
-  gState.tsPrecCnt = gState.tsMeasCnt;
+static void determineTsPrecision(void) {
+  g_start_ts = get_raw_ts(); // memorize start time //TTT copy?
+
+  double tMeas0 = getPrecMs(0);
+  double tMeas1 = getPrecMs(0);
+  g_tsPrecMs = tMeas1 - tMeas0;
+  g_tsPrecCnt = g_tsMeasCnt;
 
   /* do it again */
   tMeas0 = tMeas1;
   tMeas1 = getPrecMs(0);
-  if (gState.tsMeasCnt > gState.tsPrecCnt) { /* taker maximum count */
-    //printf("DEBUG: determineTsPrecision: Overwriting old measurement: tsPrecMs=%f tsPrecCnt=%d\n", gState.tsPrecMs, gState.tsPrecCnt);
-    gState.tsPrecCnt = gState.tsMeasCnt;
-    gState.tsPrecMs = tMeas1 - tMeas0;
+  if (g_tsMeasCnt > g_tsPrecCnt) { /* taker maximum count */
+    //printf("DEBUG: determineTsPrecision: Overwriting old measurement: tsPrecMs=%f tsPrecCnt=%d\n", g_tsPrecMs, g_tsPrecCnt);
+    g_tsPrecCnt = g_tsMeasCnt;
+    g_tsPrecMs = tMeas1 - tMeas0;
   }
-  //printf("DEBUG: determineTsPrecision: tsPrecMs=%f tsPrecCnt=%d, tmeas0=%f tMeas1=%f tsMeasCnt=%d\n", gState.tsPrecMs, gState.tsPrecCnt, tMeas0, tMeas1, gState.tsMeasCnt);
+  //printf("DEBUG: determineTsPrecision: tsPrecMs=%f tsPrecCnt=%d, tmeas0=%f tMeas1=%f tsMeasCnt=%d\n", g_tsPrecMs, g_tsPrecCnt, tMeas0, tMeas1, g_tsMeasCnt);
 }
 
 
@@ -494,7 +528,7 @@ static int checkbits_float1(void) {
   int bits = 0;
   do {
     last_num = num;
-    num *= 2.0;
+    num *= 2.0F;
     num++;
     bits++;
   } while ( (((num - 1.0) / 2.0) == last_num) && (bits < 101) );
@@ -516,10 +550,10 @@ static int checkbits_double1(void) {
 
 
 
-static void print_info() {
+static void print_info(void) {
   printf("BM Bench v%s (%s) -- (short:%d int:%d float:%d double:%d tsMs:%lf tsCnt:%d) ", PRG_VERSION, PRG_LANGUAGE,
     checkbits_short1(), checkbits_int1(), checkbits_float1(), checkbits_double1(),
-    gState.tsPrecMs, gState.tsPrecCnt);
+    g_tsPrecMs, g_tsPrecCnt);
   printf(MY_VERSION); // maybe multiple arguments!
   printf("(c) Marco Vieth, 2006\n");
   printf("Date: %s", ctime(get_time1()));
@@ -556,19 +590,19 @@ static double measureBench(int bench, int n) {
   
   int loops = 1;   /* number of loops */
   int x = 0;     /* result from benchmark */
-  bmtime_t t1 = 0; /* measured time */
-  bmtime_t t2 = 0; /* estimated time */
+  double t1 = 0; /* measured time */
+  double t2 = 0; /* estimated time */
   double throughput = 0;
 
   printf("Calibrating benchmark %d with n=%d\n", bench, n);
   while (throughput == 0) {
-    t1 = getPrecMs(0); //get_ms(); //getPrecMs(0);
+    t1 = getPrecMs(0);
     x = run_bench(bench, loops, n);
-    t1 = getPrecMs(1) - t1; //get_ms() - t1; //getPrecMs(1) - t1;
+    t1 = getPrecMs(1) - t1;
 
-    bmtime_t t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); /* compute difference abs(measures-estimated) */
+    double t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); /* compute difference abs(measures-estimated) */
     double loops_p_sec = (t1 > 0) ? ((loops * 1000.0) / t1) : 0;
-    //printf("DEBUG: (time=%9.3f ms, delta=%9.3f ms, tsMeasCnt=%d)\n",t1, t_delta, gState.tsMeasCnt);
+    //printf("DEBUG: (time=%9.3f ms, delta=%9.3f ms, tsMeasCnt=%d)\n",t1, t_delta, g_tsMeasCnt);
     printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms, x=%d)\n", loops_p_sec, t1, loops, t_delta, x);
     if (x == -1) { /* some error? */
       throughput = -1;
@@ -600,7 +634,8 @@ static int start_bench(int bench1, int bench2, int n) {
   
   print_info();
 
-  if ((bench_res = malloc((bench2 + 1) * sizeof(double))) == NULL) {
+  unsigned int bench_res_size = ((unsigned)bench2 + 1) * sizeof(double);
+  if ((bench_res = (double *)malloc(bench_res_size)) == NULL) {
     fprintf(stderr, "Error: malloc(bench_res)\n");
     exit(1);
   }
@@ -621,7 +656,6 @@ static int start_bench(int bench1, int bench2, int n) {
 
 
 int main(int argc, char **argv) {
-  bmtime_t start_t = get_ms(); /* memorize start time */
   int bench1 = 0;       /* first benchmark to test */
   int bench2 = 5;       /* last benchmark to test */
   int n = 1000000L;   /* maximum number */
@@ -641,7 +675,7 @@ int main(int argc, char **argv) {
   determineTsPrecision();
   rc = start_bench(bench1, bench2, n);
     
-  printf("Total elapsed time: %ld ms\n", (long)(get_ms() - start_t));
+  printf("Total elapsed time: %d ms\n", (int)(conv_ms(get_ts())));
   return rc;
 }
 /* end */

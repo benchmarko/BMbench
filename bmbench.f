@@ -58,8 +58,9 @@ C
 C
       PROGRAM bmbench
       IMPLICIT NONE
-      REAL G_TSPRECMS
+      REAL G_START_TS, G_TSPRECMS
       INTEGER G_TSPRECCNT, G_TSMEASCNT
+      COMMON /G1/ G_START_TS
       COMMON /GSTATE/ G_TSPRECMS, G_TSPRECCNT, G_TSMEASCNT
 
 C IARGC(), CALL GETARG are not very portable but supported on most UNIX plattforms.
@@ -428,21 +429,43 @@ C Undefined value
 C
 C
 C
+      REAL FUNCTION GET_RAW_TS()
+      REAL R_MS
+      CALL CPU_TIME(R_MS)
+      GET_RAW_TS = R_MS
+      RETURN
+      END
+C
+C
+      REAL FUNCTION GET_TS()
+      REAL G_START_TS
+      COMMON /G1/ G_START_TS
+      GET_TS = GET_RAW_TS() - G_START_TS
+      RETURN
+      END
+C
+C
+      REAL FUNCTION CONV_MS(TS)
+      REAL TS
+      CONV_MS = TS * 1000.0
+      RETURN
+      END
+C
 C get timestamp in milliseconds
 C out: x = time in ms
 C
 C This function is intended for short measurements only
 C
-      REAL FUNCTION GET_MS()
+      REAL FUNCTION GET_MS_XXX()
 C      FUNCTION GET_MS()
       REAL R_MS
       CALL CPU_TIME(R_MS)
-      GET_MS = R_MS * 1000.0
+      GET_MS_XXX = R_MS * 1000.0
       RETURN
       END
 C
 C
-      REAL FUNCTION CORRECT_TIME(TMEAS, MEASCOUNT)
+      REAL FUNCTION CORRECT_TIME(TMEAS, TMEAS2, MEASCOUNT)
       REAL TMEAS
       INTEGER MEASCOUNT, TSPRECCNT
 
@@ -452,11 +475,13 @@ C
 
       TSPRECCNT = G_TSPRECCNT
       IF (MEASCOUNT < TSPRECCNT) THEN
-        CORRECT_TIME = TMEAS + G_TSPRECMS *
+        TMEAS = TMEAS + G_TSPRECMS *
      * ((TSPRECCNT - MEASCOUNT) / TSPRECCNT)
-      ELSE
-        CORRECT_TIME = TMEAS
+        IF (TMEAS > TMEAS2) THEN
+          TMEAS = TMEAS2
+        ENDIF
       ENDIF
+        CORRECT_TIME = TMEAS
       RETURN
       END
 C
@@ -464,34 +489,43 @@ C
       REAL FUNCTION GETPRECMS(STOPFLG)
       LOGICAL STOPFLG
       INTEGER MEASCOUNT
-      REAL TMEAS0, TMEAS
+      REAL TMEAS0, TMEAS, TMEASD
 
       REAL G_TSPRECMS
       INTEGER G_TSPRECCNT, G_TSMEASCNT
       COMMON /GSTATE/ G_TSPRECMS, G_TSPRECCNT, G_TSMEASCNT
 
       MEASCOUNT = 0
-      TMEAS0 = GET_MS()
+      TMEAS0 = GET_TS()
       TMEAS = TMEAS0
       DO 150 WHILE (TMEAS .LE. TMEAS0)
-        TMEAS = GET_MS()
+        TMEAS = GET_TS()
         MEASCOUNT = MEASCOUNT + 1
   150 CONTINUE
+
       G_TSMEASCNT = MEASCOUNT
+
       IF (STOPFLG .EQV. .TRUE.) THEN
-        TMEAS = CORRECT_TIME(TMEAS0, MEASCOUNT)
+        TMEASD = CORRECT_TIME(CONV_MS(TMEAS0), CONV_MS(TMEAS),
+     *    MEASCOUNT)
+      ELSE
+        TMEASD = CONV_MS(TMEAS)
       ENDIF
-      GETPRECMS = TMEAS
+      GETPRECMS = TMEASD
       RETURN
       END
 C
 C
-      SUBROUTINE determineTsPrecision()
+      SUBROUTINE DETERMINETSPRECISION()
       REAL TMEAS0, TMEAS1
 
+      REAL G_START_TS
+      COMMON /G1/ G_START_TS
       REAL G_TSPRECMS
       INTEGER G_TSPRECCNT, G_TSMEASCNT
       COMMON /GSTATE/ G_TSPRECCNT, G_TSPRECMS, G_TSMEASCNT
+      
+      G_START_TS = GET_RAW_TS()
 
       TMEAS0 = GETPRECMS(.FALSE.)
       TMEAS1 = GETPRECMS(.FALSE.)
@@ -715,16 +749,16 @@ C
       SUBROUTINE MAIN()
       INTEGER MAX_BENCH
       PARAMETER (MAX_BENCH = 5)
-      REAL START_T, T2
       INTEGER BENCH1, BENCH2, N
 C declare functions...
       INTEGER GET_NUMARG
-      REAL GET_MS
+      REAL GET_TS
 
-      START_T = GET_MS()
       BENCH1 = 0
       BENCH2 = 5
       N = 1000000
+
+      CALL DETERMINETSPRECISION()
 C
 C We don't use ARGC but scan numbers from GETARG until -1...
       IF (GET_NUMARG(1) .NE. -1) THEN
@@ -743,125 +777,11 @@ C
         RETURN
       ENDIF
 
-      CALL DETERMINETSPRECISION()
       CALL START_BENCH(BENCH1, BENCH2, N, MAX_BENCH)
 
       PRINT *
-      T2 = GET_MS()
-      PRINT *, 'Total elapsed time: ', INT(T2 - START_T), ' ms'
+      PRINT *, 'Total elapsed time: ', INT(CONV_MS(GET_TS())), ' ms'
       RETURN
       END
-C
-C
-C #ifdef 0
-      SUBROUTINE MAIN_OLD1()
-C      IMPLICIT INTEGER (A-Z)
-      INTEGER MAX_BENCH
-      PARAMETER (MAX_BENCH = 5)
-      REAL START_T
-      INTEGER BENCH1, BENCH2, BENCH, N, MIN_MS
-      INTEGER LOOPS, T1, T2
-      INTEGER X
-      INTEGER BENCH_RES1(0:MAX_BENCH)
-C benchmark results 0..5
-      INTEGER SBITS, IBITS, FBITS, DBITS
-C declare functions...
-      INTEGER GET_NUMARG
-      REAL GET_MS
-
-      START_T = GET_MS()
-      BENCH1 = 0
-      BENCH2 = 5
-      N = 1000000
-      MIN_MS = 10000
-C
-C We don't use ARGC but scan numbers from GETARG until -1...
-      IF (GET_NUMARG(1) .NE. -1) THEN
-        BENCH1 = GET_NUMARG(1)
-        IF (GET_NUMARG(2) .NE. -1) THEN
-          BENCH2 = GET_NUMARG(2)
-          IF (GET_NUMARG(3) .NE. -1) THEN
-            N = GET_NUMARG(3)
-          ENDIF
-        ENDIF
-      ENDIF
-C
-      IF ((BENCH1 .GT. MAX_BENCH) .OR. (BENCH2 .GT. MAX_BENCH)) THEN
-        PRINT *, 'Error: Benchmark out of range! ', BENCH1, ' or ',
-     *    BENCH2, ' > ', MAX_BENCH
-        RETURN
-      ENDIF
-C
-      CALL CHECKBITS_SHORT1(SBITS)
-      CALL CHECKBITS_INT1(IBITS)
-      CALL CHECKBITS_FLOAT1(FBITS)
-      CALL CHECKBITS_DOUBLE1(DBITS)
-  10  FORMAT('BM Bench v0.5 (Fortran) -- (short:', I2, ' int:', I2,
-     * ' float:', I2, ' double:', I2, ') version: ?')
-      PRINT 10, SBITS, IBITS, FBITS, DBITS
-      PRINT *, '(c) Marco Vieth, 2002'
-C
-C
-C
-      DO 400 BENCH = BENCH1, BENCH2
-C      PRINT *, 'DEBUG: bench=', bench
-        LOOPS = 1
-        X = 0
-        T1 = 0
-        T2 = 0
-C
-C Calibration
-C
-        DO 300 WHILE ((T2 .LE. 1001) .AND. (X .NE. -1))
-          PRINT *, 'Calibrating benchmark ', BENCH, ' with loops=',
-     * LOOPS, ', n=', N
-          T1 = INT(GET_MS())
-          CALL RUN_BENCH(BENCH, LOOPS, N, X)
-          T2 = INT(GET_MS()) - T1
-          PRINT *, 'x=', X, ' (time: ', T2, ' ms)'
-          LOOPS = LOOPS * 2
-C          IF ((T2 .GT. 1001) .OR. (X .EQ. -1)) THEN
-C            GOTO 310
-C          ENDIF
-  300   CONTINUE
-C        PRINT *, 'DEBUG: x=', X
-        IF (X .NE. -1) THEN
-          LOOPS = LOOPS / 2
-          LOOPS = LOOPS * (MIN_MS / T2) + 1
-          PRINT *, 'Calibration done. Starting measurement with ',
-     * LOOPS, ' loops to get >=', MIN_MS, ' ms'
-C
-C Measurement
-C
-          T1 = INT(GET_MS())
-          CALL RUN_BENCH(BENCH, LOOPS, N, X)
-          T2 = INT(GET_MS()) - T1
-          PRINT *, 'x=', X, ' (time: ', T2, ' ms)'
-
-          BENCH_RES1(BENCH) = (T2 * 10 / LOOPS)
-          PRINT *, 'Elapsed time for ', LOOPS, ' loops: ', T2,
-     * ' ms; estimation for 10 loops: ', BENCH_RES1(BENCH), ' ms'
-        ELSE
-          BENCH_RES1(BENCH) = -1
-        ENDIF
-C        PRINT *, 'DEBUG: b=', BENCH, ', br1=', BENCH_RES1(BENCH)
-  400 CONTINUE
-      PRINT *, 'Times for all benchmarks (10 loops, ms):'
-  20  FORMAT('BM Results (Fortran)   : ',$)
-      PRINT 20
-  30  FORMAT(I7,' ',$)
-      DO 500 BENCH = BENCH1, BENCH2
-C        PRINT *, 'DEBUG: b=', BENCH, ', br1=', BENCH_RES1(BENCH)
-C        PRINT *, BENCH_RES1(BENCH), ' '
-        PRINT 30, BENCH_RES1(BENCH)
-  500 CONTINUE
-      PRINT *
-      T2 = INT(GET_MS())
-      PRINT *, 'Total elapsed time: ', (T2 - START_T), ' ms'
-      RETURN
-      END
-C #endif
-C
-C
 C
 C End

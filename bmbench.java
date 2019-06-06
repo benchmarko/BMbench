@@ -11,35 +11,27 @@
 // 23.05.2006 0.06  based on version 0.05
 // 05.05.2019 0.07  changed bench 00-03; time interval estimation
 //
-// Usage:
-// java bmbench [bench] [n]
-// or as an applet in a HTML page
+// Compile & Run:
+// java bmbench.java [bench] [n]
+// (or as an applet in a HTML page, deprecated)
 //
-
+// javac -O -d . -Xlint:all bmbench.java   (compile)
+// java bmbench                 (run)
 //
-// Compile:
-// javac -O bmbench.java
 // (/usr/lib/IBMJava2-1.3.0/bin or /usr/lib/SunJava1-1.1.8/bin/)
-// Or:
-// guavac, gcj, ...
+// (guavac, gcj, ...)
 //
 
-import java.applet.Applet;
-//import java.awt.Graphics;  // required for applet
 import java.text.SimpleDateFormat; // just to print date
 
-// import java.text.NumberFormat;
-
-
-public class bmbench extends java.applet.Applet {
-
+class bmbench {
   static String prg_version = "0.07";
   static String prg_language = "Java";
 
-  private static int gState_tsPrecMs = 0; // measured time stamp precision
+  private static long gState_startTs = 0;
+  private static double gState_tsPrecMs = 0; // measured time stamp precision
   private static int gState_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
   private static int gState_tsMeasCnt = 0; // last measured count
-
 
   
   /*
@@ -85,7 +77,7 @@ public class bmbench extends java.applet.Applet {
       //x &= 0xffff; // not needed because x is short
       x -= check;
     }
-    return (int)(x & 0xffff);
+    return x & 0xffff;
   }
 
 
@@ -127,7 +119,7 @@ public class bmbench extends java.applet.Applet {
       }
       x -= check;
     }
-    return (int)x;
+    return x;
   }
 
 
@@ -305,49 +297,66 @@ public class bmbench extends java.applet.Applet {
   // Even if the function is intended for short measurements we should
   // return a long to avoid overflows...
   //
-  private static long get_ms() {
+
+
+  // get timestamp with full precision
+  private static long get_raw_ts() {
     return System.currentTimeMillis();
+    //return (System.DateTime.Now.Ticks / 10) * 10; // Test: simulate 10 ms resolution
   }
 
+  private static int get_ts() {
+    return (int)(get_raw_ts() - gState_startTs);
+  }
+
+  static double conv_ms(long ts) {
+    return ts;
+  }
 
   private static String getdate1() {
-    long date1 = get_ms();
+    long date_ms = System.currentTimeMillis();
     SimpleDateFormat format1 = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-    return format1.format(new java.util.Date(date1));
+    return format1.format(new java.util.Date(date_ms));
   }
 
 
-  private static long correctTime(long tMeas, int measCount) {
+  private static double correctTime(double tMeas, double tMeas2, int measCount) {
     int tsPrecCnt = gState_tsPrecCnt;
 
+    //System.out.println("DEBUG: correctTime1: tMeas=" + tMeas + ", tMeas2=" + tMeas2 + ", measCount=" + measCount + ", tsPrecCnt=" + tsPrecCnt);
     if (measCount < tsPrecCnt) {
-      tMeas += gState_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); // ts + correction
+      tMeas += gState_tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); // ts + correction
+      //System.out.println("DEBUG: correctTime2: tMeas=" + tMeas + ", tMeas2=" + tMeas2 +", measCount=" + measCount);
+      if (tMeas > tMeas2) {
+        tMeas = tMeas2; // cannot correct
+        //System.out.println("DEBUG: correctTime3: cannot correct, using tMeas=" + tMeas);
+      }
     }
     return tMeas;
   }
 
-  private static long getPrecMs(boolean stopFlg) {
+  private static double getPrecMs(boolean stopFlg) {
     int measCount = 0;
 
-    long tMeas0 = get_ms();
-    long tMeas = tMeas0;
+    int tMeas0 = get_ts();
+    int tMeas = tMeas0;
     while (tMeas <= tMeas0) {
-      tMeas = get_ms();
+      tMeas = get_ts();
       measCount++;
     }
-
-    if (stopFlg) {
-      tMeas = correctTime(tMeas0, measCount); // for stop: use first ts + correction
-    }
     gState_tsMeasCnt = measCount; // memorize count
-    return tMeas;
+
+    double tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount); // for stop: use first ts + correction
+    return tMeasD;
   }
 
   // usually only needed if time precision is low, e.g. one second
   private static void determineTsPrecision() {
-    long tMeas0 = getPrecMs(false);
-    long tMeas1 = getPrecMs(false);
-    gState_tsPrecMs = (int)(tMeas1 - tMeas0);
+    gState_startTs = get_raw_ts(); // memorize start time
+
+    double tMeas0 = getPrecMs(false);
+    double tMeas1 = getPrecMs(false);
+    gState_tsPrecMs = tMeas1 - tMeas0;
     gState_tsPrecCnt = gState_tsMeasCnt;
 
     // do it again
@@ -355,7 +364,7 @@ public class bmbench extends java.applet.Applet {
     tMeas1 = getPrecMs(false);
     if (gState_tsMeasCnt > gState_tsPrecCnt) { // taker maximum count
       gState_tsPrecCnt = gState_tsMeasCnt;
-      gState_tsPrecMs = (int)(tMeas1 - tMeas0);
+      gState_tsPrecMs = tMeas1 - tMeas0;
     }
   }
 
@@ -502,8 +511,8 @@ public class bmbench extends java.applet.Applet {
     final int max_ms = 10000;
     int loops = 1; // number of loops
     int x;     // result from benchmark
-    long tMeas = 0;   // measured time
-    long tEsti = 0;   // estimated time
+    double tMeas = 0;   // measured time
+    double tEsti = 0;   // estimated time
     double throughput = 0;
 
     System.out.println("Calibrating benchmark " + bench + " with n=" + n);
@@ -512,20 +521,27 @@ public class bmbench extends java.applet.Applet {
       x = run_bench(bench, loops, n);
       tMeas = getPrecMs(true) - tMeas;
 
-      long t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
+      double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
       double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
-      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_i((int)tMeas, 5) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_i((int)t_delta, 5) + " ms, x=" + x);
+      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms, x=" + x);
 
       if (x == -1) { // some error?
         throughput = -1;
       } else if ((tEsti > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
         throughput = loops_p_sec; // yeah, set measured loops per sec
-        System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0, 3) + "/s (time=" + tMeas + " ms, loops=" + loops + ", delta=" + t_delta + " ms)");
+        System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + loops + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms)");
       } else if (tMeas > max_ms) {
         System.out.println("Benchmark " + bench + " (" + prg_language + "): Time already > " + max_ms + " ms. No measurement possible.");
-        throughput = (loops_p_sec > 0) ? -loops_p_sec : 0; // cannot rely on measurement, so set to negative
+        throughput = (loops_p_sec > 0) ? -loops_p_sec : -1; // cannot rely on measurement, so set to negative
       } else {
-        int scale_fact = ((tMeas < cali_ms) && (tMeas > 0)) ? (int)((cali_ms + 100) / tMeas) + 1 : 2;
+        int scale_fact;
+        if (tMeas == 0) {
+				  scale_fact = 50;
+			  } else if (tMeas < cali_ms) {
+  				scale_fact = (int)((cali_ms + 100) / tMeas) + 1; // scale a bit up to 1100 ms (cali_ms+100)
+        } else {
+          scale_fact = 2;
+        }
         // scale a bit up to 1100 ms (cali_ms+100)
         loops *= scale_fact;
         tEsti = tMeas * scale_fact;
@@ -556,7 +572,6 @@ public class bmbench extends java.applet.Applet {
   // if you call it with java...
   //
   public static void main(String args[]) {
-    long start_t = get_ms();  // memorize start time
     if (args.length > 0) {
       default_bench1 = Integer.parseInt(args[0]);
       default_bench2 = default_bench1;
@@ -570,53 +585,17 @@ public class bmbench extends java.applet.Applet {
     determineTsPrecision();
     int rc = start_bench(default_bench1, default_bench2, default_n);
     rc = rc; //avoid warning
-    System.out.println("Total elapsed time: " + (get_ms() - start_t) + " ms");
-  }
-
-
-
-  //
-  // Applet code...
-  //
-
-  //
-  // Initialize the applet.
-  //
-  public void init() {
-    String bench_str = getParameter("bench1");
-    if (bench_str != null) {
-      default_bench1 = Integer.parseInt(bench_str);
-      default_bench2 = default_bench1;
-    }
-    bench_str = getParameter("bench2");
-    if (bench_str != null) {
-      default_bench2 = Integer.parseInt(bench_str);
-    }
-    String n_str = getParameter("n");
-    if (n_str != null) {
-      default_n = Integer.parseInt(n_str);
-    }
-  }
-
-  public void simbench() {
-    showStatus("Applet running...");
-    long start_t = get_ms();  // memorize start time
-    int rc = start_bench(default_bench1, default_bench2, default_n);
-    System.out.println("Total elapsed time: " + (get_ms() - start_t) + " ms");
-    showStatus("Applet ready. See log (rc=" + rc +")...");
-  }
-
-  public String getAppletInfo() {
-    return "Title: bmbench\nAuthor: Marco Vieth, 2006 (http://www.benchmarko.de)\n";
-  }
-
-  public String[][] getParameterInfo() {
-    String[][] info = {
-      { "bench1", "int", "First Benchmark" },
-      { "bench2", "int", "Last Benchmark" },
-      {"n", "int", "Workload size n"}
-    };
-    return info;
+    System.out.println("Total elapsed time: " + (int)(conv_ms(get_ts())) + " ms");
   }
 }
+
+/*
+// https://rextester.com/l/java_online_compiler
+class Rextester {  
+    public static void main(String args[]) {
+        bmbench.main(args);
+    }
+}
+*/
+
 // end
