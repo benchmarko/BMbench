@@ -1,12 +1,13 @@
 (*
  * BM Bench - bmbench.p (Pascal)
- * (c) Marco Vieth, 2002
+ * (c) Marco Vieth, 2002-2019
  * http://www.benchmarko.de
  *
  * 06.05.2002  0.01
  * 11.05.2002  0.02  bench1 = (sum 1..n) mod 65536
  * 20.07.2002  0.04  more benchmarks
  * 24.01.2003  0.05  output format changed
+ * 13.07.2019  0.07
  *
  * Usage:
  * bmbench [bench1] [bench2] [n]
@@ -14,6 +15,9 @@
  *)
 
 (*
+ * Usage (fpc):
+ * fpc.exe -obmbench_fpc.exe bmbench.p
+ *
  * Usage (gpc):
  * gpc bmbench.p -O2 -o bmbench
  * (See: /usr/share/doc/packages/gpc, /usr/lib/gcc-lib/i486-suse-linux/2.95.3/units ...)
@@ -25,6 +29,8 @@
  * p2c -LHP -a -o bmbench_p2c.c bmbench.p
  * gcc -O2 -Wall -Wtraditional bmbench_p2c.c -lp2c -o bmbench_p2c
  *
+ * Usage (Borland Delphi): (for Delphi 2.0 and maybe others, line separator must be Windows CRLF!)
+ * dcc32.exe -obmbench_fpc.exe bmbench.p  (use -CC, if no  {$APPTYPE CONSOLE} )
  *
  *
  * unit Dos;   procedure GetTime (var Hour, Minute, Second, Sec100: Word);
@@ -33,41 +39,40 @@
 
 
 PROGRAM bmbench (Input, Output);
+{$APPTYPE CONSOLE}
 
-  CONST PASCAL_VERSION = 'BP ?';
+(* uses Gpc, CRT; *)
 
 {IntegerWidth=1 ## set printf for p2c}
 
 {$ifdef __GPC__}
   {GPC specific compiler options}
   {$define WORD SHORTCARD}
-  {$define PASCAL_VERSION CONCAT('gpc ', 'to do: __GPC_RELEASE__')}  (* gpc: set macro PASCAL_VERSION *)
+  (* define PASCAL_VERSION_XXX CONCAT('gpc ', 'to do: __GPC_RELEASE__') *) (* gpc: set macro PASCAL_VERSION *)
+  CONST PASCAL_VERSION = CONCAT('gpc ', __GPC_RELEASE__);
 {$else}
-  {BP specific compiler options}
-  TYPE TIMESTAMP = PACKED RECORD
-      DateValid,
-      TimeValid  : Boolean;
-      Year       : Integer;
-      Month      : 1 .. 12;
-      Day        : 1 .. 31;
-      DayOfWeek  : 0 .. 6;  (* 0 means Sunday *)
-      Hour       : 0 .. 23;
-      Minute     : 0 .. 59;
-      Second     : 0 .. 61; (* to allow for leap seconds *)
-      MicroSecond: 0 .. 999999;
-      TimeZone   : Integer; (* in seconds *)
-      DST        : Boolean;
-      TZName1, TZName2 : String(32)
-    END;
-    (* The fields `DateValid', `TimeValid', `Year', `Month', `Day', `Hour', `Minute', `Second'
-     * are required by Extended Pascal, the other ones are extensions.
-     *)
+  {$ifdef FPC}
+    uses SysUtils; (* Now *)
+    CONST PASCAL_VERSION = CONCAT('FPC ', {$I %FPCVERSION%});
+  {$else}
+    (* uses SysUtils; runtime error when using Now *) (* Now *)
+    {$define _BP}  (* we assume Borland Pascal/Delphi *)
+    {$ifdef VER90} (* example, see: http://docwiki.embarcadero.com/RADStudio/XE6/en/Compiler_Versions *)
+      CONST PASCAL_VERSION = 'Borland Delphi 2.0';
+	{$else}
+	  CONST PASCAL_VERSION = 'Unknown';
+    {$endif}
+  {$endif}
 {$endif}
 
-(* uses Gpc, CRT; *)
-
+  CONST g_prg_version = '0.07';
+  CONST g_prg_language = 'Pascal';
+  CONST MAX_BENCH = 5;
 
   VAR argc: INTEGER; VAR argv: POINTER;
+
+  VAR g_startTs, g_tsPrecMs : DOUBLE;
+  VAR g_tsPrecCnt, g_tsMeasCnt : LONGINT;
 
 
   (*
@@ -86,35 +91,32 @@ PROGRAM bmbench (Input, Output);
    * bench00 (Integer 16 bit)
    * (sum of 1..n) mod 65536
    *)
-  FUNCTION bench00(loops, n: INTEGER): INTEGER;
-  VAR x : WORD; (* we need 16 bit here, for GPC WORD is (re-)defined as SHORTCARD *)
-      sum1 : WORD; (* also 16 bit *)
-      n_div_65536, n_mod_65536, i, j : CARDINAL;
+  FUNCTION bench00(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
+  VAR x : INTEGER; (* usually 16 bit *)
+      n_div_65536, n_mod_65536 : INTEGER;
+	  i, j : INTEGER;
 
   BEGIN
     x := 0;
-    sum1 := (n DIV 2) * (n + 1);
-    (* (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit) *)
     n_div_65536 := n DIV 65536;
     n_mod_65536 := n MOD 65536;
     (* fprintf(stderr, "Test(bench%d): x=%f, %ld, %ld\n", 1, (double)sum, (long)fmod(sum, 2147483648L), (long)fmod(sum, 65536L)); *)
-    WHILE (loops > 0) DO BEGIN
-      loops := loops - 1;  (* DEC(loops); *)
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
       FOR i := n_div_65536 DOWNTO 1 DO BEGIN
-        FOR j := 65536 DOWNTO 1 DO BEGIN
+        FOR j := 32767 DOWNTO 1 DO BEGIN
+          x := x + j;
+        END;
+		FOR j := -32768 TO -1 DO BEGIN
           x := x + j;
         END;
       END;
       FOR j := n_mod_65536 DOWNTO 1 DO BEGIN
         x := x + j;
       END;
-      IF (loops > 0) THEN BEGIN (* some more loops left? *)
-        x := x - sum1;     (* yes, set x back to 0 (assuming n even) *)
-        IF (x <> 0) THEN BEGIN (* now x must be 0 again *)
-          x := x + 1;  (* force error for many wrong computations *)
-          BREAK; (* exit while loop *)
-        END;
-      END;
+
+      loops := loops - 1;
+	  x := x MOD 65536;
+      x := x - check;
     END;
     bench00 := x;
   END; (* bench00 *)
@@ -124,26 +126,23 @@ PROGRAM bmbench (Input, Output);
    * bench01 (Integer 16/32 bit)
    * (sum of 1..n) mod 65536
    *)
-  FUNCTION bench01(loops, n: INTEGER): INTEGER;
+  FUNCTION bench01(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
   VAR x : INTEGER;
-      sum1 : INTEGER;
-      i : INTEGER;
+      i, sum : LONGINT;
 
   BEGIN
     x := 0;
-    sum1 := (n DIV 2) * (n + 1);
-    WHILE (loops > 0) DO BEGIN
-      loops := loops - 1;  (* DEC(loops); *)
-      FOR i := n DOWNTO 1 DO BEGIN
-        x := x + i;
-      END;
-      IF (loops > 0) THEN BEGIN  (* some more loops left? *)
-        x := x - sum1;     (* yes, set x back to 0 (assuming n even) *)
-        IF (x <> 0) THEN BEGIN  (* now x must be 0 again *)
-          x := x + 1;      (* force error for many wrong computations *)
-          BREAK; (* exit while loop *) (* HALT; *)
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
+	  sum := 0;
+      FOR i := 1 TO n DO BEGIN
+        sum := sum + i;
+		IF (sum >= n) THEN BEGIN (* to avoid numbers above 2*n, divide by n using subtraction *)
+          sum := sum - n;
+          x := x + 1;
         END;
       END;
+	  loops := loops - 1;
+      x := x - check;
     END;
     bench01 := x MOD 65536;
   END; (* bench01 *)
@@ -153,28 +152,26 @@ PROGRAM bmbench (Input, Output);
    * bench02 (Floating Point, normally 64 bit)
    * (sum of 1..n) mod 65536
    *)
-  FUNCTION bench02(loops, n: INTEGER): INTEGER;
-  VAR x : LONGREAL;
-      sum1 : LONGREAL;
-      i : INTEGER;
+  FUNCTION bench02(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
+  VAR x : INTEGER;
+      sum : DOUBLE;
+      i : LONGINT;
 
   BEGIN
-    x := 0.0;
-    sum1 := (n / 2.0) * (n + 1.0);
-    WHILE (loops > 0) DO BEGIN
-      loops := loops - 1;  (* DEC(loops); *)
-      FOR i := n DOWNTO 1 DO BEGIN
-        x := x + i;
-      END;
-      IF (loops > 0) THEN BEGIN (* some more loops left? *)
-        x := x - sum1;     (* yes, set x back to 0 (assuming n even) *)
-        IF (x <> 0.0) THEN BEGIN (* now x must be 0 again *)
-          x := x + 1.0;    (* force error for many wrong computations *)
-          BREAK; (* exit while loop *) (* HALT; *)
+    x := 0;
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
+	  sum := 0.0;
+      FOR i := 1 TO n DO BEGIN
+        sum := sum + i;
+		IF (sum >= n) THEN BEGIN (* to avoid numbers above 2*n, divide by n using subtraction *)
+          sum := sum - n;
+          x := x + 1;
         END;
       END;
+	  loops := loops - 1;
+      x := x - check;
     END;
-    bench02 := TRUNC(x - (TRUNC(x / 65536.0) * 65536.0));
+    bench02 := x MOD 65536; (* ?? TRUNC(x - (TRUNC(x / 65536.0) * 65536.0)); *)
   END; (* bench02 *)
 
 
@@ -183,57 +180,66 @@ PROGRAM bmbench (Input, Output);
    * number of primes below n (Sieve of Eratosthenes)
    * Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
    *)
-  FUNCTION bench03(loops, n_p: INTEGER): INTEGER;
-  CONST MAX_N = 500000; (* highest number for sieve div 2 *)
+  FUNCTION bench03(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
+  CONST MAX_N = 500000; (* highest number for half sieve div 2 *)
   VAR x : INTEGER;
-      n, i, i_mul_i, j : INTEGER;
-      sieve1 : PACKED ARRAY[0..MAX_N] OF BOOLEAN;
+      nHalf, i, m, j : LONGINT;
+      sieve1 : PACKED ARRAY[0..MAX_N+1] OF BOOLEAN;
   LABEL bench03_exit;
   BEGIN
-    n := n_p DIV 2; (* compute only up to n/2 *)
-    IF (n > MAX_N) THEN BEGIN
+    n := n DIV 2; (* compute only up to n/2 *)
+	nHalf := n DIV 2;
+(* Writeln('DEBUG: nHalf: ', nHalf); *)
+    IF (nHalf + 1 > MAX_N) THEN BEGIN
       Writeln('Error: n too large: ', n);
       x := -1; (* error *)
       GOTO bench03_exit;
     END;
+
     x := 0; (* number of primes below n *)
-    sieve1[0] := FALSE;
-    sieve1[1] := FALSE;
-    WHILE (loops > 0) DO BEGIN
-      loops := loops - 1;  (* DEC(loops); *)
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
       (* initialize sieve *)
-      FOR i := 2 TO n DO BEGIN
-        sieve1[i] := TRUE;
+      FOR i := 0 TO nHalf DO BEGIN
+        sieve1[i] := FALSE;
       END;
+(* Writeln('DEBUG: init '); *)
       (* compute primes *)
-      i := 2;
-      i_mul_i := i * i;
-      WHILE (i_mul_i <= n) DO BEGIN
-        IF (sieve1[i]) THEN BEGIN
-          (* FOR j := i_mul_i TO n BY i DO *)
-          j := i_mul_i;
-          WHILE (j <= n) DO BEGIN
-            sieve1[j] := FALSE;
-            j := j + i;
+      i := 0;
+	  m := 3;
+      (* m_mul_m := m * m; *)
+      WHILE (m * m <= n) DO BEGIN
+        IF (NOT sieve1[i]) THEN BEGIN
+		  x := x + 1;
+		  j := (m * m - 3) DIV 2;
+          WHILE (j < nHalf) DO BEGIN
+            sieve1[j] := TRUE;
+            j := j + m;
           END;
         END;
-        INC(i);
-        i_mul_i := i * i;
+		(* Writeln('DEBUG: xxx: i=', i, ' m=', m); *)
+		i := i + 1; (* INC(i); *)
+		m := m + 2;
+        (* INC(i); i_mul_i := i * i; *)
       END;
-      (* count primes *)
-      FOR i := 0 TO n DO BEGIN
-        IF (sieve1[i]) THEN BEGIN
+
+  	(* Writeln('DEBUG: count i=', i); *)
+	  
+      (* count remaining primes *)
+      FOR i := i TO nHalf DO BEGIN
+	  (*
+	  if (i > 1923000) THEN BEGIN
+	    Writeln('DEBUG: count2 i=', i);
+	  end;
+	  *)
+        IF (NOT sieve1[i]) THEN BEGIN
           x := x + 1;
         END;
       END;
+		(* Writeln('DEBUG: check: '); *)
+
       (* check prime count *)
-      IF (loops > 0) THEN BEGIN (* some more loops left? *)
-        x := x - 41538;    (* yes, set x back to 0 (assuming n even) *)
-        IF (x <> 0) THEN BEGIN  (* now x must be 0 again *)
-          x := x + 1;           (* force error for many wrong computations *)
-          BREAK; (* exit while loop *) (* HALT; RETURN; *)
-        END;
-      END;
+	  loops := loops - 1;
+      x := x - check;
     END;
     bench03_exit:
     bench03 := x;
@@ -248,32 +254,33 @@ PROGRAM bmbench (Input, Output);
    * It needs longs with at least 32 bit.
    * Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
    *)
-  FUNCTION bench04(loops, n: INTEGER): INTEGER;
-    CONST m = 2147483647; (* modulus, do not change! *)
-          a = 16807;      (* multiplier *)
-          q = 127773;     (* m div a *)
-          r = 2836;       (* m mod a *)
-    VAR x, i, x_div_q, x_mod_q : INTEGER;
-    BEGIN
-    x := 1; (* last random value *)
-    WHILE (loops > 0) DO BEGIN
-      loops := loops - 1;  (* DEC(loops); *)
+  FUNCTION bench04(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
+  CONST m = 2147483647; (* modulus, do not change! *)
+        a = 16807;      (* multiplier *)
+        q = 127773;     (* m div a *)
+        r = 2836;       (* m mod a *)
+  VAR x, i : LONGINT;
+  BEGIN
+    x := 0; (* last random value *)
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
+	  x := x + 1; (* start with 1 *)
       FOR i := n DOWNTO 1 DO BEGIN
-        x_div_q := x DIV q;
-        x_mod_q := x - q * x_div_q;
-        x := a * x_mod_q - r * x_div_q;
+        (* x_div_q := x DIV q; *)
+        (* x_mod_q := x - q * x_div_q; *)
+        (* x := a * x_mod_q - r * x_div_q; *)
+	    x := a * (x MOD q) - r * (x DIV q);
         IF (x <= 0) THEN BEGIN
           x := x + m; (* x is new random number *)
         END;
+		(* Writeln('DEBUG: i=', i, ' x=', x); *)
       END;
-      IF (loops > 0) THEN BEGIN (* some more loops left? *)
-        x := x - 1227283347; (* yes, set x back to 0 (assuming n even) *)
-        IF (x <> 0) THEN BEGIN  (* now x must be 0 again *)
-          x := x + 1;           (* force error for many wrong computations *)
-          BREAK; (* exit while loop *) (* HALT; RETURN; *)
-        END;
-        x := x + 1; (* start with 1 again *)
-      END;
+      loops := loops - 1;
+	  (* Writeln('DEBUG: loops=', loops, ' x=', x, ' check=', check); *)
+	  (* Writeln('DEBUG: xxx0: x=', x); *)
+	  (* Writeln('DEBUG: xxx1: x=', x); *)
+      x := x - check;
+	  x := x AND $ffff;
+	  (* Writeln('DEBUG: xxx2: x=', x); *)
     END;
     bench04 := x;
   END; (* bench04 *)
@@ -283,7 +290,7 @@ PROGRAM bmbench (Input, Output);
    * bench05 (Integer 32 bit)
    * n over n/2 mod 65536 (Pascal's triangle)
    *)
-  FUNCTION bench05(loops, n_p: INTEGER): INTEGER;  (* to do!!! *)
+  FUNCTION bench05(loops: INTEGER; n_p: LONGINT; check: INTEGER): INTEGER;
   CONST MAX_N = 1000000 DIV (500 * 2); (* highest number for array *)
   VAR x : INTEGER;
       n, k, i, i_mod_2, min1, i_mod_2_1, j : INTEGER;
@@ -304,10 +311,12 @@ PROGRAM bmbench (Input, Output);
       GOTO bench05_exit;
     END;
 
-    pas1[0][0] := 1; pas1[1][0] := 1; (* set first column *)
+	(* WriteLn('DEBUG: n=', n, ' k=', k); *)
 
-    WHILE (loops > 0) DO BEGIN
-      loops := loops - 1;  (* DEC(loops); *)
+    pas1[0][0] := 1;
+	pas1[1][0] := 1; (* set first column *)
+
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
       FOR i := 2 TO n DO BEGIN
         i_mod_2 := i MOD 2;
         min1 := (i - 1) DIV 2;
@@ -317,25 +326,30 @@ PROGRAM bmbench (Input, Output);
         i_mod_2_1 := (i + 1) MOD 2;
         pas1[i_mod_2][1] := i; (* second column is i *)
         FOR j := 2 TO min1 DO BEGIN (* up to min((i-1)/2, k) *)
+		  (* WriteLn('DEBUG: index1: i_mod_2=', i_mod_2, ' i_mod_2_1=', i_mod_2_1, ' j=', j); *)
           pas1[i_mod_2][j] := (pas1[i_mod_2_1][j - 1] + pas1[i_mod_2_1][j]);
         END;
+		(* WriteLn('DEBUG: after loop xx'); *)
         IF ((min1 < k) AND (i_mod_2 = 0)) THEN BEGIN (* new element *)
+		  (* WriteLn('DEBUG: index2: i_mod_2=', i_mod_2, ' min1+1=', min1 + 1); *)
           pas1[i_mod_2][min1 + 1] := 2 * pas1[i_mod_2_1][min1];
         END;
       END;
 
+	  (* WriteLn('DEBUG: after: i_mod_2=', i_mod_2, ' k=', k); *)
+
       (* WriteLn('DEBUG: pas1[n MOD 2]=', pas1[n MOD 2][k]); *)
-      x := x + pas1[n MOD 2][k] MOD 65536; (* % 65536 *)
+	  (* WriteLn('DEBUG: x=', x, ' k=', k, ' pas1[n MOD 2][k]=', pas1[n MOD 2][k], ' add=', x + pas1[n MOD 2][k]); *)
+      x := (x + pas1[n MOD 2][k]);
+	  (* x := x MOD 65536; *)
+	  x := x AND $7ffff; (* make sure it works for 16 and 32 bit integer ??? *)
       (* does not work? x := x + (pas1[n MOD 2][k] - (pas1[n MOD 2][k] DIV 65536) * 65536); *)
       (* WriteLn('DEBUG: curr_x=', x); *)
 
-      IF (loops > 0) THEN BEGIN (* some more loops left? *)
-        x := x - 27200;    (* yes, set x back to 0 (assuming n even) *)
-        IF (x <> 0) THEN BEGIN  (* now x must be 0 again *)
-          x := x + 1;           (* force error for many wrong computations *)
-          BREAK; (* exit while loop *) (* HALT; RETURN; *)
-        END;
-      END;
+      (* x := INTEGER(x); *) (* TTT *)
+	  (* WriteLn('DEBUG: x=', x, ' check=', check); *)
+	  loops := loops - 1;
+      x := x - check;
     END;
     bench05_exit:
     bench05 := x;
@@ -349,37 +363,45 @@ PROGRAM bmbench (Input, Output);
   *         n = maximum number (used in some benchmarks to define size of workload)
   * out:    x = result
   *)
-  FUNCTION run_bench(bench, loops, n: INTEGER) : INTEGER;
+  FUNCTION run_bench(bench, loops: INTEGER; n: LONGINT) : INTEGER;
   VAR x : INTEGER;
-      check1 : INTEGER;
+      check : INTEGER;
 
   BEGIN
     x := 0;
-    check1 := 0;
+    check := 0;
     CASE bench OF
       0:  BEGIN
-            x := bench00(loops, n);  check1 := 10528;
+			check := ((n DIV 2) * (n + 1)) MOD 65536; (* SHORTINT(...) or: AND $ffff *)
+            x := bench00(loops, n, check);
           END;
       1:  BEGIN
-            x := bench01(loops, n);  check1 := 10528;
+			check := INTEGER((n + 1) DIV 2);
+            x := bench01(loops, n, check);
           END;
       2:  BEGIN
-            x := bench02(loops, n);  check1 := 10528;
+			check := (n + 1) DIV 2;
+            x := bench02(loops, n, check);
           END;
       3:  BEGIN
-            x := bench03(loops, n);  check1 := 41538;
+			check := INTEGER(41538);
+            x := bench03(loops, n, check);
           END;
       4:  BEGIN
-            x := bench04(loops, n);  check1 := 1227283347;
+			check := INTEGER(1227283347);
+            x := bench04(loops, n, check);
           END;
       5:  BEGIN
-            x := bench05(loops, n);  check1 := 27200;
+			check := 27200;
+            x := bench05(loops, n, check);
           END;
       ELSE
         WriteLn('Error: Unknown benchmark: ', bench);  (* StdErr is gpc extension, so don't use it *)
-        check1 := x + 1; (* force error *) (* HALT; *)
+        check := -1;
     END;
-    IF (check1 <> x) THEN BEGIN
+	
+	x := x + check;
+    IF (x <> check) THEN BEGIN
       WriteLn('Error(bench', bench, '): x=', x);
       x := -1; (* exit *)
     END;
@@ -395,38 +417,38 @@ PROGRAM bmbench (Input, Output);
 
 
 {$ifdef __GPC__}
+  {$ifdef _COMMENT}
+  TYPE TIMESTAMP = PACKED RECORD
+      DateValid,
+      TimeValid  : Boolean;
+      Year       : Integer;
+      Month      : 1 .. 12;
+      Day        : 1 .. 31;
+      DayOfWeek  : 0 .. 6;  (* 0 means Sunday *)
+      Hour       : 0 .. 23;
+      Minute     : 0 .. 59;
+      Second     : 0 .. 61; (* to allow for leap seconds *)
+      MicroSecond: 0 .. 999999;
+      TimeZone   : Integer; (* in seconds *)
+      DST        : Boolean;
+      TZName1, TZName2 : String(32)  (* String(32)?? *)
+    END;
+    (* The fields `DateValid', `TimeValid', `Year', `Month', `Day', `Hour', `Minute', `Second'
+    * are required by Extended Pascal, the other ones are extensions. *)
+  {$endif}
 
-{$else} (* BP *)
-  VAR last_time : INTEGER;
-  PROCEDURE gettimestamp(VAR t:TIMESTAMP);
-  BEGIN
-    last_time := last_time + 20; (* simulate 20 seconds more *)
-    t.Second := last_time MOD 60;
-    t.Minute := last_time DIV 60;
-    t.Hour := 0;
-    t.MicroSecond := 0;
-  END; (* gettimestamp *)
-{$endif}
 
-
- (*
-  * get timestamp in milliseconds
-  * out: x = time in ms
-  *
-  * This function is intended for short measurements only so we
-  * can return it as an integer.
-  *)
-  FUNCTION get_ms: INTEGER;
+  FUNCTION get_raw_ts: DOUBLE;
   VAR t : TIMESTAMP;
-  VAR t2 : INTEGER;
+      t2 : LONGINT;
   BEGIN
     gettimestamp(t); (* see procs.pas *) (* ISO-10206 Extended Pascal extension *)
     (* writeln(time(t)); -- time(t) is string "hh:mm:ss" *)
     t2 := (t.Second + t.Minute * 60 + t.Hour * 3600);
     (* t2 := GetMicroSecondTime; -- where to find ?? *)
-    get_ms := t2 * 1000 + (t.MicroSecond DIV 1000);  (* MicroSecond is gpc extension *)
-    (* WriteLn('DEBUG: get_ms=', t2 * 1000 + (t.MicroSecond DIV 1000)); *)
-  END; (* get_ms *)
+    get_raw_ts := t2 * 1000 + (t.MicroSecond / 1000);  (* MicroSecond is gpc extension *)
+    (* WriteLn('DEBUG: get_raw_ts=', t2 * 1000 + (t.MicroSecond DIV 1000)); *)
+  END; (* get_raw_ts *)
   (* Also available in gpc.pas: GetCPUTime(var MicroSecond: Integer): Integer *)
 
 
@@ -438,16 +460,135 @@ PROGRAM bmbench (Input, Output);
     (* Write(t.Day:2, ':', t.Month:2, ':', t.Year:4, ' ', t.Hour:2, ':', t.Minute:2, ':', t.Second:2); *)
     Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); (* not formatted right *)
   END;
+  
+{$endif}
+
+
+{$ifdef FPC}
+  FUNCTION get_raw_ts: DOUBLE;
+  BEGIN
+    get_raw_ts := Now * SecsPerDay * 1000.0; (* Now: from sysutils; todayInMilliseconds; https://stackoverflow.com/questions/29790895/get-current-time-milliseconds *)
+  END; (* get_raw_ts *)
+  
+  PROCEDURE getdate1;
+  BEGIN
+    (* Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); * not formatted right *)
+	Write(DateTimeToStr(Now));
+  END;
+{$endif}
+
+
+{$ifdef _COMMENT_BP}
+  FUNCTION get_raw_ts: DOUBLE;
+  VAR t1 : DOUBLE;
+  BEGIN
+    (* get_raw_ts := Now * SecsPerDay * 1000.0; *) (* Now: from sysutils; todayInMilliseconds; https://stackoverflow.com/questions/29790895/get-current-time-milliseconds *)
+	get_raw_ts := 100 * 1000.0; (* TTT *)
+  END; (* get_raw_ts *)
+  
+  PROCEDURE getdate1;
+  BEGIN
+    (* Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); * not formatted right *)
+  END;
+{$endif}
+
+
+{$ifdef _BP}
+  VAR last_time : DOUBLE;
+  FUNCTION get_raw_ts: DOUBLE;
+  BEGIN
+    (* t1 := Now * SecsPerDay * 1000.0; *) (* Now: from sysutils; todayInMilliseconds; https://stackoverflow.com/questions/29790895/get-current-time-milliseconds *)
+	last_time := last_time + 20000; (* simulate 20 seconds more *)
+	get_raw_ts := last_time;
+  END; (* get_raw_ts *)
+  
+  PROCEDURE getdate1;
+  BEGIN
+    (* Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); * not formatted right *)
+  END;
+{$endif}
+
+
+  (* get timestamp since program start *)
+  FUNCTION get_ts : DOUBLE;
+  BEGIN
+    get_ts := get_raw_ts() - g_startTs;
+  END;
+
+  FUNCTION conv_ms(ts: DOUBLE) : DOUBLE;
+  BEGIN
+    conv_ms := ts;
+  END;
+
+
+  FUNCTION correctTime(tMeas, tMeas2: DOUBLE; measCount: LONGINT) : DOUBLE;
+  VAR tsPrecCnt : LONGINT;
+  BEGIN
+    tsPrecCnt := g_tsPrecCnt;
+    IF (measCount < tsPrecCnt) THEN BEGIN
+      tMeas := tMeas + g_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); (* ts + correction *)
+      IF (tMeas > tMeas2) THEN BEGIN
+        tMeas := tMeas2; (* cannot correct *)
+	  END;
+    END;
+    correctTime := tMeas;
+  END;
+
+  FUNCTION getPrecMs(stopFlg: BOOLEAN) : DOUBLE;
+  VAR measCount : LONGINT;
+      tMeas0, tMeas : DOUBLE;
+	  tMeasD : DOUBLE;
+  BEGIN
+    measCount := 0;
+    tMeas0 := get_ts();
+    tMeas := tMeas0;
+    WHILE (tMeas <= tMeas0) DO BEGIN
+      tMeas := get_ts();
+      measCount := measCount + 1;
+    END;
+    g_tsMeasCnt := measCount; (* memorize count *)
+    (* //Console.WriteLine("DEBUG: getPrecMs: measCount=" + measCount + " ts=" + tMeas); *)
+
+    (* for stop: use first ts + correction *)
+	IF stopFlg THEN BEGIN
+      tMeasD := correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount);
+    END ELSE BEGIN
+      tMeasD := conv_ms(tMeas);
+    END;
+    getPrecMs := tMeasD;
+  END;
+
+  // usually only needed if time precision is low, e.g. one second
+  PROCEDURE determineTsPrecision;
+  VAR tMeas0, tMeas1 : DOUBLE;
+  BEGIN
+    g_startTs := get_raw_ts(); (* memorize start time *)
+
+    tMeas0 := getPrecMs(FALSE);
+    tMeas1 := getPrecMs(FALSE);
+    g_tsPrecMs := tMeas1 - tMeas0;
+    g_tsPrecCnt := g_tsMeasCnt;
+
+    // do it again
+    tMeas0 := tMeas1;
+    tMeas1 := getPrecMs(FALSE);
+    IF (g_tsMeasCnt > g_tsPrecCnt) THEN BEGIN  (* take maximum count *)
+      g_tsPrecCnt := g_tsMeasCnt;
+      g_tsPrecMs := tMeas1 - tMeas0;
+    END;
+  END;
 
 
   (* Here we compute the number of "significant" bits for positive numbers (which means 53 for double) *)
   FUNCTION checkbits_short1 : INTEGER;
-  VAR num, last_num : WORD;
+  VAR num, last_num : SHORTINT;
   VAR bits : INTEGER;
   BEGIN
+    {test range check off: $R-} {TEST}
     num := 1;
     last_num := 0;
     bits := 0;
+
     REPEAT
       last_num := num;
       num := num * 2;
@@ -476,7 +617,7 @@ PROGRAM bmbench (Input, Output);
 
 
   FUNCTION checkbits_float1 : INTEGER;
-  VAR num, last_num : REAL;
+  VAR num, last_num : SINGLE;
   VAR bits : INTEGER;
   BEGIN
     num := 1.0;
@@ -493,7 +634,7 @@ PROGRAM bmbench (Input, Output);
 
 
   FUNCTION checkbits_double1 : INTEGER;
-  VAR num, last_num : LONGREAL;
+  VAR num, last_num : DOUBLE;
   VAR bits : INTEGER;
   BEGIN
     num := 1.0;
@@ -509,29 +650,137 @@ PROGRAM bmbench (Input, Output);
   END; (* checkbits_double1 *)
 
 
-  PROCEDURE main(argc: INTEGER; VAR argv: POINTER);
-    CONST min_ms = 10000;  (* minimum runtime for measurement in ms *)
-          MAX_BENCH = 5;
+  PROCEDURE print_info;
+  BEGIN
+    WriteLn('BM Bench v', g_prg_version, ' (', g_prg_language, ') -- (short:', checkbits_short1, ' int:', checkbits_int1,
+      ' float:', checkbits_float1, ' double:', checkbits_double1, ') version ', PASCAL_VERSION);
+    WriteLn('(c) Marco Vieth, 2002-2019');
+    Write('Date: '); getdate1; WriteLn;
+  END;
+  
+  PROCEDURE print_results(bench1, bench2: INTEGER; bench_res1: ARRAY OF DOUBLE);
+  (* Dim max_language_len1 As Integer = 10 *)
+  VAR bench : INTEGER;
+  BEGIN
+    WriteLn;
+    WriteLn('Throughput for all benchmarks (loops per sec):');
+	Write('BMR (', g_prg_language:-10, ')');
 
-    VAR start_t : INTEGER; (* memorize start time *)
-        bench1, bench2 : INTEGER;
-        bench : INTEGER;   (* benchmark to test *)
-        n : INTEGER;          (* maximum number *)
+    FOR bench := bench1 TO bench2 DO BEGIN
+      (* str += String.Format(nfi, "{0,9:F3} ", bench_res1(bench)) *)
+	  Write(bench_res1[bench]:9:3, ' ');
+    END;
+	WriteLn;
+    (* System.Console.WriteLine(str) *)
+	(*
+		old:
+		WriteLn('Times for all benchmarks (10 loops, ms):');
+    Write('BM Results (Pascal)    : ');
+    FOR bench := bench1 TO bench2 DO BEGIN
+      Write(bench_res1[bench]:7, ' ');
+    END;
+    WriteLn;
+	*)
+  END;
 
-        loops : INTEGER;   (* number of loops *)
-        x : INTEGER;       (* result from benchmark *)
-        t1 : INTEGER;      (* timestamp *)
-        bench_res1 : ARRAY[0..MAX_BENCH] OF INTEGER;
-        err_code : INTEGER;
+
+  FUNCTION measureBench(bench: INTEGER; n: LONGINT) : DOUBLE;
+  VAR cali_ms : INTEGER;
+      delta_ms : INTEGER;
+      max_ms : INTEGER;
+      loops : INTEGER; (* number of loops *)
+      x : INTEGER; (* result from benchmark *)
+      tMeas : DOUBLE; (* measured time *)
+      tEsti : DOUBLE; (* estimated time *)
+      throughput : DOUBLE;
+	  t_delta : DOUBLE;
+	  loops_p_sec : DOUBLE;
+	  scale_fact : INTEGER;
 
   BEGIN
-    init_ms;
-    start_t := get_ms;
-    bench1 := 0;
-    bench2 := 5;
-    n := 1000000;
+    cali_ms := 1001;
+    delta_ms := 100;
+    max_ms := 10000;
+    loops := 1;
+    tMeas := 0;
+    tEsti := 0;
+    throughput := 0;
+	
+	WriteLn('Calibrating benchmark ', bench, ' with n=', n);
+	WHILE (throughput = 0) DO BEGIN
+	  tMeas := getPrecMs(false);
+      x := run_bench(bench, loops, n);
+      tMeas := getPrecMs(true) - tMeas;
+	  
+	  IF (tEsti > tMeas) THEN BEGIN (* compute difference abs(measures-estimated) *)
+        t_Delta := tEsti - tMeas;
+      END ELSE BEGIN
+        t_Delta := tMeas - tEsti;
+      END;
 
-    IF (argc > 0) THEN BEGIN
+      IF (tMeas > 0) THEN BEGIN
+        loops_p_sec := loops * 1000.0 / tMeas;
+	  END ELSE BEGIN
+        loops_p_sec := 0;
+      END;
+	  
+	  WriteLn(loops_p_sec:10:3, '/s (time=', tMeas:9:3, ' ms, loops=', loops:7, ', delta=', t_delta:9:3, ' ms, x=', x);
+	  
+	  If (x = -1) THEN BEGIN (* some error? *)
+        throughput := -1;
+      END ELSE IF (tEsti > 0) And (t_delta < delta_ms) THEN BEGIN (* do we have some estimated/expected time smaller than delta_ms=100? *)
+        throughput := loops_p_sec; (* yeah, set measured loops per sec *)
+        WriteLn('Benchmark ', bench, ' (', g_prg_language, '): ', loops_p_sec:10:3, '/s (time=', tMeas:9:3, ' ms, loops=', loops, ' , delta=', t_delta:9:3, ' ms)');
+      END ELSE IF (tMeas > max_ms) THEN BEGIN
+        WriteLn('Benchmark ', bench, ' (', g_prg_language, '): Time already > ', max_ms, ' ms. No measurement possible.');
+        IF (loops_p_sec > 0) THEN BEGIN
+          throughput := -loops_p_sec; (* cannot rely on measurement, so set to negative *)
+        END ELSE BEGIN
+          throughput := -1;
+        END
+      END ELSE BEGIN
+        IF (tMeas = 0) THEN BEGIN
+          scale_fact := 50;
+		END ELSE IF (tMeas < cali_ms) THEN BEGIN
+          scale_fact := TRUNC(((cali_ms + 100) / tMeas) + 1); (* for Integer *)
+            (* scale a bit up to 1100 ms (cali_ms+100) *)
+        END ELSE BEGIN 
+           scale_fact := 2;
+        END;
+		(* WriteLn('DEBUG: loops=', loops, ' scale_fact=', scale_fact); *)
+        loops := loops * scale_fact;
+        tEsti := tMeas * scale_fact;
+      END;
+	END;
+	measureBench := throughput;
+  END;
+
+
+  PROCEDURE start_bench(bench1, bench2: INTEGER; n: LONGINT);
+  VAR bench : INTEGER;
+      bench_res : ARRAY[0..MAX_BENCH] OF DOUBLE;
+	  throughput : DOUBLE;
+  BEGIN
+    print_info();
+    FOR bench := bench1 TO bench2 DO BEGIN
+	  throughput := measureBench(bench, n);
+      bench_res[bench] := throughput;
+    END;
+    print_results(bench1, bench2, bench_res);
+  END;
+
+
+  PROCEDURE main(argc: INTEGER; VAR argv: POINTER);
+  VAR bench1, bench2 : INTEGER;
+      n : LONGINT;
+	  err_code : INTEGER;
+  BEGIN
+    bench1 := 0;
+	bench2 := 5;
+    n := 1000000;
+	
+	err_code := 0;
+	IF (argc > 0) THEN BEGIN
       Val(ParamStr(1), bench1, err_code);  (* ReadStr(ParamStr(1), bench1); *)
       bench2 := bench1; (* set also last benchmark *)
     END;
@@ -541,57 +790,21 @@ PROGRAM bmbench (Input, Output);
     IF (argc > 2) THEN BEGIN
       Val(ParamStr(3), n, err_code); (* ReadStr(ParamStr(3), n); *)
     END;
+	
+	IF (err_code <> 0) THEN BEGIN
+      WriteLn('Error: parameter parsing error: ', err_code);
+    END;
 
     IF (bench1 > MAX_BENCH) OR (bench2 > MAX_BENCH) THEN BEGIN
       WriteLn('Error: benchmark out of range!');
       HALT; (* error *)
     END;
-
-    WriteLn('BM Bench v0.5 (Pascal) -- (short:', checkbits_short1, ' int:', checkbits_int1,
-      ' float:', checkbits_float1, ' double:', checkbits_double1, ') version ', PASCAL_VERSION);
-    WriteLn('(c) Marco Vieth, 2002');
-    Write('Date: '); Getdate1; WriteLn;
-
-    FOR bench := bench1 TO bench2 DO BEGIN
-      loops := 1;
-      x := 0;
-      t1 := 0;
-      (* calibration *)
-      WHILE (t1 < 1001) AND (x <> -1) DO BEGIN (* we want at least 1001 ms calibration time *)
-        WriteLn('Calibrating benchmark ', bench, ' with loops=', loops, ', n=', n);
-        t1 := get_ms;
-        x := run_bench(bench, loops, n);
-        t1 := get_ms - t1;
-        WriteLn('x=', x, ' (time: ', t1, ' ms)');
-        loops := loops * 2;
-      END;
-      IF (x <> -1) THEN BEGIN
-        loops := loops DIV 2;
-        loops := loops * (min_ms DIV t1) + 1; (* integer division! *)
-        Writeln('Calibration done. Starting measurement with ', loops, ' loops to get >=', min_ms, ' ms');
-
-        (* measurement *)
-        t1 := get_ms;
-        x := run_bench(bench, loops, n);
-        t1 := get_ms - t1;
-        WriteLn('x=', x, ' (time: ', t1, ' ms)');
-
-        bench_res1[bench] := (t1 * 10) DIV loops;
-        WriteLn('Elapsed time for ', loops, ' loops: ', t1, ' ms; estimation for 10 loops: ', bench_res1[bench], ' ms');
-      END ELSE BEGIN
-        bench_res1[bench] := -1;
-      END;
-    END;
-
-    WriteLn('Times for all benchmarks (10 loops, ms):');
-    Write('BM Results (Pascal)    : ');
-    FOR bench := bench1 TO bench2 DO BEGIN
-      Write(bench_res1[bench]:7, ' ');
-    END;
-    WriteLn;
-    WriteLn('Total elapsed time: ', (get_ms - start_t), ' ms');
-  END; (* main *)
-
+	
+	determineTsPrecision();
+    start_bench(bench1, bench2, n);
+    WriteLn('Total elapsed time: ', TRUNC(conv_ms(get_ts())), ' ms');
+  END;	
+	
 
 BEGIN (* program bmbench *)
   argc := ParamCount;
