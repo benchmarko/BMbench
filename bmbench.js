@@ -15,6 +15,8 @@
 // 30.11.2006 0.06  based on version 0.05
 // 16.03.2019       adapted for Node.js
 // 05.05.2019 0.07  changed bench 01-03; time interval estimation
+// 15.11.2022 0.071 bench03 corrected
+// 02.12.2022 0.072 bench05 improved
 //
 // Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
@@ -69,7 +71,7 @@
 "use strict";
 
 /* jslint plusplus: true */
-/* globals ARGS, java, print, println, System, VM, window, document, ScriptEngine, ScriptEngineBuildVersion, ScriptEngineMajorVersion, ScriptEngineMinorVersion, System, WScript */ // make ESLint, JSlint happy
+/* globals ARGS, java, print, println, System, VM, window, ScriptEngine, ScriptEngineBuildVersion, ScriptEngineMajorVersion, ScriptEngineMinorVersion, System, Uint8Array, Uint16Array, WScript */ // make ESLint, JSlint happy
 
 var gState = {
 		fnGetMs: null, // get ms, set below
@@ -92,7 +94,7 @@ var gState = {
 		fnDone: null // callback when done
 	},
 	myint = null,
-	gPrgVersion = "0.07",
+	gPrgVersion = "0.071",
 	gPrgLanguage = "JavaScript";
 
 
@@ -188,9 +190,9 @@ function bench02(loops, n, check) {
 
 //
 // bench03 (Integer)
-// number of primes below n (Sieve of Eratosthenes)
+// number of primes less than or equal to n (prime-counting function)
 // Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
-// (no multiples of 2 stored)
+// (Sieve of Eratosthenes, no multiples of 2's are stored)
 function bench03(loops, n, check) {
 	var x = 0, // number of primes below n
 		sieve1, i, j, nHalf, m;
@@ -198,7 +200,7 @@ function bench03(loops, n, check) {
 	n = (n / 2) | 0; // compute only up to n/2
 	nHalf = n >> 1; // div 2
 
-	sieve1 = new Array(nHalf + 1); // set the size we need, only for odd numbers
+	sieve1 = (typeof Uint8Array !== "undefined") ? new Uint8Array(nHalf + 1) : new Array(nHalf + 1); // set the size we need, only for odd numbers
 	// gState.fnLog("DEBUG: nHalf=" + (nHalf) + ", sieve1.length=" + sieve1.length);
 	while (loops-- > 0 && x === 0) {
 		// initialize sieve
@@ -208,9 +210,10 @@ function bench03(loops, n, check) {
 		// compute primes
 		i = 0;
 		m = 3;
-		while (m * m < n) {
+		x++; // 2 is prime
+		while (m * m <= n) {
 			if (!sieve1[i]) {
-				x++;
+				x++; // m is prime
 				j = (m * m - 3) >> 1; // div 2
 				while (j < nHalf) {
 					sieve1[j] = 1;
@@ -222,11 +225,12 @@ function bench03(loops, n, check) {
 		}
 
 		// count remaining primes
-		while (i <= nHalf) {
+		while (m <= n) {
 			if (!sieve1[i]) {
-				x++;
+				x++; // m is prime
 			}
 			i++;
+			m += 2;
 		}
 		x -= check;
 	}
@@ -270,6 +274,55 @@ function bench04(loops, n, check) {
 //
 function bench05(loops, n, check) {
 	var x = 0,
+		k, i, j, min1, line, lastLine, tempLine;
+
+	n = myint(n / 500); // compute only up to n/500
+
+	k = myint(n / 2); // div 2
+	if ((n - k) < k) {
+		k = n - k; // keep k minimal with  n over k  =  n over n-k
+	}
+
+	line = (typeof Uint16Array !== "undefined") ? new Uint16Array(k + 1) : new Array(k + 1);
+	lastLine = (typeof Uint16Array !== "undefined") ? new Uint16Array(k + 1) : new Array(k + 1);
+	line[0] = 1;
+	lastLine[0] = 1;
+
+	while (loops-- > 0 && x === 0) {
+		// initialize
+		for (j = 1; j <= k; j++) {
+			line[j] = 0;
+			lastLine[j] = 0;
+		}
+
+		// compute
+		for (i = 3; i <= n; i++) {
+			min1 = (i - 1) >> 1;
+			if (k < min1) {
+				min1 = k;
+			}
+			line[1] = i; // second column is i
+			for (j = 2; j <= min1; j++) {
+				line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff;
+			}
+			if ((min1 < k) && ((i & 1) === 0)) { // new element
+				line[min1 + 1] = 2 * lastLine[min1];
+			}
+
+			tempLine = lastLine;
+			lastLine = line;
+			line = tempLine;
+		}
+
+		x += lastLine[k] & 0xffff;
+		x -= check;
+	}
+	return x;
+}
+
+/*
+function bench05_orig1(loops, n, check) {
+	var x = 0,
 		pas1, k, i, j, iMod2, min1;
 
 	n = myint(n / 500); // compute only up to n/500
@@ -281,8 +334,8 @@ function bench05(loops, n, check) {
 
 	// allocate memory...
 	pas1 = new Array(2);
-	pas1[0] = new Array(k + 1);
-	pas1[1] = new Array(k + 1);
+	pas1[0] = (typeof Uint16Array !== "undefined") ? new Uint16Array(k + 1) : new Array(k + 1);
+	pas1[1] = (typeof Uint16Array !== "undefined") ? new Uint16Array(k + 1) : new Array(k + 1);
 	pas1[0][0] = 1;
 	pas1[1][0] = 1; // now we have two arrays: 2* k+1; first elements set to 1
 
@@ -306,6 +359,47 @@ function bench05(loops, n, check) {
 	}
 	return x;
 }
+*/
+
+/*
+function bench05_ok1(loops, n, check) {
+	var x = 0,
+		k, i, j, line, lastLine, tempLine;
+
+	//check = 27200;
+
+	n = myint(n / 500); // compute only up to n/500
+
+	k = myint(n / 2); // div 2
+	if ((n - k) < k) {
+		k = n - k; // keep k minimal with  n over k  =  n over n-k
+	}
+
+	line = (typeof Uint16Array !== "undefined") ? new Uint16Array(k + 1) : new Array(k + 1);
+	lastLine = (typeof Uint16Array !== "undefined") ? new Uint16Array(k + 1) : new Array(k + 1);
+
+	while (loops-- > 0 && x === 0) {
+		lastLine[0] = 1;
+		for (i = 0; i <= n; i++) {
+			// pascal's triangle
+			line[0] = 1;
+			for (j = 1; j < i; j++) {
+				line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff;
+			}
+			line[i] = 1;
+
+			tempLine = lastLine;
+			lastLine = line;
+			line = tempLine;
+			//console.log("n", n, lastLine);
+		}
+
+		x += lastLine[k] & 0xffff;
+		x -= check;
+	}
+	return x;
+}
+*/
 
 
 //
