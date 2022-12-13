@@ -1,6 +1,6 @@
 //
 // BM Bench - bmbench.java (Java)
-// (c) Marco Vieth, 2002-2006
+// (c) Marco Vieth, 2002-2022
 // http://www.benchmarko.de
 //
 // 06.05.2002 0.01
@@ -10,6 +10,7 @@
 // 24.01.2003 0.05  output format changed
 // 23.05.2006 0.06  based on version 0.05
 // 05.05.2019 0.07  changed bench 00-03; time interval estimation
+// 03.12.2022 0.072 bench03 corrected, bench05 improved
 //
 // Compile & Run:
 // java bmbench.java [bench] [n]
@@ -25,7 +26,7 @@
 import java.text.SimpleDateFormat; // just to print date
 
 class bmbench {
-  static String prg_version = "0.07";
+  static String prg_version = "0.072";
   static String prg_language = "Java";
 
   private static long gState_startTs = 0;
@@ -46,7 +47,8 @@ class bmbench {
   // <description>
   // in: loops = number of loops
   //         n = maximum number (assumed even, normally n=1000000)
-  // out:    x = <output decription>
+  //     check = expected value for x
+  // out:    x = <output>
   //
   // loops may be increased to produce a longer runtime without changing the result.
   //
@@ -83,7 +85,7 @@ class bmbench {
 
   //
   // bench01 (Integer 16/32 bit)
-  // (arithmetic mean of 1..n)
+  // (arithmetic mean of 1..n) mod 65536
   //
   private static int bench01(int loops, int n, int check) {
     int x = 0;
@@ -104,7 +106,7 @@ class bmbench {
 
   //
   // bench02 (Floating Point, normally 64 bit)
-  // (arithmetic mean of 1..n)
+  // (arithmetic mean of 1..n) mod 65536
   //
   private static int bench02(int loops, int n, int check) {
     int x = 0;
@@ -125,8 +127,9 @@ class bmbench {
 
   //
   // bench03 (Integer)
-  // number of primes below n (Sieve of Eratosthenes)
+  // number of primes less than or equal to n (prime-counting function)
   // Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
+  // (Sieve of Eratosthenes, no multiples of 2's are stored)
   //
   private static int bench03(int loops, int n, int check) {
     n /= 2; // compute only up to n/2
@@ -142,9 +145,10 @@ class bmbench {
       // compute primes
       int i = 0;
       int m = 3;
+      x++; // 2 is prime
       while (m * m < n) {
         if (!sieve1[i]) {
-          x++;
+          x++; // m is prime
           int j = (m * m - 3) >> 1; // div 2
           while (j < nHalf) {
             sieve1[j] = true;
@@ -156,11 +160,12 @@ class bmbench {
       }
 
       // count remaining primes
-      while (i <= nHalf) {
+      while (m <= n) {
         if (!sieve1[i]) {
-          x++;
+          x++; // m is prime
         }
         i++;
+        m += 2;
       }
       x -= check;
     }
@@ -200,9 +205,9 @@ class bmbench {
   // bench05 (Integer 32 bit)
   // n over n/2 mod 65536 (Pascal's triangle)
   //
-  private static int bench05(int loops, int n_p, int check) {
+ private static int bench05(int loops, int n_p, int check) {
     int x = 0;
-    int n = n_p / 500;
+    int n = n_p / 500; // compute only up to n/500
     int k = n / 2;
 
     if ((n - k) < k) {
@@ -210,25 +215,36 @@ class bmbench {
     }
 
     // allocate memory...
-    int pas1[][] = new int[2][k + 1];
-    pas1[0][0] = 1; pas1[1][0] = 1; // set first column
+    int line[] = new int[k + 1];
+    int lastLine[] = new int[k + 1];
+    line[0] = 1;
+    lastLine[0] = 1; // set first column
 
     while (loops-- > 0 && x == 0) {
-      for (int i = 2; i <= n; i++) {
-        int i_mod_2 = i % 2;
+      // initialize
+      for (int j = 1; j <= k; j++) {
+        line[j] = 0;
+        lastLine[j] = 0;
+      }
+
+		  // compute
+      for (int i = 3; i <= n; i++) {
         int min1 = (i - 1) / 2;
         if (k < min1) {
           min1 = k;
         }
-        pas1[i_mod_2][1] = i; // second column is i
+        line[1] = i; // second column is i
         for (int j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
-          pas1[i_mod_2][j] = (pas1[i_mod_2 ^ 1][j - 1] + pas1[i_mod_2 ^ 1][j]);
+          line[j] = (lastLine[j - 1] + lastLine[j]); // & 0xffff;
         }
-        if ((min1 < k) && (i_mod_2 == 0)) { // new element
-          pas1[i_mod_2][min1 + 1] = 2 * pas1[i_mod_2 ^ 1][min1];
+        if ((min1 < k) && ((i & 1) == 0)) { // new element
+          line[min1 + 1] = 2 * lastLine[min1];
         }
+        int tempLine[] = lastLine;
+			  lastLine = line;
+			  line = tempLine;
       }
-      x += pas1[n % 2][k] & 0xffff;
+      x += lastLine[k] & 0xffff;
       x -= check;
     }
     return x;
@@ -242,43 +258,35 @@ class bmbench {
   //         n = maximum number (used in some benchmarks to define size of workload)
   // out:    x = result
   //
-  public static int run_bench(int bench, int loops, int n) {
+  public static int run_bench(int bench, int loops, int n, int check) {
     int x = 0;
-    int check;
     switch (bench) {
       case 0:
-        check = (short)((n / 2) * (n + 1)) & 0xffff;
         x = bench00(loops, n, check);
         break;
 
       case 1:
-     		check = (n + 1) / 2;
         x = bench01(loops, n, check);
         break;
 
       case 2:
-     		check = (n + 1) / 2;
         x = bench02(loops, n, check);
         break;
 
       case 3:
-        check = 41538;
         x = bench03(loops, n, check);
         break;
 
       case 4:
-        check = 1227283347;
         x = bench04(loops, n, check);
         break;
 
       case 5:
-        check = 27200;
         x = bench05(loops, n, check);
         break;
 
       default:
         System.out.println("Error: Unknown benchmark " + bench);
-        check = -1;
         break;
     }
 
@@ -289,6 +297,63 @@ class bmbench {
     }
     return x;
   }
+
+
+  public static int bench03Check(int n) {
+		int x = 0;
+
+    n = (n / 2) | 0; // compute only up to n/2
+
+    for (int j = 2; j <= n; j++) {
+      boolean isPrime = true;
+      for (int i = 2; i * i <= j; i++) {
+        if (j % i == 0) {
+          isPrime = false;
+          break;
+        }
+      }
+      if (isPrime) {
+        x++;
+      }
+    }
+	  return x;
+  }
+
+  public static int getCheck(int bench, int n) {
+    int check;
+    switch (bench) {
+      case 0:
+        check = (short)((n / 2) * (n + 1)) & 0xffff;
+        break;
+
+      case 1:
+     		check = (n + 1) / 2;
+        break;
+
+      case 2:
+     		check = (n + 1) / 2;
+        break;
+
+      case 3:
+        check = (n == 1000000) ? 41538 : bench03Check(n);
+        break;
+
+      case 4:
+        check = (n == 1000000) ? 1227283347 : bench04(1, n, 0); // bench04 not a real check
+        break;
+
+      case 5:
+        check = (n == 1000000) ? 27200 : bench05(1, n, 0); // bench05 not a real check
+        break;
+
+      default:
+        System.out.println("Error: Unknown benchmark " + bench);
+        check = -1;
+        break;
+    }
+    return check;
+  }
+
 
   //
   // get timestamp in milliseconds
@@ -456,7 +521,7 @@ class bmbench {
 
   private static String mynumformat1_d(double val, int digits, int prec) {
     StringBuffer str = new StringBuffer(); // buffer for one formatted value
-    double displ_prec_after = Math.pow(10, 2);  // display precision after decimal point
+    double displ_prec_after = Math.pow(10, 3);  // display precision after decimal point
     str.append(Math.round(val * displ_prec_after) / (displ_prec_after * 1.0));
 
     if (str.toString().indexOf('.') < 0) { // should not occur
@@ -466,8 +531,6 @@ class bmbench {
 
     // format to prec digits after comma
     while ((str.length() <= prec) || (str.charAt(str.length() - (prec + 1)) != '.')) {
-      //int len1 = str.length();
-      //int pos1 = str.length() - (prec - 1);
       str.append("0");
     }
 
@@ -484,7 +547,7 @@ class bmbench {
     System.out.print("java.version=" + System.getProperty("java.version") + ", java.vendor=" + System.getProperty("java.vendor"));
     System.out.println("os.name=" + System.getProperty("os.name") + ", os.arch=" + System.getProperty("os.arch")
       + ", os.version=" + System.getProperty("os.version"));
-    System.out.println("(c) Marco Vieth, 2002-1019");
+    System.out.println("(c) Marco Vieth, 2002-2022");
     System.out.println("Date: " + getdate1());
     //System.out.println("properties="+ System.getProperties());
   }
@@ -505,7 +568,7 @@ class bmbench {
     System.out.println("");
   }
 
-  private static double measureBench(int bench, int n) {
+  private static double measureBench(int bench, int n, int check) {
     final int cali_ms = 1001;
     final int delta_ms = 100;
     final int max_ms = 10000;
@@ -515,15 +578,15 @@ class bmbench {
     double tEsti = 0;   // estimated time
     double throughput = 0;
 
-    System.out.println("Calibrating benchmark " + bench + " with n=" + n);
+    System.out.println("Calibrating benchmark " + bench + " with n=" + n + ", ckeck=" + check);
     while (throughput == 0) {
       tMeas = getPrecMs(false);
-      x = run_bench(bench, loops, n);
+      x = run_bench(bench, loops, n, check);
       tMeas = getPrecMs(true) - tMeas;
 
       double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
       double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
-      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms, x=" + x);
+      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms)");
 
       if (x == -1) { // some error?
         throughput = -1;
@@ -556,7 +619,8 @@ class bmbench {
     double bench_res[] = new double[bench2 + 1];
 
     for (int bench = bench1; bench <= bench2; bench++) {
-      double throughput = measureBench(bench, n);
+      int check = getCheck(bench, n);
+      double throughput = (check > 0) ? measureBench(bench, n, check) : -1;
       bench_res[bench] = throughput;
     }
 

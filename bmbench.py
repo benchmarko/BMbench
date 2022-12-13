@@ -1,6 +1,6 @@
 #! /usr/bin/env python
-# BM Bench - bmbench.py (Python)  version 3
-# (c) Marco Vieth, 2002-2006
+# BM Bench - bmbench.py (Python)
+# (c) Marco Vieth, 2002-2022
 # http://www.benchmarko.de
 #
 # 06.05.2002 0.01
@@ -9,7 +9,9 @@
 # 24.01.2003 0.05  output format changed
 # 03.12.2006 0.06  based on version 0.05
 # 05.05.2019 0.07  changed bench 01-03; time interval estimation
+# 03.12.2022 0.072 bench03 corrected, bench05 improved
 #
+# Python version 2 or 3
 #
 # Usage:
 # python -O bmbench1.py [bench1] [bench2] [n]
@@ -44,7 +46,7 @@ import sys # for flush()
 #check this: https://www.numpy.org/  used at: http://zwmiller.com/blogs/python_data_structure_speed.html
 #import numpy as np
 
-G_PRG_VERSION = "0.07"
+G_PRG_VERSION = "0.072"
 G_PRG_LANGUAGE = "Python"
 
 
@@ -91,7 +93,7 @@ def bench00(loops, n, check1):
 
 
 # bench01 (Integer 32 bit)
-# (average of 1..n)
+# (arithmetic mean of 1..n) mod 65536
 #
 def bench01(loops, n, check):
   x = 0
@@ -110,7 +112,7 @@ def bench01(loops, n, check):
 
 #
 # bench02 (Floating Point, normally 64 bit)
-# (average of 1..n)
+# (arithmetic mean of 1..n) mod 65536
 #
 def bench02(loops, n, check):
   x = 0
@@ -129,8 +131,9 @@ def bench02(loops, n, check):
 
 #
 # bench03 (Integer)
-# number of primes below n (Sieve of Eratosthenes)
+# number of primes less than or equal to n (prime-counting function)
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
+# (Sieve of Eratosthenes, no multiples of 2's are stored)
 #
 # (It would be possible to put all in a long integer but this is extremely slow.)
 #
@@ -139,22 +142,24 @@ def bench03(loops, n, check):
   x = 0      # number of primes below n
   nHalf = n >> 1
   #sieve1 = []  #nHalf + 1 elements
+  sieve1 = [0 for i in range(nHalf + 1)]
 
   while loops > 0 and x == 0:
     loops = loops - 1
     # initialize sieve
     #sieve1.clear()
     #print(len(sieve1))
-    sieve1 = [0 for i in range(nHalf + 1)]
-    #for i in range(0, nHalf + 1):
-    #  sieve1.append(0)
+    #sieve1 = [0 for i in range(nHalf + 1)]
+    for i in range(0, nHalf + 1):
+      sieve1[i] = 0
 
     # compute primes
     i = 0
     m = 3
+    x += 1 # 2 is prime
     while (m * m) < n:
       if (sieve1[i] == 0):
-        x += 1
+        x += 1 # m is prime
         j = (m * m - 3) >> 1 # div 2
         while (j < nHalf):
           sieve1[j] = 1
@@ -163,10 +168,12 @@ def bench03(loops, n, check):
       m += 2
 
     # count remaining primes
-    while (i <= nHalf):
+    while (m <= n):
       if (sieve1[i] == 0):
-        x += 1
+        x += 1 # m is prime
+
       i += 1
+      m += 2
 
     x -= check
   return x
@@ -217,6 +224,49 @@ def bench05(loops, n, check):
   if ((n - k) < k):
     k = n - k # keep k minimal with  n over k  =  n over n-k
 
+  line = [0 for i in range(k + 1)]
+  lastLine = [0 for i in range(k + 1)]
+
+  while loops > 0 and x == 0:
+    loops = loops - 1
+
+    # initialize
+    for j in range(1, k + 1):
+      line[j] = 0
+      lastLine[j] = 0
+
+    # compute
+    for i in range(2, n + 1):
+      min1 = (i - 1) >> 1 #int((i - 1) / 2)
+      if (k < min1):
+        min1 = k
+
+      line[1] = i # second column is i
+      for j in range(2, min1 + 1):
+        line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff # we use & 0xffff to avoid (slow) long int
+
+      if (min1 < k) and ((i & 1) == 0): # new element
+        line[min1 + 1] = 2 * lastLine[min1]
+
+      tempLine = lastLine
+      lastLine = line
+      line = tempLine
+
+    x += lastLine[k] & 0xffff
+    x -= check
+
+  return x
+
+
+# with list it is slower:
+def bench05_ok1(loops, n, check):
+  x = 0
+  n = int(n / 500)
+  k = int(n / 2)
+
+  if ((n - k) < k):
+    k = n - k # keep k minimal with  n over k  =  n over n-k
+
   while loops > 0 and x == 0:
     loops = loops - 1
     pas1 = [1]
@@ -250,37 +300,74 @@ def bench05(loops, n, check):
 #         n = maximum number (used in some benchmarks to define size of workload)
 # out:    x = result
 #
-def run_bench(bench, loops, n):
+def run_bench(bench, loops, n, check):
   x = 0
-  #check = 0
   if bench == 0:
-    check = int((n // 2) * (n + 1)) & 0xffff #10528
     x = bench00(loops, n, check)
   elif bench == 1:
-    check = (n + 1) // 2
     x = bench01(loops, n, check)
   elif bench == 2:
-    check = (n + 1) // 2
     x = bench02(loops, n, check)
   elif bench == 3:
-    check = 41538
     x = bench03(loops, n, check)
   elif bench == 4:
-    check = 1227283347
     x = bench04(loops, n, check)
   elif bench == 5:
-    check = 27200
     x = bench05(loops, n, check)
   else:
     print('Error: Unknown benchmark: '+ str(bench))
-    check = -1 # force error
 
   x += check
-  if (check != x):
+  if (x != check):
     print('Error(bench'+ str(bench) +'): x='+ str(x))
-    x = -1; # exit
+    x = -1;
   return x
 
+
+def bench03Check(n):
+  n = n // 2 # compute only up to n/2
+  x = 0
+  for j in range(2, n):
+    isPrime = True
+    i = 2
+    while (i * i) <= j:
+      if (j % i == 0):
+        isPrime = False
+        break
+      i += 1
+    if (isPrime):
+      x += 1
+  return x
+
+
+def getCheck(bench, n):
+  check = 0
+  if bench == 0:
+    check = int((n // 2) * (n + 1)) & 0xffff # 10528 for n=1000000
+  elif bench == 1:
+    check = (n + 1) // 2
+  elif bench == 2:
+    check = (n + 1) // 2
+  elif bench == 3:
+    if n == 1000000:
+      check = 41538
+    else:
+      check = bench03Check(n)
+  elif bench == 4:
+    if n == 1000000:
+      check = 1227283347
+    else:
+      check = bench04(1, n, 0); # bench04 not a real check
+  elif bench == 5:
+    if n == 1000000:
+      check = 27200
+    else:
+      check = bench05(1, n, 0); # bench05 not a real check
+    check = 27200
+  else:
+    print('Error: Unknown benchmark: '+ str(bench))
+    check = -1 # force error
+  return check
 
 
 def get_raw_ts():
@@ -403,7 +490,7 @@ def print_info():
   print('BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(G_PRG_VERSION, G_PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()), end=' ')
   print("tsMs:" + str(g_tsPrecMs), "tsCnt:" + str(g_tsPrecCnt) + ")", end=' ')
   print('version: '+ python_version +'; platform:', sys.platform)
-  print('(c) Marco Vieth, 2006-2019')
+  print('(c) Marco Vieth, 2002-2022')
   print('Date:', time.ctime(time.time()))
 
 
@@ -419,7 +506,7 @@ def print_results(bench_res1):
   print()
 
 
-def measureBench(bench, n):
+def measureBench(bench, n, check):
   cali_ms = 1001 # const
   delta_ms = 100 # const
   max_ms = 10000 # const
@@ -430,10 +517,10 @@ def measureBench(bench, n):
   tEsti = 0     # estimated time
   throughput = 0
 
-  print("Calibrating benchmark %d with n=%d" % (bench, n))
+  print("Calibrating benchmark %d with n=%d, check=%d" % (bench, n, check))
   while (throughput == 0):
     tMeas = getPrecMs(False)
-    x = run_bench(bench, loops, n)
+    x = run_bench(bench, loops, n, check)
     tMeas = getPrecMs(True) - tMeas
 
     if (tEsti > tMeas):
@@ -445,7 +532,7 @@ def measureBench(bench, n):
     if (tMeas > 0):
       loops_p_sec = loops * 1000.0 / tMeas
 
-    print("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms, x=%d)" % (loops_p_sec, tMeas, loops, t_delta, x))
+    print("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)" % (loops_p_sec, tMeas, loops, t_delta))
     if (x == -1): # some error?
       throughput = -1
 
@@ -486,7 +573,11 @@ def start_bench(bench1, bench2, n):
   print_info()
 
   for bench in range(bench1, bench2 + 1):
-    throughput = measureBench(bench, n)
+    check = getCheck(bench, n)
+    if (check > 0):
+      throughput = measureBench(bench, n, check)
+    else:
+      throughput = -1
     bench_res.append(throughput)
 
   print_results(bench_res)
@@ -513,10 +604,12 @@ def main(argv=[]):
   print("Total elapsed time: %d ms" % conv_ms(get_ts()))
 
 
-
 # Run test program when run as a script
 if __name__ == '__main__':
   import sys
-  main(sys.argv)
+  if len(sys.argv) > 1 or sys.stdin.isatty():
+    main(sys.argv)
+  else:
+    main(("argv0 " + sys.stdin.readline().rstrip()).rstrip().split(' '))
 
 # end

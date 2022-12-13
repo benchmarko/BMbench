@@ -46,12 +46,13 @@ exec tclsh "$0" "$@"
 # loops may be increased to produce a longer runtime without changing the result.
 #
 
-set PRG_VERSION "0.07";
+set PRG_VERSION "0.072";
 set PRG_LANGUAGE "Tcl";
 
 set gState(tsType) "msec";
 set gState(tsPrecCnt) 0;
 set gState(tsMeasCnt) 0;
+set gState(fact) {0 0 0 20 0 0}; # benchmark simplification factors for n
 
 #
 # bench00 (Integer 16 bit)
@@ -83,7 +84,7 @@ proc bench00 {loops n check} {
 
 #
 # bench01 (Integer 16/32 bit)
-# (sum of 1..n) mod 65536
+# (arithmetic mean of 1..n)
 #
 # (Tcl tries to compute with C longs as long as no floating point number is introduced)
 #
@@ -107,7 +108,7 @@ proc bench01 {loops n check} {
 
 #
 # bench02 (Floating Point, normally 64 bit)
-# (sum of 1..n) mod 65536
+# (arithmetic mean of 1..n)
 #
 proc bench02 {loops n check} {
   set x 0;
@@ -154,7 +155,7 @@ proc bench02_old1 {loops n check} {
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 #
 # I have not found bit arrays in Tcl so I used lists, but it is very slow, if we need to
-# replace elements witl lreplace.
+# replace elements with lreplace.
 # Strings could also be used but are even slower:
 # - init sieve: set sieve1 [string repeat 1 [expr {$n + 1}]];
 #               set sieve1 [string replace $sieve1 0 0 0]; set sieve1 [string replace $sieve1 1 1 0];
@@ -162,6 +163,56 @@ proc bench02_old1 {loops n check} {
 # - test bit:   [string index $sieve1 $i]
 #
 proc bench03 {loops n check} {
+  set n [expr {$n / 2}]; # compute only up to n/2
+  set x 0; # number of primes below n
+  #set sieve1 [list 0 0]; # set first 2 elements
+
+  #set n [expr {$n / 40}]; # Tcl is slow, so use this factor
+  #puts "Important note: For Tcl we use 1/40 of the problem to get to an end (n=$n)...";
+
+  set nHalf [expr {$n / 2}]; 
+
+  while {$loops > 0 && $x == 0} {
+    incr loops -1
+    # initialize sieve
+    set sieve1 {0 0}; # set first 2 elements
+    for {set i 2} {$i <= $nHalf} {incr i} {
+      lappend sieve1 0;
+    }
+    # compute primes
+    set i 0; 
+    set m 3; 
+    incr x; # 2 is prime
+    while {[expr {$i * $i}] <= $n} {
+      if {![lindex $sieve1 $i]} {
+        incr x; # m is prime
+        set j [expr {($m * $m - 3) >> 1}];
+        while {$j < $nHalf} {
+          set sieve1 [lreplace $sieve1 $j $j 1];
+          #puts "DEBUG: res (j=$j): sieve=$sieve1";
+          incr j $m; #set j [expr {$j + $m}];
+        }
+      }
+      incr i;
+      incr m 2;
+    }
+
+    # count remaining primes
+    while {$m < $n} {
+      if {![lindex $sieve1 $i]} {
+        incr x;
+      }
+      incr i;
+      incr m 2;
+    }
+
+    incr x -$check;
+  }
+  #puts "DEBUG: sieve=$sieve1";
+  return $x;
+}
+
+proc bench03_old_ok1 {loops n check} {
   set n [expr {$n / 2}]; # compute only up to n/2
   set x 0; # number of primes below n
   #set sieve1 [list 0 0]; # set first 2 elements
@@ -292,51 +343,99 @@ proc bench05 {loops n check} {
 #         n = maximum number (used in some benchmarks to define size of workload)
 # out:    x = result
 #
-proc run_bench {bench loops n} {
+proc run_bench {bench loops n check} {
   set x 0;
-  set check 0;
 
   if {$bench == 0} {
-    #set check 10528;
-    set check [expr {(($n / 2) * ($n + 1)) & 0xffff}];
     set x [bench00 $loops $n $check];
 
   } elseif {$bench == 1} {
-    #set check 10528;
-    set check [expr {($n + 1) / 2}];
     set x [bench01 $loops $n $check];
 
   } elseif {$bench == 2} {
-    set check [expr {($n + 1) / 2}];
     set x [bench02 $loops $n $check];
 
   } elseif {$bench == 3} {
-    set check 1492;
-    #set check1 41538; # for the full problem
     set x [bench03 $loops $n $check];
 
   } elseif {$bench == 4} {
-    set check 1227283347;
     set x [bench04 $loops $n $check];
 
   } elseif {$bench == 5} {
-    set check 27200;
     set x [bench05 $loops $n $check];
 
   } else {
     puts "Error: Unknown benchmark: $bench";
-    set check $x;
-    incr check; # force error
   }
   # can we use Tcl switch?
 
   incr x $check;
-  if {$check != $x} {
+  if {$x != $check} {
     puts "Error(bench $bench): x=$x";
     # error "Error in benchmark.";
     set x -1;
   }
   return $x;
+}
+
+
+proc bench03Check {n} {
+  set check 0;
+
+  set n [expr {$n / 2}];
+
+  for {set j 2} {$j <= $n} {incr j} {
+    set isPrime 1;
+    for {set i 2} {[expr {$i * $i}] <= $j} {incr i} {
+      if {![expr {$j % $i}]} {
+        set isPrime 0;
+        break;
+      }
+    }
+    if {$isPrime} {
+      incr x;
+    }
+  }
+  return $x;
+}
+
+proc getCheck {bench n} {
+  global gState PRG_LANGUAGE;
+  set check 0;
+
+  set fact [lindex $gState(fact) $bench];
+  if {$fact} {
+    set n [expr {$n / $fact}];
+    puts "Note: $PRG_LANGUAGE is rather slow, so reduce n by factor $fact to $n.";
+  }
+
+  if {$bench == 0} {
+    #set check 10528;
+    set check [expr {(($n / 2) * ($n + 1)) & 0xffff}];
+
+  } elseif {$bench == 1} {
+    #set check 10528;
+    set check [expr {($n + 1) / 2}];
+
+  } elseif {$bench == 2} {
+    set check [expr {($n + 1) / 2}];
+
+  } elseif {$bench == 3} {
+    set check [expr $n == 1000000 ? 41538 : [bench03Check $n]];
+
+  } elseif {$bench == 4} {
+    #set check 1227283347;
+    set check [expr {$n == 1000000 ? 1227283347 : [bench04 1 $n 0]}]; # bench04 not a real check
+
+  } elseif {$bench == 5} {
+    #set check 27200;
+    set check [expr {$n == 1000000 ? 27200 : [bench05 1 $n 0]}]; # bench045not a real check
+
+  } else {
+    puts "Error: Unknown benchmark: $bench";
+    set check -1;
+  }
+  return $check;
 }
 
 
@@ -472,48 +571,67 @@ proc print_results {bench_res} {
 }
 
 
-proc measureBench {bench n} {
-  global PRG_LANGUAGE;
+proc measureBench {bench n check} {
+  global gState PRG_LANGUAGE;
 
-  set cali_ms 1001; # const
-  set delta_ms 100; # const
-  set max_ms 10000; # const
+  set caliMs 1001; # const
+  set deltaMs 100; # const
+  set maxMs 10000; # const
 
   set loops 1; # number of loops
   set x 0;     # result from benchmark
-  set t1 0;    # measured time
-  set t2 0;    # estimated time
+  set tMeas 0;    # measured time
+  set tEsti 0;    # estimated time
   set throughput 0;
 
-  puts "Calibrating benchmark $bench with n=$n";
+  set fact [lindex $gState(fact) $bench];
+  if {$fact} {
+    set n [expr {$n / $fact}];
+    puts "Note: $PRG_LANGUAGE is rather slow, so reduce n by factor $fact to $n.";
+  }
+
+  puts "Calibrating benchmark $bench with n=$n, check=$check";
   while {!$throughput} {
-    set t1 [getPrecMs 0];
-    set x [run_bench $bench $loops $n];
-    set t1 [expr {[getPrecMs 1] - $t1}];
+    set tMeas [getPrecMs 0];
+    set x [run_bench $bench $loops $n $check];
+    set tMeas [expr {[getPrecMs 1] - $tMeas}];
 
-    set t_delta [expr {($t2 > $t1) ? ($t2 - $t1) : ($t1 - $t2)}]; # compute difference abs(measures-estimated)
-    set loops_p_sec [expr {($t1 > 0) ? ($loops * 1000.0 / $t1) : 0}];
+    set tDelta [expr {($tEsti > $tMeas) ? ($tEsti - $tMeas) : ($tMeas - $tEsti)}]; # compute difference abs(measures-estimated)
+    set loopsPerSec [expr {($tMeas > 0) ? ($loops * 1000.0 / $tMeas) : 0}];
 
-    puts "[format %10.3f $loops_p_sec]/s (time= [format %9.3f $t1] ms, loops= [format %7d $loops], delta=[format %9.3f $t_delta] ms, x=$x)";
+    puts "[format %10.3f $loopsPerSec]/s (time= [format %9.3f $tMeas] ms, loops= [format %7d $loops], delta=[format %9.3f $tDelta] ms)";
     if {$x == -1} { # some error?
       set throughput -1;
-    } elseif {($t2 > 0) && ($t_delta < $delta_ms)} { # do we have some estimated/expected time, smaller than delta_ms=100?
-      set throughput $loops_p_sec
-      puts "Benchmark $bench ($PRG_LANGUAGE): [format %.3f $loops_p_sec]/s (time=[format %.3f $t1] ms, loops=$loops, delta=[format %.3f $t_delta] ms)";
-    } elseif {$t1 > $max_ms} {
-      puts "Benchmark  $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
-      if {$loops_p_sec > 0} {
-        set throughput -$loops_p_sec;
+    } elseif {($tEsti > 0) && ($tDelta < $deltaMs)} { # do we have some estimated/expected time, smaller than deltaMs=100?
+      set throughput $loopsPerSec
+      puts "Benchmark $bench ($PRG_LANGUAGE): [format %.3f $loopsPerSec]/s (time=[format %.3f $tMeas] ms, loops=$loops, delta=[format %.3f $tDelta] ms)";
+    } elseif {$tMeas > $maxMs} {
+      puts "Benchmark  $bench ($PRG_LANGUAGE): Time already > $maxMs ms. No measurement possible.";
+      if {$loopsPerSec > 0} {
+        set throughput -$loopsPerSec;
       } else {
-        set throughput 0;
+        set throughput -1;
       }
     } else {
-      set scale_fact [expr {(($t1 < $cali_ms) && ($t1 > 0)) ? int((($cali_ms + 100) / $t1) + 1) : 2}];
-        # scale a bit up to 1100 ms (cali_ms+100)
-      set loops [expr {$loops * $scale_fact}];
-      set t2 [expr {$t1 * $scale_fact}];
+      set scaleFact 0;
+      if {$tMeas == 0} {
+				set scaleFact 50;
+			} elseif {$tMeas < $caliMs} {
+				set scaleFact [expr {int(($caliMs + 100) / $tMeas) + 1}]; # scale a bit up to 1100 ms (caliMs+100)
+			} else {
+        set scaleFact 2;
+			}
+      set loops [expr {$loops * $scaleFact}];
+      set tEsti [expr {$tMeas * $scaleFact}];
     }
   }
+
+  # correction factor (only useful for linear problems)
+  if {$throughput >= 0 && $fact} {
+    set throughput [expr {$throughput / $fact}];
+    puts "Note: Estimated runtime for benchmark $bench corrected by factor $fact: [format %10.3f $throughput]";
+  }
+
   return $throughput;
 }
 
@@ -523,7 +641,12 @@ proc start_bench {bench1 bench2 n} {
 
   set bench_res [list ];
   for {set bench $bench1} {$bench <= $bench2} {incr bench} {
-    set throughput [measureBench $bench $n];
+    set check [getCheck $bench $n];
+    if {$check > 0} {
+      set throughput [measureBench $bench $n $check];
+    } else {
+      set throughput -1;
+    }
     lappend bench_res $throughput;
   }
   print_results $bench_res;

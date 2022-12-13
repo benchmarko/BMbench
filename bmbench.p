@@ -1,13 +1,14 @@
 (*
  * BM Bench - bmbench.p (Pascal)
- * (c) Marco Vieth, 2002-2019
+ * (c) Marco Vieth, 2002-2022
  * http://www.benchmarko.de
  *
- * 06.05.2002  0.01
- * 11.05.2002  0.02  bench1 = (sum 1..n) mod 65536
- * 20.07.2002  0.04  more benchmarks
- * 24.01.2003  0.05  output format changed
- * 13.07.2019  0.07
+ * 06.05.2002 0.01
+ * 11.05.2002 0.02  bench1 = (sum 1..n) mod 65536
+ * 20.07.2002 0.04  more benchmarks
+ * 24.01.2003 0.05  output format changed
+ * 13.07.2019 0.07  changed bench 01-03; time interval estimation
+ * 03.12.2022 0.072 bench03 corrected, bench05 improved
  *
  * Usage:
  * bmbench [bench1] [bench2] [n]
@@ -65,7 +66,7 @@ PROGRAM bmbench (Input, Output);
   {$endif}
 {$endif}
 
-  CONST g_prg_version = '0.07';
+  CONST g_prg_version = '0.072';
   CONST g_prg_language = 'Pascal';
   CONST MAX_BENCH = 5;
 
@@ -81,7 +82,8 @@ PROGRAM bmbench (Input, Output);
    * <description>
    * in: loops = number of loops
    *         n = maximum number (assumed even, normally n=1000000)
-   * out:    x = <output decription>
+   *     check = expected value for x
+   * out:    x = <output value>
    *
    * loops may be increased to produce a longer runtime without changing the result.
    *)
@@ -124,7 +126,7 @@ PROGRAM bmbench (Input, Output);
 
   (*
    * bench01 (Integer 16/32 bit)
-   * (sum of 1..n) mod 65536
+   * (arithmetic mean of 1..n) mod 65536
    *)
   FUNCTION bench01(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
   VAR x : INTEGER;
@@ -150,7 +152,7 @@ PROGRAM bmbench (Input, Output);
 
   (*
    * bench02 (Floating Point, normally 64 bit)
-   * (sum of 1..n) mod 65536
+   * (arithmetic mean of 1..n) mod 65536
    *)
   FUNCTION bench02(loops: INTEGER; n: LONGINT; check: INTEGER): INTEGER;
   VAR x : INTEGER;
@@ -206,10 +208,11 @@ PROGRAM bmbench (Input, Output);
       (* compute primes *)
       i := 0;
 	  m := 3;
+      x := x + 1; (* 2 is prime *)
       (* m_mul_m := m * m; *)
       WHILE (m * m <= n) DO BEGIN
         IF (NOT sieve1[i]) THEN BEGIN
-		  x := x + 1;
+		  x := x + 1; (* m is prime *)
 		  j := (m * m - 3) DIV 2;
           WHILE (j < nHalf) DO BEGIN
             sieve1[j] := TRUE;
@@ -225,15 +228,17 @@ PROGRAM bmbench (Input, Output);
   	(* Writeln('DEBUG: count i=', i); *)
 	  
       (* count remaining primes *)
-      FOR i := i TO nHalf DO BEGIN
+      WHILE (m <= n) DO BEGIN
 	  (*
 	  if (i > 1923000) THEN BEGIN
 	    Writeln('DEBUG: count2 i=', i);
 	  end;
 	  *)
         IF (NOT sieve1[i]) THEN BEGIN
-          x := x + 1;
+          x := x + 1; (* m is prime *)
         END;
+        i := i + 1;
+        m := m + 2;
       END;
 		(* Writeln('DEBUG: check: '); *)
 
@@ -290,7 +295,175 @@ PROGRAM bmbench (Input, Output);
    * bench05 (Integer 32 bit)
    * n over n/2 mod 65536 (Pascal's triangle)
    *)
+  (* with pointers, FPC *)
   FUNCTION bench05(loops: INTEGER; n_p: LONGINT; check: INTEGER): INTEGER;
+  CONST MAX_N = 1000000 DIV (500 * 2); (* highest number for array *)
+  TYPE lineType = ARRAY[0..MAX_N] OF INTEGER;
+      linePtrType = ^lineType;
+  VAR x : INTEGER;
+      n, k, i, min1, j : INTEGER;
+      line : lineType;
+      lastLine : lineType;
+      linePtr : linePtrType; 
+      tempLinePtr : linePtrType;
+      lastLinePtr : linePtrType;
+  LABEL bench05_exit;
+
+  BEGIN
+    x := 0;
+    n := n_p DIV 500;
+    k := n DIV 2;
+    IF ((n - k) < k) THEN BEGIN
+      k := n - k; (* keep k minimal with  n over k  =  n over n-k *)
+    END;
+
+    IF (k > MAX_N) THEN BEGIN
+      Writeln('Error: k too large: ', k);
+      x:= -1; (* error *)
+      GOTO bench05_exit;
+    END;
+
+    linePtr := @line;
+    lastLinePtr := @lastLine;
+
+	(* WriteLn('DEBUG: n=', n, ' k=', k); *)
+
+    line[0] := 1;
+	lastLine[0] := 1; (* set first column *)
+
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
+      (* initialize *)
+      FOR j := 1 TO k DO BEGIN
+        line[j] := 0;
+        lastLine[j] := 0;
+      END;
+    
+      (* compute *)
+      FOR i := 3 TO n DO BEGIN
+        (* i_mod_2 := i MOD 2; *)
+        min1 := (i - 1) DIV 2;
+        IF (k < min1) THEN BEGIN
+          min1 := k;
+        END;
+        (* i_mod_2_1 := (i + 1) MOD 2; *)
+        linePtr^[1] := i; (* second column is i *)
+        FOR j := 2 TO min1 DO BEGIN (* up to min((i-1)/2, k) *)
+		  (* WriteLn('DEBUG: index1: i_mod_2=', i_mod_2, ' i_mod_2_1=', i_mod_2_1, ' j=', j); *)
+          (* pas1[i_mod_2][j] := (pas1[i_mod_2_1][j - 1] + pas1[i_mod_2_1][j]); *)
+          linePtr^[j] := (lastLinePtr^[j - 1] + lastLinePtr^[j]); (* & 0xffff; *)
+        END;
+		(* WriteLn('DEBUG: after loop xx'); *)
+        IF ((min1 < k) AND ((i AND 1) = 0)) THEN BEGIN (* new element *)
+		  (* WriteLn('DEBUG: index2: i_mod_2=', i_mod_2, ' min1+1=', min1 + 1); *)
+          (* pas1[i_mod_2][min1 + 1] := 2 * pas1[i_mod_2_1][min1]; *)
+          linePtr^[min1 + 1] := 2 * lastLinePtr^[min1];
+        END;
+        tempLinePtr := lastLinePtr;
+	    lastLinePtr := linePtr;
+	    linePtr := tempLinePtr;
+      END;
+
+	  (* WriteLn('DEBUG: after: i_mod_2=', i_mod_2, ' k=', k); *)
+
+      (* WriteLn('DEBUG: pas1[n MOD 2]=', pas1[n MOD 2][k]); *)
+	  (* WriteLn('DEBUG: x=', x, ' k=', k, ' pas1[n MOD 2][k]=', pas1[n MOD 2][k], ' add=', x + pas1[n MOD 2][k]); *)
+      x := (x + lastlinePtr^[k]);
+	  (* x := x MOD 65536; *)
+	  x := x AND $7ffff; (* make sure it works for 16 and 32 bit integer ??? *)
+      (* does not work? x := x + (pas1[n MOD 2][k] - (pas1[n MOD 2][k] DIV 65536) * 65536); *)
+      (* WriteLn('DEBUG: curr_x=', x); *)
+
+      (* x := INTEGER(x); *) (* TTT *)
+	  (* WriteLn('DEBUG: x=', x, ' check=', check); *)
+	  loops := loops - 1;
+      x := x - check;
+    END;
+    bench05_exit:
+    bench05 := x;
+  END; (* bench05 *)
+   
+   
+  FUNCTION bench05_ok2(loops: INTEGER; n_p: LONGINT; check: INTEGER): INTEGER;
+  CONST MAX_N = 1000000 DIV (500 * 2); (* highest number for array *)
+  VAR x : INTEGER;
+      n, k, i, min1, j : INTEGER;
+      line : ARRAY[0..MAX_N] OF INTEGER;
+      lastLine : ARRAY[0..MAX_N] OF INTEGER;
+      tempLine : ARRAY[0..MAX_N] OF INTEGER; (* content not needed; could also be dynamic? *)
+  LABEL bench05_exit;
+
+  BEGIN
+    x := 0;
+    n := n_p DIV 500;
+    k := n DIV 2;
+    IF ((n - k) < k) THEN BEGIN
+      k := n - k; (* keep k minimal with  n over k  =  n over n-k *)
+    END;
+
+    IF (k > MAX_N) THEN BEGIN
+      Writeln('Error: k too large: ', k);
+      x:= -1; (* error *)
+      GOTO bench05_exit;
+    END;
+
+	(* WriteLn('DEBUG: n=', n, ' k=', k); *)
+
+    line[0] := 1;
+	lastLine[0] := 1; (* set first column *)
+
+    WHILE ((loops > 0) AND (x = 0)) DO BEGIN
+      (* initialize *)
+      FOR j := 1 TO k DO BEGIN
+        line[j] := 0;
+        lastLine[j] := 0;
+      END;
+    
+      (* compute *)
+      FOR i := 3 TO n DO BEGIN
+        (* i_mod_2 := i MOD 2; *)
+        min1 := (i - 1) DIV 2;
+        IF (k < min1) THEN BEGIN
+          min1 := k;
+        END;
+        (* i_mod_2_1 := (i + 1) MOD 2; *)
+        line[1] := i; (* second column is i *)
+        FOR j := 2 TO min1 DO BEGIN (* up to min((i-1)/2, k) *)
+		  (* WriteLn('DEBUG: index1: i_mod_2=', i_mod_2, ' i_mod_2_1=', i_mod_2_1, ' j=', j); *)
+          (* pas1[i_mod_2][j] := (pas1[i_mod_2_1][j - 1] + pas1[i_mod_2_1][j]); *)
+          line[j] := (lastLine[j - 1] + lastLine[j]); (* & 0xffff; *)
+        END;
+		(* WriteLn('DEBUG: after loop xx'); *)
+        IF ((min1 < k) AND ((i AND 1) = 0)) THEN BEGIN (* new element *)
+		  (* WriteLn('DEBUG: index2: i_mod_2=', i_mod_2, ' min1+1=', min1 + 1); *)
+          (* pas1[i_mod_2][min1 + 1] := 2 * pas1[i_mod_2_1][min1]; *)
+          line[min1 + 1] := 2 * lastLine[min1];
+        END;
+        tempLine := lastLine;
+	    lastLine := line;
+	    line := tempLine;
+      END;
+
+	  (* WriteLn('DEBUG: after: i_mod_2=', i_mod_2, ' k=', k); *)
+
+      (* WriteLn('DEBUG: pas1[n MOD 2]=', pas1[n MOD 2][k]); *)
+	  (* WriteLn('DEBUG: x=', x, ' k=', k, ' pas1[n MOD 2][k]=', pas1[n MOD 2][k], ' add=', x + pas1[n MOD 2][k]); *)
+      x := (x + lastline[k]);
+	  (* x := x MOD 65536; *)
+	  x := x AND $7ffff; (* make sure it works for 16 and 32 bit integer ??? *)
+      (* does not work? x := x + (pas1[n MOD 2][k] - (pas1[n MOD 2][k] DIV 65536) * 65536); *)
+      (* WriteLn('DEBUG: curr_x=', x); *)
+
+      (* x := INTEGER(x); *) (* TTT *)
+	  (* WriteLn('DEBUG: x=', x, ' check=', check); *)
+	  loops := loops - 1;
+      x := x - check;
+    END;
+    bench05_exit:
+    bench05_ok2 := x;
+  END; (* bench05 *)
+  
+  
+  FUNCTION bench05_ok1(loops: INTEGER; n_p: LONGINT; check: INTEGER): INTEGER;
   CONST MAX_N = 1000000 DIV (500 * 2); (* highest number for array *)
   VAR x : INTEGER;
       n, k, i, i_mod_2, min1, i_mod_2_1, j : INTEGER;
@@ -352,7 +525,7 @@ PROGRAM bmbench (Input, Output);
       x := x - check;
     END;
     bench05_exit:
-    bench05 := x;
+    bench05_ok1 := x;
   END; (* bench05 *)
 
 
@@ -654,7 +827,7 @@ PROGRAM bmbench (Input, Output);
   BEGIN
     WriteLn('BM Bench v', g_prg_version, ' (', g_prg_language, ') -- (short:', checkbits_short1, ' int:', checkbits_int1,
       ' float:', checkbits_float1, ' double:', checkbits_double1, ') version ', PASCAL_VERSION);
-    WriteLn('(c) Marco Vieth, 2002-2019');
+    WriteLn('(c) Marco Vieth, 2002-2022');
     Write('Date: '); getdate1; WriteLn;
   END;
   

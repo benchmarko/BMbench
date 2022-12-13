@@ -83,7 +83,7 @@ PRG_LANGUAGE="bash";
 ####################################
 
 typeset -a gState_fact=(20 20 20 20 20 4); # benchmark simplification factors for n
-typeset -a gState_result=("" "" "" 2762 872041851 12864); # benchmark simplification results
+#typeset -a gState_result=("" "" "" 2762 872041851 12864); # benchmark simplification results
 
 typeset -i gState_tsMeasCnt gState_tsPrecCnt gState_tsPrecMs; # will be set later
 
@@ -211,6 +211,7 @@ bench03() {
     # compute primes
     i=0;
     m=3;
+    ((x++)); # 2 is prime
     for (( ; m * m < n ; i++, m +=2 )); do
       if [ "${sieve1[i]}" -eq 0 ]; then
         ((x++, j = (m * m - 3) >> 1));
@@ -221,7 +222,7 @@ bench03() {
     done;
 
     # count remaining primes
-    for (( ; i <= nHalf; i++ )); do
+    for (( ; m <= n; i++, m +=2 )); do
       if [ "${sieve1[i]}" -eq 0 ]; then
         ((x++));
       fi;
@@ -337,23 +338,18 @@ bench05() {
 # out:    x = result
 #
 run_bench() {
-  local bench=$1 loops=$2 n=$3;
-  typeset -i x=0 check=${gState_result[$bench]}; # if available
+  local bench=$1 loops=$2 n=$3 check=$4;
   rc=0;
   case "$bench" in
     0)
-      #check=10528;
-      ((check=((n / 2) * (n + 1)) % 65536)); # assuming n even!
       bench00 "$loops" "$n" "$check"; # special version optimized for 16 bit
     ;;
 
     1)
-      ((check=(n + 1) / 2));
       bench01 "$loops" "$n" "$check";
     ;;
 
     2)
-      ((check=(n + 1) / 2));
       bench02 "$loops" "$n" "$check"; # for bash or zsh
     ;;
 
@@ -371,7 +367,6 @@ run_bench() {
 
     *)
       echo "Error: Unknown benchmark: $bench";
-      check=-1
     ;;
   esac;
 
@@ -381,6 +376,90 @@ run_bench() {
     x=-1; # exit
   fi;
   rc=$x; # return x
+}
+
+
+bench03Check() {
+  local n=$1;
+
+  typeset -i i=0 j=0 isPrime=0 x=0;
+
+  ((n = (n / 2))); # int
+
+  for (( j = 2; j <= n; j++)); do
+    isPrime=1;
+    for ((i = 2; i * i <= j; i++)); do
+      (( j % i == 0 ? isPrime=0 : 0));
+      if [ "$isPrime" -eq 0 ]; then
+        break; # error
+      fi;
+    done;
+    if [ "$isPrime" -ne 0 ]; then
+      ((x++));
+    fi;
+  done;
+  rc=$x; # return x
+}
+
+getCheck() {
+  local bench=$1 n=$2;
+  #typeset -i x=0 check=${gState_result[$bench]}; # if available
+
+  typeset -i check=0;
+
+  if [ "${gState_fact[$bench]}" ]; then
+    ((n /= gState_fact[bench])); # reduce by a factor
+    echo "Note: $g_sh is rather slow, so reduce n by factor ${gState_fact[$bench]} to $n.";
+  fi;
+
+  rc=0;
+  case "$bench" in
+    0)
+      ((check=((n / 2) * (n + 1)) % 65536)); # assuming n even!
+    ;;
+
+    1)
+      ((check=(n + 1) / 2));
+    ;;
+
+    2)
+      ((check=(n + 1) / 2));
+    ;;
+
+    3)
+      if [ "$n" -eq 1000000 ]; then
+        ((check=41538));
+      else
+        bench03Check "$n"
+        check=$rc;
+      fi;
+    ;;
+
+    4)
+      if [ "$n" -eq 1000000 ]; then
+        ((check=1227283347));
+      else
+        bench04 1 "$n" 0 # bench04 not a real check
+        check=$rc;
+      fi;
+    ;;
+
+    5)
+      if [ "$n" -eq 1000000 ]; then
+        ((check=27200));
+      else
+        bench05 1 "$n" 0 # bench05 not a real check
+        check=$rc;
+      fi;
+    ;;
+
+    *)
+      echo "Error: Unknown benchmark: $bench";
+      check=-1
+    ;;
+  esac;
+
+  rc=$check; # return check
 }
 
 
@@ -532,7 +611,7 @@ print_results() {
 
 
 measure_bench() {
-  local bench=$1 n=$2;
+  local bench=$1 n=$2 check=$3;
 
   typeset -ir cali_ms=1001 delta_ms=100 max_ms=10000; # const
   typeset -i loops=1 x=0 t1=0 t2=0 t_delta=0 result=0;
@@ -545,11 +624,11 @@ measure_bench() {
     echo "Note: $g_sh is rather slow, so reduce n by factor ${gState_fact[$bench]} to $n.";
   fi;
 
-  echo "Calibrating benchmark $bench with n=$n";
+  echo "Calibrating benchmark $bench with n=$n, check=$check";
   while [ "$result" -eq 0 ]; do
     getPrecMs 0;
     t1=$rc;
-    run_bench "$bench" "$loops" "$n";
+    run_bench "$bench" "$loops" "$n" "$check";
     x=$rc;
     getPrecMs 1;
     ((t1=rc-t1));
@@ -567,14 +646,15 @@ measure_bench() {
       ((loops_p_tsec = (loops * 1000000) / t1));
     fi;
 
-    printf "%10.3f/s (time=%5d ms, loops=%7d, delta=%5d ms, x=$x)\n" "${loops_p_tsec}"e-3 $t1 $loops $t_delta;
+    printf "%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)\n" "${loops_p_tsec}"e-3 $t1 $loops $t_delta;
     if [ "$x" -eq -1 ]; then # some error?
       result=-1;
     elif [ "$t2" -gt 0 ] && [ "$t_delta" -lt "$delta_ms" ]; then # do we have some estimated/expected time smaller than delta_ms=100?
       result=$loops_p_tsec;
       echo -n "Benchmark $bench ($PRG_LANGUAGE): ";
-      printf "%.3f" $((loops_p_tsec))e-3;
-      echo "/s (time=$t1 ms, loops=$loops, delta=$t_delta ms)";
+      printf "%.3f/s (time=%9.3f ms," $((loops_p_tsec))e-3 "$t1";
+      echo -n " loops=$loops, ";
+      printf " delta=%9.3f ms)\n" "$t_delta";
     elif [ "$t1" -gt $max_ms ]; then
       echo "Benchmark $bench ($PRG_LANGUAGE): Time already > $max_ms ms. No measurement possible.";
       result=-1;
@@ -590,7 +670,7 @@ measure_bench() {
     fi;
   done;
 
-  # correction factor
+  # correction factor (only useful for linear problems)
   if [ "$result" -ge 0 ] && [ "${gState_fact[$bench]}" ]; then
     ((result /= gState_fact[bench]));
     echo -n "Note: Estimated runtime for benchmark $bench corrected by factor ${gState_fact[$bench]}: ";
@@ -608,7 +688,9 @@ start_bench() {
   print_info;
 
   for (( bench = bench1; bench2 + 1 - bench; bench++ )); do
-    measure_bench "$bench" "$n";
+    getCheck "$bench" "$n";
+    check=$rc
+    measure_bench "$bench" "$n" "$check";
     bench_res1[$bench]=$rc;
   done;
 

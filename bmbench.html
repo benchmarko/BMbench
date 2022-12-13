@@ -17,9 +17,9 @@
     <tr><td>bench2</td> <td><input type="text" size="4" name="bench2" value="5" /></td></tr>
     <tr><td>n</td>      <td><input type="text" size="8" name="n" value="1000000" /></td></tr>
   </table>
-  <input type="button" value="Start" onclick="onStartButtonClick(this.form, 0)" name="startButton" />
-  <input type="button" value="Stop" onclick="onStopButtonClick(this.form)" name="stopButton" />
-  <input type="button" value="Clear" onclick="onClearButtonClick(this.form)" name="stopButton" />
+  <input type="button" value="Start" onclick="onStartButtonClick(this.form, 0)" id="startButton" name="startButton" />
+  <input type="button" value="Stop" onclick="onStopButtonClick(this.form)" id="stopButton" name="stopButton" />
+  <input type="button" value="Clear" onclick="onClearButtonClick(this.form)" id="clearButton" name="clearButton" />
   <br>
   <textarea id="outputArea" name="outputArea" placeholder="Press 'Run'" cols="84" rows="20"></textarea>
 </form>

@@ -4,7 +4,8 @@
 // http://www.benchmarko.de
 //
 // 23.05.2006 0.06  based on version 0.05
-// 18.05.2019 0.07
+// 18.05.2019 0.07  changed bench 01-03; time interval estimation
+// 03.12.2022 0.072 bench03 corrected, bench05 improved
 //
 //
 // Compile & Run:
@@ -27,7 +28,7 @@ using System;
 
 class Bmbench {
 
-  static String g_prg_version = "0.07";
+  static String g_prg_version = "0.072";
   static String g_prg_language = "C#";
   private static long g_startTs = 0;
   private static double g_tsPrecMs = 0; // measured time stamp precision
@@ -110,8 +111,9 @@ class Bmbench {
 
   //
   // bench03 (Integer)
-  // number of primes below n (Sieve of Eratosthenes)
+  // number of primes less than or equal to n (prime-counting function)
   // Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
+  // (Sieve of Eratosthenes, no multiples of 2's are stored)
   // (BitArray sieve1 = new BitArray(n + 1); // slower than bool)
   // (BitArray from http://www.csharpfriends.com/Spec/index.aspx?specID=17.8.htm)
   static int bench03(int loops, int n, int check) {
@@ -130,9 +132,10 @@ class Bmbench {
       // compute primes
       i = 0;
       int m = 3;
+      x++; // 2 is prime
       while (m * m < n) {
         if (!sieve1[i]) {
-          x++;
+          x++; // m is prime
           int j = (m * m - 3) >> 1; // div 2
           while (j < nHalf) {
             sieve1[j] = true;
@@ -144,9 +147,9 @@ class Bmbench {
       }
 
       // count primes
-      for (; i <= nHalf; i++) {
+      for (; m <= n; i++, m += 2) {
         if (!sieve1[i]) {
-          x++;
+          x++; // m is prime
         }
       }
       x -= check;
@@ -197,29 +200,36 @@ class Bmbench {
     }
 
     // allocate memory...
-    int[][] pas1 = new int[2][];
-    pas1[0] = new int[k + 1];
-    pas1[1] = new int[k + 1];
-    pas1[0][0] = 1; pas1[1][0] = 1; // set first column
+    int[] line = new int[k + 1];
+    int[] lastLine = new int[k + 1];
+    line[0] = 1;
+    lastLine[0] = 1; // set first column
 
     while (loops-- > 0 && x == 0) {
+      // initialize
+      for (int j = 1; j <= k; j++) {
+        line[j] = 0;
+        lastLine[j] = 0;
+      }
+
+      // compute
       for (int i = 3; i <= n; i++) {
-        int i_mod_2 = i & 1;
-        //int i1_mod_2 = i_mod_2 ^ 1;
-        int min1 = (i_mod_2 == 0) ? ((i - 2) >> 1) : ((i - 1) >> 1); // Math.floor((i - 1) / 2);
+        int min1 = (i - 1) / 2;
         if (k < min1) {
           min1 = k;
         }
-        pas1[i_mod_2][1] = i; // second column is i
-        for (int j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
-          pas1[i_mod_2][j] = (pas1[i_mod_2 ^ 1][j - 1] + pas1[i_mod_2 ^ 1][j]) & 0xffff; // % 65536 -- we need mod here to avoid overflow
+        line[1] = i; // second column is i
+        for (int j = 2; j <= min1; j++) {
+          line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff; // we need mod here to avoid overflow
         }
-        if ((min1 < k) && (i_mod_2 == 0)) { // new element
-          //pas1[i_mod_2][Math.floor(i / 2)] = 2 * pas1[i_mod_2 ^ 1][Math.floor((i - 1) / 2)];
-          pas1[i_mod_2][min1 + 1] = 2 * pas1[i_mod_2 ^ 1][min1];
+        if ((min1 < k) && ((i & 1) == 0)) { // new element
+          line[min1 + 1] = 2 * lastLine[min1];
         }
+        int[] tempLine = lastLine;
+        lastLine = line;
+        line = tempLine;
       }
-      x += pas1[n & 1][k] & 0xffff;
+      x += lastLine[k] & 0xffff;
       x -= check;
     }
     return x;
@@ -419,7 +429,7 @@ class Bmbench {
     string cs_version = "Runtime: " + getruntime1() + ", " + version1 + ", " + Environment.OSVersion.ToString();
 
     Console.WriteLine("BM Bench v" + g_prg_version + " (" + g_prg_language + ") -- (int:" + checkbits_int1() + " double:" + checkbits_double1() + " tsMs:" + g_tsPrecMs.ToString("", nfi) + " tsCnt:" + g_tsPrecCnt + ") " + cs_version);
-    Console.WriteLine("(c) Marco Vieth, 2006-2019");
+    Console.WriteLine("(c) Marco Vieth, 2006-2022");
     Console.WriteLine(getdate1());
   }
 
@@ -508,6 +518,8 @@ class Bmbench {
     int bench1 = 0;          // first benchmark to test
     int bench2 = 5;          // last benchmark to test
     int n = 1000000;         // maximum number
+
+    //Console.WriteLine("Stdout is tty: {0}", Console.IsInputRedirected);
 
     if (args.Length > 0) {
       bench1 = int.Parse(args[0]);

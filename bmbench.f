@@ -3,10 +3,11 @@ C BM Bench - bmbench.f (Fortran)
 C (c) Marco Vieth, 2002
 C http://www.benchmarko.de
 C
-C 06.05.2002  0.01
-C 14.05.2002  0.02  bench1 = (sum 1..n) mod 65536
-C 20.07.2002  0.04  extended version
-C 24.01.2003  0.05  output format changed
+C 06.05.2002 0.01
+C 14.05.2002 0.02  bench1 = (sum 1..n) mod 65536
+C 20.07.2002 0.04  extended version
+C 24.01.2003 0.05  output format changed
+C 05.05.2019 0.07  changed bench 01-03; time interval estimation
 C
 C
 C

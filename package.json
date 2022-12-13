@@ -1,7 +1,7 @@
 {
   "name": "bmbench",
   "version": "0.6.3",
-  "description": "BM Benchmark for JavaScript",
+  "description": "BM Benchmarks",
   "main": "bmbench.js",
   "directories": {
     "test": "test"
@@ -15,15 +15,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TODO/BMbench.git"
+    "url": "git+https://github.com/benchmarko/BMbench.git"
   },
   "keywords": [
-    "Geocaching"
+    "Benchmarks, CPU benchmarks, Performance, programming languages"
   ],
   "author": "Marco Vieth",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/TODO/BMbench/issues"
+    "url": "https://github.com/benchmarko/BMbench/issues"
   },
-  "homepage": "https://github.com/TODO/BMbench#readme"
+  "homepage": "https://github.com/benchmarko/BMbench#readme"
 }

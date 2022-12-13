@@ -4,9 +4,9 @@
 ' http://www.benchmarko.de
 '
 ' 06.05.2002 0.01
-' 11.05.2002 0.02 bench1 = (sum 1..n) mod 65536
-' 03.05.2006 0.05 created .vb based on .vba
-' 17.05.2019 0.07
+' 11.05.2002 0.02  bench1 = (sum 1..n) mod 65536
+' 03.05.2006 0.05  created .vb based on .vba
+' 17.05.2019 0.07  changed bench 01-03; time interval estimation
 '
 '
 ' Compile & Run:
