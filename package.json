@@ -1,0 +1,29 @@
+{
+  "name": "bmbench",
+  "version": "0.6.3",
+  "description": "BM Benchmarks",
+  "main": "bmbench.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "qunit": "^2.6.1"
+  },
+  "scripts": {
+    "test": "qunit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benchmarko/BMbench.git"
+  },
+  "keywords": [
+    "Benchmarks, CPU benchmarks, Performance, programming languages"
+  ],
+  "author": "Marco Vieth",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/benchmarko/BMbench/issues"
+  },
+  "homepage": "https://github.com/benchmarko/BMbench#readme"
+}

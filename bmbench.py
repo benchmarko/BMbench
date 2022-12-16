@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # BM Bench - bmbench.py (Python)
-# (c) Marco Vieth, 2002-2006
+# (c) Marco Vieth, 2002-2022
 # http://www.benchmarko.de
 #
 # 06.05.2002 0.01
@@ -8,12 +8,14 @@
 # 20.07.2002 0.04  some errors corrected
 # 24.01.2003 0.05  output format changed
 # 03.12.2006 0.06  based on version 0.05
+# 05.05.2019 0.07  changed bench 01-03; time interval estimation
+# 03.12.2022 0.072 bench03 corrected, bench05 improved
 #
+# Python version 2 or 3
 #
 # Usage:
 # python -O bmbench1.py [bench1] [bench2] [n]
 # (example in: /usr/lib/python2.2/urllib.py)
-#
 #
 #
 # Note:
@@ -29,17 +31,29 @@
 # Data types are nearly implicit:
 # - integer (32 bit), if it gets too long -> long integer (any number of bits, marked with L)
 # - floating point (marked with dot)
+# - print(type(x))
 #
 
 #
 # Explicit while loop is slower than for i in range()
 #
 
+from __future__ import print_function #python3 style
 import time
 
-PRG_VERSION = "0.06"
-PRG_LANGUAGE = "Python"
+import sys # for flush()
 
+#check this: https://www.numpy.org/  used at: http://zwmiller.com/blogs/python_data_structure_speed.html
+#import numpy as np
+
+G_PRG_VERSION = "0.072"
+G_PRG_LANGUAGE = "Python"
+
+
+g_startTs = 0
+g_tsPrecMs = 0 # measured time stamp precision
+g_tsPrecCnt = 0 # time stamp count (calls) per precision interval (until time change)
+g_tsMeasCnt = 0 # last measured count
 
 #
 # General description for benchmark test functions
@@ -53,17 +67,17 @@ PRG_LANGUAGE = "Python"
 #
 
 #
-# bench00 (Integer 16 bit) -- adapt!!
+# bench00 (Integer 16 bit) -- adapt!! TODO
 # (sum of 1..n) mod 65536
 #
-def bench00(loops, n):
+def bench00(loops, n, check1):
   x = 0
-  sum1 = ((n / 2) * (n + 1)) & 0xffff # this produces an integer
+  #sum1 = int((n / 2) * (n + 1)) & 0xffff # this produces an integer
   # sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
   n_div_65536 = (n >> 16) & 0xffff
   n_mod_65536 = n & 0xffff;
   #print 'DEBUG: sum1='+ str(sum1) +', n_div='+ str(n_div_65536) +', n_mod='+ str(n_mod_65536)
-  while loops > 0:
+  while loops > 0 and x == 0:
     loops = loops - 1
 
     # simulate summation with 16 bit borders...
@@ -74,93 +88,94 @@ def bench00(loops, n):
       x += j
 
     x &= 0xffff
-
-    if (loops > 0):   # some more loops left
-      x -= sum1       # yes, set x back to 0 (assuming n even)
-      if x != 0:      # now x must be 0 again
-        x = x + 1     # force error for many wrong computations
-        break         # raise ValueError, "bench01: x=" + str(x)
+    x -= check1
   return int(x & 0xffff)
 
 
+# bench01 (Integer 32 bit)
+# (arithmetic mean of 1..n) mod 65536
 #
-# bench01 (Integer 16/32 bit)
-# (sum of 1..n) mod 65536
-#
-def bench01(loops, n):
+def bench01(loops, n, check):
   x = 0
-  sum1 = ((n / 2) * (n + 1))  # this produces a (slow) long integer which has arbitrary length
-  #print 'sum1='+ str(sum1)
-  while loops > 0:
+  while loops > 0 and x == 0:
     loops = loops - 1
+    sum = 0
     for i in range(1, n + 1):
-      x += i;
-    if (loops > 0):   # some more loops left
-      x -= sum1       # yes, set x back to 0 (assuming n even)
-      if x != 0:      # now x must be 0 again
-        x = x + 1     # force error for many wrong computations
-        break         # raise ValueError, "bench01: x=" + str(x)
-  return int(x & 0xffff)
+      sum += i
+      if (sum >= n): # to avoid numbers above 2*n, divide by n using subtraction
+        sum -= n
+        x += 1
+
+    x -= check
+  return x
 
 
 #
 # bench02 (Floating Point, normally 64 bit)
-# (sum of 1..n) mod 65536
+# (arithmetic mean of 1..n) mod 65536
 #
-def bench02(loops, n):
-  x = 0.0
-  sum1 = (n / 2.0) * (n + 1.0)
-  while loops > 0:
+def bench02(loops, n, check):
+  x = 0
+  while loops > 0 and x == 0:
     loops = loops - 1
+    sum = 0.0
     for i in range(1, n + 1):
-      x += i;
-    if (loops > 0):   # some more loops left
-      x -= sum1       # yes, set x back to 0 (assuming n even)
-      if x != 0.0:      # now x must be 0 again
-        x = x + 1     # force error for many wrong computations
-        break         # raise ValueError, "bench01: x=" + str(x)
-  return int(x % 65536)
+      sum += i
+      if (sum >= n):
+        sum -= n
+        x += 1
+
+    x -= check
+  return x
 
 
 #
 # bench03 (Integer)
-# number of primes below n (Sieve of Eratosthenes)
+# number of primes less than or equal to n (prime-counting function)
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
+# (Sieve of Eratosthenes, no multiples of 2's are stored)
 #
 # (It would be possible to put all in a long integer but this is extremely slow.)
 #
-def bench03(loops, n):
-  n = n / 2  # compute only up to n/2
+def bench03(loops, n, check):
+  n = int(n / 2)  # compute only up to n/2
   x = 0      # number of primes below n
-  sieve1 = []  # [] = new boolean[n + 1];
-  sieve1.append(0)
-  sieve1.append(0)
-  while loops > 0:
+  nHalf = n >> 1
+  #sieve1 = []  #nHalf + 1 elements
+  sieve1 = [0 for i in range(nHalf + 1)]
+
+  while loops > 0 and x == 0:
     loops = loops - 1
     # initialize sieve
-    for i in range(2, n + 1):
-      sieve1.append(1)
+    #sieve1.clear()
+    #print(len(sieve1))
+    #sieve1 = [0 for i in range(nHalf + 1)]
+    for i in range(0, nHalf + 1):
+      sieve1[i] = 0
 
     # compute primes
-    i = 2
-    while (i * i) <= n:
-      if (sieve1[i]):
-        for j in range(i * i, n + 1, i):
-          sieve1[j] = 0
-      i = i + 1
+    i = 0
+    m = 3
+    x += 1 # 2 is prime
+    while (m * m) < n:
+      if (sieve1[i] == 0):
+        x += 1 # m is prime
+        j = (m * m - 3) >> 1 # div 2
+        while (j < nHalf):
+          sieve1[j] = 1
+          j += m
+      i += 1
+      m += 2
 
-    # count primes
-    for i in range(0, n + 1):
-      if (sieve1[i]):
-        x = x + 1
+    # count remaining primes
+    while (m <= n):
+      if (sieve1[i] == 0):
+        x += 1 # m is prime
 
-    # check prime count
-    if (loops > 0):   # some more loops left
-      x -= 41538      # yes, set x back to 0 (assuming n even)
-      if x != 0:      # now x must be 0 again
-        x = x + 1     # force error for many wrong computations
-        break         # raise ValueError, "bench01: x=" + str(x)
+      i += 1
+      m += 2
 
+    x -= check
   return x
 
 
@@ -172,27 +187,26 @@ def bench03(loops, n):
 # It needs longs with at least 32 bit.
 # Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 #
-def bench04(loops, n):
+def bench04(loops, n, check):
   m = 2147483647  # modulus, do not change!
   a = 16807       # multiplier
   q = 127773      # m div a
   r = 2836        # m mod a
-  x = 1 # last random value
-  while loops > 0:
+  x = 0 # last random value
+
+  while loops > 0 and x == 0:
     loops = loops - 1
+    x = x + 1 # start with 1=last random value
     for i in range(1, n + 1):
       #x_div_q = x / q;
       #x_mod_q = x % q  # faster than  x_mod_q = x - q * x_div_q
-      x = a * (x % q) - r * (x / q)
+      x = (a * (x % q) - r * (x // q))  # int(a * (x % q) - r * int(x / q))
+      #print('DEBUG(bench'+ str(type(x)))
       if (x <= 0):
         x += m  # x is new random number
 
-    if (loops > 0):   # some more loops left
-      x -= 1227283347 # yes, set x back to 0 (assuming n even)
-      if x != 0:      # now x must be 0 again
-        x = x + 1     # force error for many wrong computations
-        break         # raise ValueError, "bench01: x=" + str(x)
-      x = x + 1  # start with 1 again
+    #print('DEBUG(bench'+ str(4) +'): x='+ str(x*2))
+    x -= check
 
   return x
 
@@ -202,22 +216,65 @@ def bench04(loops, n):
 # n over n/2 mod 65536 (Pascal's triangle)
 # We start with an empty list and append elements.
 #
-def bench05(loops, n):
+def bench05(loops, n, check):
   x = 0
-  n = n / 500
-  k = n / 2
+  n = int(n / 500)
+  k = int(n / 2)
 
   if ((n - k) < k):
     k = n - k # keep k minimal with  n over k  =  n over n-k
 
-  while loops > 0:
+  line = [0 for i in range(k + 1)]
+  lastLine = [0 for i in range(k + 1)]
+
+  while loops > 0 and x == 0:
+    loops = loops - 1
+
+    # initialize
+    for j in range(1, k + 1):
+      line[j] = 0
+      lastLine[j] = 0
+
+    # compute
+    for i in range(2, n + 1):
+      min1 = (i - 1) >> 1 #int((i - 1) / 2)
+      if (k < min1):
+        min1 = k
+
+      line[1] = i # second column is i
+      for j in range(2, min1 + 1):
+        line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff # we use & 0xffff to avoid (slow) long int
+
+      if (min1 < k) and ((i & 1) == 0): # new element
+        line[min1 + 1] = 2 * lastLine[min1]
+
+      tempLine = lastLine
+      lastLine = line
+      line = tempLine
+
+    x += lastLine[k] & 0xffff
+    x -= check
+
+  return x
+
+
+# with list it is slower:
+def bench05_ok1(loops, n, check):
+  x = 0
+  n = int(n / 500)
+  k = int(n / 2)
+
+  if ((n - k) < k):
+    k = n - k # keep k minimal with  n over k  =  n over n-k
+
+  while loops > 0 and x == 0:
     loops = loops - 1
     pas1 = [1]
     for i in range(2, n + 1):
       pas2 = pas1 # get last line to pas2
       pas1 = [1] # and restart with new list
 
-      min1 = (i - 1) / 2
+      min1 = (i - 1) >> 1 #int((i - 1) / 2)
       if (k < min1):
         min1 = k
 
@@ -231,14 +288,9 @@ def bench05(loops, n):
 
     x += pas1[k] & 0xffff;
 
-    if (loops > 0):   # some more loops left
-      x -= 27200      # yes, set x back to 0 (assuming n even)
-      if x != 0:      # now x must be 0 again
-        x = x + 1     # force error for many wrong computations
-        break         # raise ValueError, "bench01: x=" + str(x)
+    x -= check
 
   return x
-
 
 
 #
@@ -248,52 +300,155 @@ def bench05(loops, n):
 #         n = maximum number (used in some benchmarks to define size of workload)
 # out:    x = result
 #
-def run_bench(bench, loops, n):
+def run_bench(bench, loops, n, check):
   x = 0
-  check1 = 0
   if bench == 0:
-    x = bench00(loops, n)
-    check1 = 10528
+    x = bench00(loops, n, check)
   elif bench == 1:
-    x = bench01(loops, n)
-    check1 = 10528
+    x = bench01(loops, n, check)
   elif bench == 2:
-    x = bench02(loops, n)
-    check1 = 10528
+    x = bench02(loops, n, check)
   elif bench == 3:
-    x = bench03(loops, n)
-    check1 = 41538
+    x = bench03(loops, n, check)
   elif bench == 4:
-    x = bench04(loops, n)
-    check1 = 1227283347
+    x = bench04(loops, n, check)
   elif bench == 5:
-    x = bench05(loops, n)
-    check1 = 27200
+    x = bench05(loops, n, check)
   else:
-    print 'Error: Unknown benchmark: '+ str(bench)
-    check1 = x + 1  # force error
+    print('Error: Unknown benchmark: '+ str(bench))
 
-  if (check1 != x):
-    print 'Error(bench'+ str(bench) +'): x='+ str(x)
-    x = -1; # exit
-  return(x)
+  x += check
+  if (x != check):
+    print('Error(bench'+ str(bench) +'): x='+ str(x))
+    x = -1;
+  return x
 
+
+def bench03Check(n):
+  n = n // 2 # compute only up to n/2
+  x = 0
+  for j in range(2, n):
+    isPrime = True
+    i = 2
+    while (i * i) <= j:
+      if (j % i == 0):
+        isPrime = False
+        break
+      i += 1
+    if (isPrime):
+      x += 1
+  return x
+
+
+def getCheck(bench, n):
+  check = 0
+  if bench == 0:
+    check = int((n // 2) * (n + 1)) & 0xffff # 10528 for n=1000000
+  elif bench == 1:
+    check = (n + 1) // 2
+  elif bench == 2:
+    check = (n + 1) // 2
+  elif bench == 3:
+    if n == 1000000:
+      check = 41538
+    else:
+      check = bench03Check(n)
+  elif bench == 4:
+    if n == 1000000:
+      check = 1227283347
+    else:
+      check = bench04(1, n, 0); # bench04 not a real check
+  elif bench == 5:
+    if n == 1000000:
+      check = 27200
+    else:
+      check = bench05(1, n, 0); # bench05 not a real check
+    check = 27200
+  else:
+    print('Error: Unknown benchmark: '+ str(bench))
+    check = -1 # force error
+  return check
+
+
+def get_raw_ts():
+  return time.time()
+
+def get_ts():
+  #global g_startTs
+  return get_raw_ts() - g_startTs
+
+def conv_ms(ts):
+    return ts * 1000
 
 #
 # get timestamp in milliseconds
 # out: x = time in ms
 #
-def get_ms():
-  return time.time() * 1000
+#def get_ms_xxx():
+#  return time.time() * 1000
 
+
+#
+#
+
+def correctTime(tMeas, tMeas2,  measCount):
+  tsPrecCnt = g_tsPrecCnt
+  #print('DEBUG: tsPrecCnt='+ str(tsPrecCnt))
+
+  if (measCount < tsPrecCnt):
+    tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt) # ts + correction
+    if (tMeas > tMeas2):
+      tMeas = tMeas2 # cannot correct
+
+  return tMeas
+
+
+def getPrecMs(stopFlg):
+  global g_tsMeasCnt
+  measCount = 0
+  tMeas0 = get_ts()
+  tMeas = tMeas0
+  while (tMeas == tMeas0):
+    tMeas = get_ts()
+    measCount += 1
+
+  g_tsMeasCnt = measCount # memorize last count
+
+  if (not stopFlg):
+    tMeasD = conv_ms(tMeas)
+  else:
+    tMeasD = correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount) # for stop: use first ts + correction
+  return tMeasD
+
+
+def determineTsPrecision():
+  global g_tsPrecMs
+  global g_tsPrecCnt
+  global g_startTs
+  g_startTs = get_raw_ts() # memorize start time
+  
+  tMeas0 = getPrecMs(False)
+  tMeas1 = getPrecMs(False)
+  g_tsPrecMs = tMeas1 - tMeas0
+  g_tsPrecCnt = g_tsMeasCnt
+
+  #do it again
+  tMeas0 = tMeas1
+  tMeas1 = getPrecMs(False)
+  if (g_tsMeasCnt > g_tsPrecCnt): # taker maximum count
+    g_tsPrecCnt = g_tsMeasCnt
+    g_tsPrecMs = tMeas1 - tMeas0
+
+#
+#
 
 def checkbits_short1():
-  num = 1 # get's long integer later...
+  num = 1 # will get a long integer later...
   last_num = 0
   bits = 0
   while (bits < 101):
     last_num = num
-    num <<= 1 # force (short) intrger operation (num *= 2)
+    num <<= 1 # force (short) integer operation (num *= 2)
     num += 1
     bits += 1
     if (((num - 1) / 2) != last_num):
@@ -330,85 +485,105 @@ def checkbits_double1():
 
 
 def print_info():
+  global g_tsPrecMs
   python_version = sys.version.replace('\n', '')
-  print 'BM Bench v%s (%s) -- (short:%d int:%d double:%d)' %(PRG_VERSION, PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()),
-  print 'version: '+ python_version +'; platform:', sys.platform
-  print '(c) Marco Vieth, 2006'
-  print 'Date:', time.ctime(time.time())
+  print('BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(G_PRG_VERSION, G_PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()), end=' ')
+  print("tsMs:" + str(g_tsPrecMs), "tsCnt:" + str(g_tsPrecCnt) + ")", end=' ')
+  print('version: '+ python_version +'; platform:', sys.platform)
+  print('(c) Marco Vieth, 2002-2022')
+  print('Date:', time.ctime(time.time()))
 
 
 def print_results(bench_res1):
   max_language_len1 = 10
-  print '\nThroughput for all benchmarks (loops per sec):'
-  print 'BMR ('+ PRG_LANGUAGE +')'+ (' ' * (max_language_len1 - len(PRG_LANGUAGE))) + ': ',
-  #(' ' x ($max_language_len1 - length($PRG_LANGUAGE))), ": ";
+  print('\nThroughput for all benchmarks (loops per sec):')
+  print('BMR ('+ G_PRG_LANGUAGE +')'+ (' ' * (max_language_len1 - len(G_PRG_LANGUAGE))) + ': ', end=' ')
+  #(' ' x ($max_language_len1 - length($G_PRG_LANGUAGE))), ": ";
 
   for br in bench_res1:
-    print "%9.2f " % (br),
-  print
-  print
+    print("%9.3f " % (br), end=' ')
+  print()
+  print()
 
 
-def start_bench(bench1, bench2, n):
+def measureBench(bench, n, check):
   cali_ms = 1001 # const
   delta_ms = 100 # const
   max_ms = 10000 # const
-  bench_res1 = []
+  loops = 1  # number of loops
+
+  x = 0      # result from benchmark
+  tMeas = 0     # measured time
+  tEsti = 0     # estimated time
+  throughput = 0
+
+  print("Calibrating benchmark %d with n=%d, check=%d" % (bench, n, check))
+  while (throughput == 0):
+    tMeas = getPrecMs(False)
+    x = run_bench(bench, loops, n, check)
+    tMeas = getPrecMs(True) - tMeas
+
+    if (tEsti > tMeas):
+      t_delta = tEsti - tMeas
+    else:
+      t_delta = tMeas - tEsti # compute difference abs(measures-estimated)
+
+    loops_p_sec = 0
+    if (tMeas > 0):
+      loops_p_sec = loops * 1000.0 / tMeas
+
+    print("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)" % (loops_p_sec, tMeas, loops, t_delta))
+    if (x == -1): # some error?
+      throughput = -1
+
+    elif (tEsti > 0) and (t_delta < delta_ms): # do we have some estimated/expected time smaller than delta_ms=100?
+      throughput = loops_p_sec # yeah, set measured loops per sec
+      print("Benchmark %d (%s): %.3f/s (time=%9.3f ms, loops=%d, delta=%9.3f ms)" % (bench, G_PRG_LANGUAGE, loops_p_sec, tMeas, loops, t_delta))
+
+    elif (tMeas > max_ms):
+      print("Benchmark %d (%s): Time already > %d ms. No measurement possible." % (bench, G_PRG_LANGUAGE, max_ms))
+      if (loops_p_sec > 0):
+        throughput = -loops_p_sec # cannot rely on measurement, so set to negative
+      else:
+        throughput = -1
+
+    else:
+      # scale_fact = 2
+      # if ((tMeas < cali_ms) and (tMeas > 0)):
+      #   scale_fact = int(((cali_ms + 100) / tMeas) + 1) # scale a bit up to 1100 ms (cali_ms+100)
+      scale_fact = 2
+      if (tMeas == 0):
+        scale_fact = 50
+      elif (tMeas < cali_ms):
+        #scale_fact = ((cali_ms + 100) / tMeas) # scale a bit up to 1100 ms (cali_ms+100)
+        scale_fact = int(((cali_ms + 100) / tMeas) + 1) # scale a bit up to 1100 ms (cali_ms+100) (stay with int)
+      else:
+        scale_fact = 2
+
+      loops *= scale_fact
+      tEsti = tMeas * scale_fact
+
+    sys.stdout.flush()
+  return throughput
+
+
+def start_bench(bench1, bench2, n):
+  bench_res = []
 
   print_info()
 
   for bench in range(bench1, bench2 + 1):
-    loops = 1  # number of loops
-    x = 0      # result from benchmark
-    t1 = 0     # measured time
-    t2 = 0     # estimated time
+    check = getCheck(bench, n)
+    if (check > 0):
+      throughput = measureBench(bench, n, check)
+    else:
+      throughput = -1
+    bench_res.append(throughput)
 
-    print "Calibrating benchmark %d with n=%d" % (bench, n)
-    while (1):
-      t1 = get_ms()
-      x = run_bench(bench, loops, n)
-      t1 = get_ms() - t1
-
-      if (t2 > t1):
-        t_delta = t2 - t1
-      else:
-        t_delta = t1 - t2 # compute difference abs(measures-estimated)
-
-      loops_p_sec = 0
-      if (t1 > 0):
-        loops_p_sec = loops * 1000.0 / t1
-
-      print "%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)" % (loops_p_sec, t1, loops, t_delta, x)
-      if (x == -1): # some error?
-        #bench_res1[bench] = -1
-        bench_res1.append(-1)
-        last # (can only exit while, if not in sub block)
-
-      if (t2 > 0): # do we have some estimated/expected time? 
-        if (t_delta < delta_ms): # smaller than delta_ms=100? 
-          #bench_res1[bench] = loops_p_sec # set loops per sec
-          bench_res1.append(loops_p_sec)
-          print "Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)" % (bench, PRG_LANGUAGE, bench_res1[bench], t1, loops, t_delta)
-          break
-
-      if (t1 > max_ms):
-        print "Benchmark %d (%s): Time already > %d ms. No measurement possible." % (bench, PRG_LANGUAGE, max_ms)
-        bench_res1.append(-1)
-        break
-
-      scale_fact = 2
-      if ((t1 < cali_ms) and (t1 > 0)):
-        scale_fact = int(((cali_ms + 100) / t1) + 1)
-          # scale a bit up to 1100 ms (cali_ms+100)
-
-      loops *= scale_fact
-      t2 = t1 * scale_fact
-
-  print_results(bench_res1)
+  print_results(bench_res)
 
 
 def main(argv=[]):
-  start_t = get_ms()  # memorize start time
   bench1 = 0          # first benchmark to test
   bench2 = 5          # last benchmark to test
   n = 1000000         # maximum number
@@ -424,14 +599,17 @@ def main(argv=[]):
     if argv[3:]:
       n = int(argv[3]);
 
+  determineTsPrecision()
   start_bench(bench1, bench2, n)
-  print "Total elapsed time: %d ms" % (get_ms() - start_t)
-
+  print("Total elapsed time: %d ms" % conv_ms(get_ts()))
 
 
 # Run test program when run as a script
 if __name__ == '__main__':
   import sys
-  main(sys.argv)
+  if len(sys.argv) > 1 or sys.stdin.isatty():
+    main(sys.argv)
+  else:
+    main(("argv0 " + sys.stdin.readline().rstrip()).rstrip().split(' '))
 
 # end
