@@ -17,6 +17,7 @@
 // 05.05.2019 0.07  changed bench 01-03; time interval estimation
 // 15.11.2022 0.071 bench03 corrected
 // 02.12.2022 0.072 bench05 improved
+// 05.02.2023 0.073 use Array.fill, if available; removed myint
 //
 // Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
@@ -91,13 +92,9 @@ var gState = {
 		tsMeasCnt: 0, // last measured count
 		bWantStop: false, // set to break benchmark execution
 		fnLog: null, // log function, set below
-		fnDone: null, // callback when done
-		hasTimeout: typeof setTimeout !== "undefined",
-		hasUint8Array: typeof Uint8Array !== "undefined",
-		hasUint16Array: typeof Uint16Array !== "undefined"
+		fnDone: null // callback when done
 	},
-	myint = null,
-	gPrgVersion = "0.072",
+	gPrgVersion = "0.073",
 	gPrgLanguage = "JavaScript";
 
 
@@ -119,8 +116,8 @@ var gState = {
 //
 function bench00(loops, n, check) {
 	var x = 0,
-		nDiv65536 = (n >> 16),
-		nMod65536 = (n & 0xffff),
+		nDiv65536 = n >> 16,
+		nMod65536 = n & 0xffff,
 		i, j;
 
 	while (loops-- > 0 && x === 0) {
@@ -167,6 +164,32 @@ function bench01(loops, n, check) {
 	return x;
 }
 
+/*
+function bench01Inner(n) {
+	var x = 0,
+		sum = 0,
+		i;
+
+	for (i = 1; i <= n; i++) {
+		sum += i;
+		if (sum >= n) {
+			sum -= n;
+			x++;
+		}
+	}
+	return x;
+}
+
+function bench01(loops, n, check) {
+	var x = 0;
+
+	while (loops-- > 0 && x === 0) {
+		x = bench01Inner(n);
+		x -= check;
+	}
+	return x;
+}
+*/
 
 //
 // bench02 (Floating Point, normally 64 bit)
@@ -203,13 +226,18 @@ function bench03(loops, n, check) {
 	n = (n / 2) | 0; // compute only up to n/2
 	nHalf = n >> 1; // div 2
 
-	sieve1 = gState.hasUint8Array ? new Uint8Array(nHalf + 1) : new Array(nHalf + 1); // set the size we need, only for odd numbers
+	sieve1 = typeof Uint8Array !== "undefined" ? new Uint8Array(nHalf + 1) : new Array(nHalf + 1); // set the size we need, only for odd numbers
 	// gState.fnLog("DEBUG: nHalf=" + (nHalf) + ", sieve1.length=" + sieve1.length);
 	while (loops-- > 0 && x === 0) {
 		// initialize sieve
-		for (i = 0; i <= nHalf; i++) {
-			sieve1[i] = 0; // odd numbers are possible primes
+		if (sieve1.fill) {
+			sieve1.fill(0);
+		} else {
+			for (i = 0; i <= nHalf; i++) {
+				sieve1[i] = 0; // odd numbers are possible primes
+			}
 		}
+
 		// compute primes
 		i = 0;
 		m = 3;
@@ -279,24 +307,29 @@ function bench05(loops, n, check) {
 	var x = 0,
 		k, i, j, min1, line, lastLine, tempLine;
 
-	n = myint(n / 500); // compute only up to n/500
+	n = (n / 500) | 0; // compute only up to n/500
 
-	k = myint(n / 2); // div 2
+	k = (n / 2) | 0; // div 2
 	if ((n - k) < k) {
 		k = n - k; // keep k minimal with  n over k  =  n over n-k
 	}
 
-	line = gState.hasUint16Array ? new Uint16Array(k + 1) : new Array(k + 1);
-	lastLine = gState.hasUint16Array ? new Uint16Array(k + 1) : new Array(k + 1);
-	line[0] = 1;
-	lastLine[0] = 1;
+	line = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
+	lastLine = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
 
 	while (loops-- > 0 && x === 0) {
 		// initialize
-		for (j = 1; j <= k; j++) {
-			line[j] = 0;
-			lastLine[j] = 0;
+		if (line.fill) {
+			line.fill(0);
+			lastLine.fill(0);
+		} else {
+			for (j = 0; j <= k; j++) {
+				line[j] = 0;
+				lastLine[j] = 0;
+			}
 		}
+		line[0] = 1;
+		lastLine[0] = 1;
 
 		// compute
 		for (i = 3; i <= n; i++) {
@@ -399,7 +432,7 @@ function bench03Check(n) {
 
 /*
 function bench05Check(n) {
-	n = myint(n / 500); // compute only up to n/500
+	n = (n / 500) | 0; // compute only up to n/500
 
 	var p = 65536, // TODO: must be prime!
 		r = n >> 1,
@@ -468,11 +501,11 @@ function getCheck(bench, n) {
 		break;
 
 	case 1:
-		check = myint((n + 1) / 2);
+		check = ((n + 1) / 2) | 0;
 		break;
 
 	case 2:
-		check = myint((n + 1) / 2);
+		check = ((n + 1) / 2) | 0;
 		break;
 
 	case 3:
@@ -701,7 +734,7 @@ function measureBench(bench, n, check) {
 			if (tMeas === 0) {
 				scaleFact = 50;
 			} else if (tMeas < caliMs) {
-				scaleFact = myint((caliMs + 100) / tMeas) + 1; // scale a bit up to 1100 ms (cali_ms+100)
+				scaleFact = (((caliMs + 100) / tMeas) | 0) + 1; // scale a bit up to 1100 ms (cali_ms+100)
 			} else {
 				scaleFact = 2;
 			}
@@ -754,7 +787,7 @@ function endBench(startMs) {
 
 
 function fnSetTimeout(func, time) {
-	if (gState.hasTimeout) {
+	if (typeof setTimeout !== "undefined") {
 		setTimeout(func, time);
 	} else {
 		func(); // call it directly
@@ -972,13 +1005,6 @@ function fnGetNodeStdinArgs() {
 }
 
 
-function fnMyInt(x) {
-	return x | 0;
-}
-
-myint = fnMyInt;
-
-
 if (typeof window === "undefined") { // are we outside of a browser in a standalone JS engine?
 	if ((typeof process === "object") && (typeof process.versions === "object") && (typeof process.versions.node !== "undefined")) { // Node.js
 		gState.fnLog = console.log; // eslint-disable-line no-console
@@ -987,8 +1013,6 @@ if (typeof window === "undefined") { // are we outside of a browser in a standal
 		main(process.argv.length > 2 || process.stdin.isTTY ? fnGetArguments(process.argv, 2) : fnGetNodeStdinArgs());
 	} else if (typeof System !== "undefined") { // System object is available with NGS JS Engine
 		gState.fnLog = fnLogNGS;
-		// convert to integer with NGS JS Engine engine, use Math.floor for others...
-		eval("myint = int"); // set integer cast; avoid warning 'int' is reserved identifier in browsers
 		if (typeof ARGS !== "undefined") {
 			if ((Math.max(5, 8) !== 8) || (Math.pow(0.5, 2) !== 0.25)) {
 				gState.fnLog("ERROR: Buggy NGS Javascript Engine! Correct b_math.c and try again...");
