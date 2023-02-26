@@ -1,7 +1,14 @@
 # BMbench - BM Benchmark Suite
 
-Version: 0.62
-Date: 07.06.2017
+BMbench Links:
+
+[BMbench Demo JavaScript](https://benchmarko.github.io/BMbench/bmbench.html),
+[BMbench Demo TypeScript](https://benchmarko.github.io/BMbench/bmbenchTS.html),
+[Source code](https://github.com/benchmarko/BMbench/),
+[HTML Readme](https://github.com/benchmarko/BMbench/#readme),
+
+Version: 0.8.0
+Date: 19.02.2023
 
 BMbench is a collection of simple benchmarks in different programming languages.
 It is a synthetic benchmark which means that it does not represent real workload.
@@ -9,11 +16,28 @@ Concerning the tests, it allows to compare the performance of different language
 different implementations of the same language and maybe
 the same language on different operating systems.
 
-[![Build Status](https://travis-ci.org/benchmarko/BMbench.svg?branch=master)](https://travis-ci.com/benchmarko/BMbench)
+[![Build Status (old)](https://travis-ci.org/benchmarko/BMbench.svg?branch=master)](https://travis-ci.com/benchmarko/BMbench)
 
-[![Build Status](https://travis-ci.org/benchmarko/BMbench.svg?branch=dev07)](https://travis-ci.com/benchmarko/BMbench?branch=dev) (dev07)
+[![Build Status (old)](https://travis-ci.org/benchmarko/BMbench.svg?branch=dev07)](https://travis-ci.com/benchmarko/BMbench?branch=dev) (dev07)
 
 ## Changes
+
+### 0.8.0 (19.02.2023)
+
+- new bmbench.ts (Typescript)
+- bench05 optimized, and workload adapted (compute up to 1/200 instead of 1/500)
+
+### 0.7.2 (02.12.2022)
+
+- bench05 improved
+
+### 0.7.1 (15.11.2022)
+
+- bench03 corrected
+
+### 0.7.0 (05.05.2019)
+
+- changed bench 01-03; time interval estimation
 
 ### 0.62 (07.06.2017)
 

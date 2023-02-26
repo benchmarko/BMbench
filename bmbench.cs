@@ -6,6 +6,7 @@
 // 23.05.2006 0.06  based on version 0.05
 // 18.05.2019 0.07  changed bench 01-03; time interval estimation
 // 03.12.2022 0.072 bench03 corrected, bench05 improved
+// 19.02.2023 0.08  bench05 optimized
 //
 //
 // Compile & Run:
@@ -26,9 +27,9 @@
 
 using System;
 
-class Bmbench {
+public class Bmbench {
 
-  static String g_prg_version = "0.072";
+  static String g_prg_version = "0.08";
   static String g_prg_language = "C#";
   private static long g_startTs = 0;
   private static double g_tsPrecMs = 0; // measured time stamp precision
@@ -43,25 +44,20 @@ class Bmbench {
   // bench00 (Integer 16 bit)
   // (sum of 1..n) mod 65536
   //
-  static int bench00(int loops, int n, int check) {
+  private static int bench00(int n) {
     int x = 0;
-    //int sum1 = (int)(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
-    int n_div_65536 = (n >> 16);
-    int n_mod_65536 = (n & 0xffff);
-    while (loops-- > 0 && x == 0) {
-      for (int i = n_div_65536; i > 0; i--) {
-        for (int j = 32767; j > 0; j--) {
-          x += j;
-        }
-        for (int j = -32768; j < 0; j++) {
-          x += j;
-        }
-      }
-      for (int j = n_mod_65536; j > 0; j--) {
+    int n_div_65536 = n >> 16;
+    int n_mod_65536 = n & 0xffff;
+    for (int i = n_div_65536; i > 0; i--) {
+      for (int j = 32767; j > 0; j--) {
         x += j;
       }
-      x &= 0xffff;
-      x -= check;
+      for (int j = -32768; j < 0; j++) {
+        x += j;
+      }
+    }
+    for (int j = n_mod_65536; j > 0; j--) {
+      x += j;
     }
     return x & 0xffff;
   }
@@ -70,19 +66,15 @@ class Bmbench {
   // bench01 (Integer 16/32 bit)
   // (arithmetic mean of 1..n)
 //
-  static int bench01(int loops, int n, int check) {
+  private static int bench01(int n) {
     int x = 0;
-    //int sum1 = (int)(((n / 2) * (n + 1)) % 65536); // assuming n even! (sum should be ...)
-    while (loops-- > 0 && x == 0) {
-      int sum = 0;
-      for (int i = 1; i <= n; i++) {
-        sum += i;
-        if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
-          sum -= n;
-          x++;
-        }
+    int sum = 0;
+    for (int i = 1; i <= n; i++) {
+      sum += i;
+      if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
+        sum -= n;
+        x++;
       }
-      x -= check;
     }
     return x;
   }
@@ -92,22 +84,21 @@ class Bmbench {
   // bench02 (Floating Point, normally 64 bit)
   // (arithmetic mean of 1..n)
   //
-  static int bench02(int loops, int n, int check) {
+  private static int bench02(int n) {
     int x = 0;
-    //double sum1 = (n / 2.0) * (n + 1.0); // assuming n even! (sum should be 5.000005E11)
-    while (loops-- > 0 && x == 0) {
-      double sum = 0.0;
-      for (int i = 1; i <= n; i++) {
-        sum += i;
-        if (sum >= n) {
-          sum -= n;
-          x++;
-        }
+    double sum = 0.0;
+    for (int i = 1; i <= n; i++) {
+      sum += i;
+      if (sum >= n) {
+        sum -= n;
+        x++;
       }
-      x -= check;
     }
     return x;
   }
+
+
+  private static bool[] bench03Sieve1;
 
   //
   // bench03 (Integer)
@@ -116,43 +107,45 @@ class Bmbench {
   // (Sieve of Eratosthenes, no multiples of 2's are stored)
   // (BitArray sieve1 = new BitArray(n + 1); // slower than bool)
   // (BitArray from http://www.csharpfriends.com/Spec/index.aspx?specID=17.8.htm)
-  static int bench03(int loops, int n, int check) {
-    n >>= 1; // compute only up to n/2
+  private static int bench03(int n) {
+    //n >>= 1; // compute only up to n/2
 
-    int x = 0; // number of primes below n
     int nHalf = n >> 1;
-    bool[] sieve1 = new bool[nHalf + 1];
-    int i;    
 
-    while (loops-- > 0 && x == 0) {
-      // initialize sieve
-      for (i = 0; i <= nHalf; i++) {
-        sieve1[i] = false;
-      }
-      // compute primes
-      i = 0;
-      int m = 3;
-      x++; // 2 is prime
-      while (m * m < n) {
-        if (!sieve1[i]) {
-          x++; // m is prime
-          int j = (m * m - 3) >> 1; // div 2
-          while (j < nHalf) {
-            sieve1[j] = true;
-            j += m;
-          }
-        }
-        i++;
-        m += 2;
-      }
+    // allocate memory...
+    if (bench03Sieve1 == null) {
+      bench03Sieve1 = new bool[nHalf + 1];
+    }
+    bool[] sieve1 = bench03Sieve1;
 
-      // count primes
-      for (; m <= n; i++, m += 2) {
-        if (!sieve1[i]) {
-          x++; // m is prime
+    int i;
+    // initialize sieve
+    for (i = 0; i <= nHalf; i++) {
+      sieve1[i] = false;
+    }
+
+    // compute primes
+    i = 0;
+    int m = 3;
+    int x = 1; // number of primes below n (2 is prime)
+    while (m * m < n) {
+      if (!sieve1[i]) {
+        x++; // m is prime
+        int j = (m * m - 3) >> 1; // div 2
+        while (j < nHalf) {
+          sieve1[j] = true;
+          j += m;
         }
       }
-      x -= check;
+      i++;
+      m += 2;
+    }
+
+    // count primes
+    for (; m <= n; i++, m += 2) {
+      if (!sieve1[i]) {
+        x++; // m is prime
+      }
     }
     return x;
   }
@@ -166,31 +159,87 @@ class Bmbench {
   // It needs longs with at least 32 bit.
   // Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
   //
-  static int bench04(int loops, int n, int check) {
+  private static int bench04(int n) {
     const int m = 2147483647; // modulus, do not change!
     const int a = 16807;      // multiplier
     const int q = 127773;     // m div a
     const int r = 2836;       // m mod a
-    int x = 0;                // last random value
-    while (loops-- > 0 && x == 0) {
-      x++; // start with 1
-      for (int i = n; i > 0; i--) {
-        x = a * (x % q) - r * (x / q); // x div q
-        if (x <= 0) {
-          x += m; // x is new random number
-        }
+    int x = 1;                // last random value
+    for (int i = n; i > 0; i--) {
+      x = a * (x % q) - r * (x / q); // x div q
+      if (x <= 0) {
+        x += m; // x is new random number
       }
-      x -= check;
     }
     return x;
   }
 
+  private static int[] bench05Line1;
+
+  //
+  // bench05 (Integer 32 bit)
+  // (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
+  // Using dynamic programming and Pascal's triangle, storing only one line
+  // Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
+  // Example: (2000 choose 1000) mod 65536 = 27200
+  //
+  private static int bench05(int n) {
+    //n /= 200; // compute only up to n/200
+
+    // Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+	  n /= 2;
+
+    int k = n / 2;
+    if ((n - k) < k) {
+      k = n - k; // keep k minimal with  n over k  =  n over n-k
+    }
+
+    // allocate memory...
+    if (bench05Line1 == null) {
+      bench05Line1 = new int[k + 1];
+    }
+    int[] line = bench05Line1;
+
+    // initialize (not needed)
+    for (int j = 0; j <= k; j++) {
+      line[j] = 0;
+    }
+
+    line[0] = 1;
+    line[1] = 2; // for line 2, second column is 2
+
+    // compute lines of Pascal's triangle
+    for (int i = 3; i <= n; i++) {
+      int min1 = (i - 1) / 2;
+      if ((i & 1) == 0) { // new element?
+        line[min1 + 1] = 2 * line[min1];
+      }
+      
+      int prev = line[1];
+      for (int j = 2; j <= min1; j++) {
+        int num =  line[j];
+        line[j] += prev;
+        prev = num;
+      }
+      line[1] = i; // second column is i
+    }
+
+    // compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+    int x = 0;
+    for (int j = 0; j < k; j++) {
+      x += 2 * line[j] * line[j]; /* add nCk and nC(n-k) */
+	  }
+	  x += line[k] * line[k]; /* we assume that k is even, so we need to take the middle element */
+
+    return x & 0xffff;
+  }
 
   //
   // bench05 (Integer 32 bit)
   // n over n/2 mod 65536 (Pascal's triangle)
   //
-  static int bench05(int loops, int n, int check) {
+  /*
+  static int bench05(int n) {
     int x = 0;
     n = (n / 500);
     int k = n >> 1; // div 2
@@ -205,35 +254,33 @@ class Bmbench {
     line[0] = 1;
     lastLine[0] = 1; // set first column
 
-    while (loops-- > 0 && x == 0) {
-      // initialize
-      for (int j = 1; j <= k; j++) {
-        line[j] = 0;
-        lastLine[j] = 0;
-      }
-
-      // compute
-      for (int i = 3; i <= n; i++) {
-        int min1 = (i - 1) / 2;
-        if (k < min1) {
-          min1 = k;
-        }
-        line[1] = i; // second column is i
-        for (int j = 2; j <= min1; j++) {
-          line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff; // we need mod here to avoid overflow
-        }
-        if ((min1 < k) && ((i & 1) == 0)) { // new element
-          line[min1 + 1] = 2 * lastLine[min1];
-        }
-        int[] tempLine = lastLine;
-        lastLine = line;
-        line = tempLine;
-      }
-      x += lastLine[k] & 0xffff;
-      x -= check;
+    // initialize
+    for (int j = 1; j <= k; j++) {
+      line[j] = 0;
+      lastLine[j] = 0;
     }
+
+    // compute
+    for (int i = 3; i <= n; i++) {
+      int min1 = (i - 1) / 2;
+      if (k < min1) {
+        min1 = k;
+      }
+      line[1] = i; // second column is i
+      for (int j = 2; j <= min1; j++) {
+        line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff; // we need mod here to avoid overflow
+      }
+      if ((min1 < k) && ((i & 1) == 0)) { // new element
+        line[min1 + 1] = 2 * lastLine[min1];
+      }
+      int[] tempLine = lastLine;
+      lastLine = line;
+      line = tempLine;
+    }
+    x += lastLine[k] & 0xffff;
     return x;
   }
+  */
 
 
   //
@@ -243,38 +290,101 @@ class Bmbench {
   //         n = maximum number (used in some benchmarks to define size of workload)
   // out:    x = result
   //
-  static int run_bench(int bench, int loops, int n) {
+  private static int run_bench(int bench, int loops, int n, int check) {
+    if (bench > 5) {
+      Console.Error.WriteLine("Error: Unknown benchmark " + bench);
+    }
+
     int x = 0;
-    int check = 0;
+    while (loops-- > 0 && x == 0) {
+      switch (bench) {
+        case 0:
+          x = bench00(n);
+          break;
+
+        case 1:
+          x = bench01(n);
+          break;
+
+        case 2:
+          x = bench02(n);
+          break;
+
+        case 3:
+          x = bench03(n);
+          break;
+
+        case 4:
+          x = bench04(n);
+          break;
+
+        case 5:
+          x = bench05(n);
+          break;
+
+        default:
+          Console.Error.WriteLine("Error: Unknown benchmark " + bench);
+          check = -1;
+          break;
+      }
+      x -= check;
+    }
+
+    x += check;
+    if (x != check) {
+      Console.Error.WriteLine("Error(bench" + bench + "): x=" + x);
+      x = -1; //exit
+    }
+    return x;
+  }
+
+
+  private static int bench03Check(int n) {
+    //n /= 2; // compute only up to n/2
+
+		int x = 0;
+    for (int j = 2; j <= n; j++) {
+      bool isPrime = true;
+      for (int i = 2; i * i <= j; i++) {
+        if (j % i == 0) {
+          isPrime = false;
+          break;
+        }
+      }
+      if (isPrime) {
+        x++;
+      }
+    }
+	  return x;
+  }
+
+  private static int getCheck(int bench, int n) {
+    int check;
+
     switch (bench) {
-      case 0:
-        check = ((n / 2) * (n + 1)) & 0xffff;
-        x = bench00(loops, n, check);
+      case 0: // (n / 2) * (n + 1)
+        //check = ((n / 2) * (n + 1)) & 0xffff;
+        check = (((n + (n & 1)) >> 1) * (n + 1 - (n & 1))) & 0xffff; // 10528 for n=1000000
         break;
 
       case 1:
-        check = (n + 1) / 2;
-        x = bench01(loops, n, check);
+     		check = (n + 1) / 2;
         break;
 
       case 2:
-        check = (n + 1) / 2;
-        x = bench02(loops, n, check);
+     		check = (n + 1) / 2;
         break;
 
       case 3:
-        check = 41538;
-        x = bench03(loops, n, check);
+        check = (n == 500000) ? 41538 : bench03Check(n);
         break;
 
       case 4:
-        check = 1227283347;
-        x = bench04(loops, n, check);
+        check = (n == 1000000) ? 1227283347 : bench04(n); // bench04 not a real check
         break;
 
       case 5:
-        check = 27200;
-        x = bench05(loops, n, check);
+        check = (n == 5000) ? 17376 : bench05(n); // bench05 not a real check
         break;
 
       default:
@@ -282,18 +392,11 @@ class Bmbench {
         check = -1;
         break;
     }
-
-    x += check;
-    if (x != check) {
-      Console.Error.WriteLine("Error(bench" + bench + "): x=" + x);
-      x = -1; //exit;
-    }
-    return x;
+    return check;
   }
 
-
   // get timestamp with full precision
-  static long get_raw_ts() {
+  private static long get_raw_ts() {
       //return System.DateTime.Now.Ticks; //100ns ticks
       //return (System.DateTime.Now.Ticks / 100000) * 1000000; // Test: simulate 10 ms resolution
       return System.DateTime.Now.Ticks;
@@ -301,16 +404,16 @@ class Bmbench {
 
   // get timestamp since program start
   // int should be enough
-  static int get_ts() {
+  private static int get_ts() {
       return (int)(get_raw_ts() - g_startTs);
   }
 
   // convert timestamp to ms
-  static double conv_ms(int ts) {
+  private static double conv_ms(int ts) {
     return ts / 10000.0;
   }
 
-  static double correctTime(double tMeas, double tMeas2, int measCount) {
+  private static double correctTime(double tMeas, double tMeas2, int measCount) {
     int tsPrecCnt = g_tsPrecCnt;
 
     if (measCount < tsPrecCnt) {
@@ -322,7 +425,7 @@ class Bmbench {
     return tMeas;
   }
 
-   static double getPrecMs(bool stopFlg) {
+  private static double getPrecMs(bool stopFlg) {
     int measCount = 0;
 
     int tMeas0 = get_ts();
@@ -340,7 +443,7 @@ class Bmbench {
   }
 
   // usually only needed if time precision is low, e.g. one second
-  static void determineTsPrecision() {
+  private static void determineTsPrecision() {
     g_startTs = get_raw_ts(); // memorize start time
 
     double tMeas0 = getPrecMs(false);
@@ -359,7 +462,7 @@ class Bmbench {
 
 
   // Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
-  static int checkbits_int1() {
+  private static int checkbits_int1() {
     int num = 1;
     int last_num = 0;
     int bits = 0;
@@ -372,7 +475,7 @@ class Bmbench {
     return bits;
   }
 
-  static int checkbits_double1() {
+  private static int checkbits_double1() {
     double num = 1.0;
     double last_num = 0.0;
     int bits = 0;
@@ -385,13 +488,15 @@ class Bmbench {
     return bits;
   }
 
-  static string getdate1() {
+/*
+  private static string getdate1() {
     // Creates and initializes a DateTimeFormatInfo associated with the en-US culture.
     System.Globalization.DateTimeFormatInfo dtfi = new System.Globalization.CultureInfo("de-DE", false).DateTimeFormat;
     return System.DateTime.Now.ToString(dtfi); // always German format
   }
+*/
 
-  static string getruntime1() {
+  private static string getruntime1() {
     string runtimeName = typeof(object).GetType().FullName;
     string runtimeVersion = System.Environment.Version.ToString();
     // 'System.Environment.Version' shows more info than 'System.Reflection.Assembly.GetExecutingAssembly().ImageRuntimeVersion'
@@ -418,7 +523,7 @@ class Bmbench {
     return runtimeName + " " + runtimeVersion;
   }
 
-  static void print_info() {
+  private static string get_info() {
     string version1 = "";
 
     try {
@@ -428,13 +533,16 @@ class Bmbench {
 
     string cs_version = "Runtime: " + getruntime1() + ", " + version1 + ", " + Environment.OSVersion.ToString();
 
-    Console.WriteLine("BM Bench v" + g_prg_version + " (" + g_prg_language + ") -- (int:" + checkbits_int1() + " double:" + checkbits_double1() + " tsMs:" + g_tsPrecMs.ToString("", nfi) + " tsCnt:" + g_tsPrecCnt + ") " + cs_version);
-    Console.WriteLine("(c) Marco Vieth, 2006-2022");
-    Console.WriteLine(getdate1());
+    string str = "BM Bench v" + g_prg_version + " (" + g_prg_language + ") -- (int:" + checkbits_int1() + " double:" + checkbits_double1() + " tsMs:" + g_tsPrecMs.ToString("", nfi) + " tsCnt:" + g_tsPrecCnt + ") " + cs_version + Environment.NewLine
+      + "(c) Marco Vieth, 2006-2023" + Environment.NewLine
+      + "Date: " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+    //Console.WriteLine("(c) Marco Vieth, 2006-2023");
+    //Console.WriteLine(getdate1());
+    return str;
   }
 
 
-  static void print_results(int bench1, int bench2, double[] bench_res1) {
+  private static void print_results(int bench1, int bench2, double[] bench_res1) {
     const int max_language_len1 = 10;
     Console.WriteLine("\nThroughput for all benchmarks (loops per sec):");
     string str = "BMR (" + g_prg_language + ")";
@@ -450,7 +558,7 @@ class Bmbench {
   }
 
 
-  static double measureBench(int bench, int n) {
+  private static double measureBench(int bench, int n, int check) {
     const int cali_ms = 1001;
     const int delta_ms = 100;
     const int max_ms = 10000;
@@ -460,11 +568,11 @@ class Bmbench {
     double tEsti = 0;   // estimated time
     double throughput = 0;
 
-    Console.WriteLine("Calibrating benchmark {0} with n={1}", bench, n);
+    Console.WriteLine("Calibrating benchmark {0} with n={1}, check={2}", bench, n, check);
     while (throughput == 0) {
-      tMeas = getPrecMs(false); //conv_ms(get_ts()); //getPrecMs(false);
-      x = run_bench(bench, loops, n);
-      tMeas = getPrecMs(true) - tMeas; //conv_ms(get_ts()) - t1; //getPrecMs(true) - t1;
+      tMeas = getPrecMs(false);
+      x = run_bench(bench, loops, n, check);
+      tMeas = getPrecMs(true) - tMeas;
 
       double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
       double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
@@ -497,19 +605,24 @@ class Bmbench {
   }
 
 
- static int start_bench(int bench1, int bench2, int n) {
+  private static int start_bench(int bench1, int bench2, int n) {
+    Console.WriteLine(get_info());
 
-    print_info();
-
-    double[] bench_res1 = new double[bench2 + 1]; //reserve for up to last benchmark
+    double[] bench_res = new double[bench2 + 1]; //reserve for up to last benchmark
 
     for (int bench = bench1; bench <= bench2; bench++) {
-      double throughput = measureBench(bench, n);
-      bench_res1[bench] = throughput;
+      int n2 = n;
+      if (bench == 3) {
+        n2 = n2 / 2;
+      } else if (bench == 5) {
+        n2 = n2 / 200;
+      }
+      int check = getCheck(bench, n2);
+      double throughput = (check > 0) ? measureBench(bench, n2, check) : -1;
+      bench_res[bench] = throughput;
     }
 
-    print_results(bench1, bench2, bench_res1);
-
+    print_results(bench1, bench2, bench_res);
     return 0;
   }
 
@@ -521,16 +634,19 @@ class Bmbench {
 
     //Console.WriteLine("Stdout is tty: {0}", Console.IsInputRedirected);
 
-    if (args.Length > 0) {
-      bench1 = int.Parse(args[0]);
-      bench2 = bench1;
+    if (args != null) { // not for e.g. dotnetfiddle.net
+      if (args.Length > 0) {
+        bench1 = int.Parse(args[0]);
+        bench2 = bench1;
+      }
+      if (args.Length > 1) {
+        bench2 = int.Parse(args[1]);
+      }
+      if (args.Length > 2) {
+        n = int.Parse(args[2]);
+      }
     }
-    if (args.Length > 1) {
-      bench2 = int.Parse(args[1]);
-    }
-    if (args.Length > 2) {
-      n = int.Parse(args[2]);
-    }
+
     determineTsPrecision();
     int rc = start_bench(bench1, bench2, n);
     
@@ -541,8 +657,16 @@ class Bmbench {
 
 }
 
+// https://dotnetfiddle.net/
+//
+// https://www.programiz.com/csharp-programming/online-compiler/ (several languages, runs slow but full benchmark)
+//
+// https://onecompiler.com/csharp  (several languages, without login no URLs allowed)
+//
+// https://rextester.com/l/csharp_online_compiler
+//
+// https://replit.com/languages/
 
-//Can be run in https://rextester.com/l/csharp_online_compiler
 /*
 namespace Rextester {
     public class Program {

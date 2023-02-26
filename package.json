@@ -1,17 +1,31 @@
 {
   "name": "bmbench",
-  "version": "0.6.3",
+  "version": "0.8.0",
   "description": "BM Benchmarks",
   "main": "bmbench.js",
   "directories": {
     "test": "test"
   },
-  "dependencies": {},
+  "dependencies": {
+    "benchmark": "^2.1.4"
+  },
   "devDependencies": {
-    "qunit": "^2.6.1"
+    "@types/node": "^18.11.19",
+    "gh-pages": "^3.2.3",
+    "qunit": "^2.19.1"
   },
   "scripts": {
-    "test": "qunit"
+    "clean": "rm -rf dist/*",
+    "cleancache": "rm -rf node_modules/.cache/gh-pages/",
+    "copy": "cp *.js *.ts *.html LICENSE favicon.ico dist/",
+    "copyx0": "cp *.js *.ts *.html LICENSE favicon.ico dist/ && mkdir dist/test && cp test/*.js test/*.html dist/test/",
+    "copyxx": "cp *.js *.ts *.html LICENSE favicon.ico dist/ && mkdirp -p dist/src/test && cp -r test/*.ts dist/src/test && cp src/test/*.html dist/test/",
+    "build:one": "tsc --build",
+    "build": "npm run build:one && npm run copy",
+    "test": "qunit test/*.qunit.js",
+    "testxx": "qunit dist/test/*.qunit.js",
+    "deploy": "gh-pages -d dist",
+    "lint": "eslint src --ext .ts"
   },
   "repository": {
     "type": "git",

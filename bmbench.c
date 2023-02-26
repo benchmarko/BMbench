@@ -12,6 +12,7 @@
  * 30.05.2006 0.06  based on version 0.05
  * 05.05.2019 0.07  changed bench 01-03; time interval estimation
  * 03.12.2022 0.072 bench03 corrected, bench05 improved
+ * 19.02.2023 0.08  bench05 optimized
  *
  *
  * Usage:
@@ -25,10 +26,23 @@
  *   (Do NOT use "-pedantic", this will nearly double runtime of benchmark 4!)
  *   (-funroll-loops has a positive impact on bench 00, 01 but should not be used.)
  * - NT (MS C++): cl -W4 -DUse_Windows bmbench.c -o bmbench
+ * - (Digital Mars C++ compiler) dmc.exe -o bmbench.c
  * - Windows/DOS (BC++):  bcc -3 -a -k- -O -Og -Oe -Om -Ov -Ol -Ob -Op -Oi -Z -G -v- -vi- bmbench.c
  *   (-3 is to use x386 instructions...)
  *   (or use bcw...)
  */
+
+/*
+// Turbo C
+// https://stackoverflow.com/questions/45914070/how-to-get-current-time-in-c-using-gettime
+// #include <dos.h>
+// struct time tm;
+// gettime(&tm);
+// printf("System time is: %d : %d : %d\n",tm.ti_hour, tm.ti_min, tm.ti_sec);
+*/
+
+/* #define _TURBOC */ /* define this, if needed */
+
 
  /*
   * All types of gcc warnings:
@@ -36,7 +50,7 @@
   *
   */
 
-#define PRG_VERSION "0.072"
+#define PRG_VERSION "0.08"
 #define PRG_LANGUAGE "C"
 
 #include <stdio.h>
@@ -50,7 +64,11 @@
 #define MY_VERSION "Microsoft C/C++-Compiler %d\n", _MSC_VER
 #endif
 #else
+#ifdef _TURBOC /* need to be defined, if needed */
+#include <dos.h>
+#else 
 #include <sys/time.h> /* gettimeofday */
+#endif
 #endif
 
 #ifdef __GNUC__
@@ -61,7 +79,6 @@
 #define MY_VERSION "Compiled on ??\n"
 #endif
 
-
 struct bm_timeval {
   long tv_sec;
   long tv_usec;
@@ -69,7 +86,6 @@ struct bm_timeval {
 
 static struct bm_timeval g_start_ts = { 0, 0 };
 
-/* static char g_tsType[20] = ""; */ /* type of time stamp source */
 static double g_tsPrecMs = 0; /* measured time stamp precision */
 static int g_tsPrecCnt = 0; /* time stamp count (calls) per precision interval (until time change) */
 static int g_tsMeasCnt = 0; /* last measured count */
@@ -79,11 +95,9 @@ static int g_tsMeasCnt = 0; /* last measured count */
  * General description for benchmark test functions
  * benchxx - benchmark
  * <description>
- * in: loops = number of loops
- *         n = maximum number (assumed even, normally n=1000000)
- * out:    x = <output decription>
+ * in:  n = maximum number (assumed even, normally n=1000000)
+ * out: x = <output decription>
  *
- * loops may be increased to produce a longer runtime without changing the result.
  */
 
 
@@ -91,25 +105,20 @@ static int g_tsMeasCnt = 0; /* last measured count */
  * bench00 (Integer 16 bit)
  * (sum of 1..n) mod 65536
  */
-static int bench00(int loops, int n, unsigned short int check) {
+static int bench00(int n) {
   unsigned short int x = 0;
-  /* short int sum1 = (short int)((n / 2) * (n + 1)); */ /* assuming n even! */
-  /* (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit) */
   unsigned int n_div_65536 = (unsigned int)(n >> 16);
   unsigned int n_mod_65536 = (unsigned int)(n & 0xffff);
   /* fprintf(stderr, "Test(bench%d): x=%f, %ld, %ld\n", 1, (double)sum, (long)fmod(sum, 2147483648L), (long)fmod(sum, 65536L)); */
-  while (loops-- > 0 && x == 0) {
-    unsigned int i;
-    unsigned int j;
-    for (i = n_div_65536; i > 0; i--) {
-      for (j = 65535U; j > 0; j--) {
-        x += j;
-      }
-    }
-    for (j = n_mod_65536; j > 0; j--) {
+  unsigned int i;
+  unsigned int j;
+  for (i = n_div_65536; i > 0; i--) {
+    for (j = 65535U; j > 0; j--) {
       x += j;
     }
-	x -= check;
+  }
+  for (j = n_mod_65536; j > 0; j--) {
+    x += j;
   }
   return (int)(x & 0xffff);
 }
@@ -119,19 +128,16 @@ static int bench00(int loops, int n, unsigned short int check) {
  * bench01 (Integer 16/32 bit)
  * (arithmetic mean of 1..n)
  */
-static int bench01(int loops, int n, int check) {
+static int bench01(int n) {
   int x = 0;
-  while (loops-- > 0 && x == 0) {
-    int sum = 0;
-    int i;
-    for (i = 1; i <= n; i++) {
-      sum += i;
-      if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
-        sum -= n;
-        x++;
-      }
+  int sum = 0;
+  int i;
+  for (i = 1; i <= n; i++) {
+    sum += i;
+    if (sum >= n) { /* to avoid numbers above 2*n, divide by n using subtraction */
+      sum -= n;
+      x++;
     }
-    x -= check;
   }
   return x;
 }
@@ -139,83 +145,85 @@ static int bench01(int loops, int n, int check) {
 
 /*
  * bench02 (Floating Point, normally 64 bit)
- * (arithmetic mean of 1..n) mod 65536
+ * (arithmetic mean of 1..n)
  */
-static int bench02(int loops, int n, int check) {
+static int bench02(int n) {
   int x = 0;
-  while (loops-- > 0 && x == 0) {
-    double sum = 0;
-    int i;
-    for (i = 1; i <= n; i++) {
-      sum += i;
-      if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
-        sum -= n;
-        x++;
-      }
+  double sum = 0;
+  int i;
+  for (i = 1; i <= n; i++) {
+    sum += i;
+    if (sum >= n) { /* to avoid numbers above 2*n, divide by n using subtraction */
+      sum -= n;
+      x++;
     }
-    x -= check;
   }
   return x;
 }
 
+
+static int *benchMemPtr = NULL; /* reuse memory for bench03, bench05 */
 
 /*
  * bench03 (Integer)
  * number of primes below n (Sieve of Eratosthenes)
  * Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
  */
-static int bench03(int loops, int n, int check) {
+static int bench03(int n) {
   typedef unsigned char sieve_t;
-  int x = 0; /* number of primes below n */
-
-  n /= 2; /* compute only up to n/2 */
+  /* n /= 2; // compute only up to n/2 */
   int nHalf = n >> 1;
+  int i, j, m, x;
+  sieve_t *sieve;
 
-  sieve_t *sieve = (sieve_t *)malloc(((unsigned)nHalf + 1) * sizeof(sieve_t));
+  /* allocate memory ... */
+  if (benchMemPtr == NULL) {
+    benchMemPtr = (int *)malloc(((unsigned)nHalf + 1) * sizeof(sieve_t));
+  }
+  sieve = (sieve_t *)benchMemPtr;
   if (sieve == NULL) {
     return -1; /* error */
   }
 
-  while (loops-- > 0 && x == 0) {
-    int i;
-    /* initialize sieve */
-    for (i = 0; i <= nHalf; i++) {
-      sieve[i] = 0;
-    }
-    
-    /* compute primes */
-    i = 0;
-    int m = 3;
-    x++; /* 2 is prime */
-    while (m * m < n) {
-      if (!sieve[i]) {
-        x++; /* m is prime */
-        int j = (m * m - 3) >> 1; /* div 2 */
-        while (j < nHalf) {
-          sieve[j] = 1;
-          j += m;
-        }
-      }
-      i++;
-      m += 2;
-    }
+  /* initialize sieve */
+  for (i = 0; i <= nHalf; i++) {
+    sieve[i] = 0;
+  }
+  
+  /* compute primes */
+  i = 0;
+  m = 3;
+  x = 1; /* number of primes below n (2 is prime) */
 
-    /* count remaining primes */
-    while (m <= n) {
-      if (!sieve[i]) {
-        x++; /* m is prime */
+  while (m * m < n) {
+    if (!sieve[i]) {
+      x++; /* m is prime */
+      j = (m * m - 3) >> 1; /* div 2 */
+      while (j < nHalf) {
+        sieve[j] = 1;
+        j += m;
       }
-      i++;
-      m += 2;
     }
-    x -= check;
+    i++;
+    m += 2;
+  }
+
+  /* count remaining primes */
+  while (m <= n) {
+    if (!sieve[i]) {
+      x++; /* m is prime */
+    }
+    i++;
+    m += 2;
   }
 
   /* free memory */
+  /*
   if (sieve != NULL) {
     free(sieve);
     sieve = NULL;
   }
+  */
   return x;
 }
 
@@ -232,18 +240,14 @@ static int bench03(int loops, int n, int check) {
 #define BENCH04_A 16807       /* multiplier */
 #define BENCH04_Q 127773L     /* m div a */
 #define BENCH04_R 2836        /* m mod a */
-static int bench04(int loops, int n, int check) {
-  int x = 0; 
+static int bench04(int n) {
   int i;
-  while (loops-- > 0 && x == 0) {
-    x++;
-    for (i = 1; i <= n; i++) {
-      x = BENCH04_A * (x % BENCH04_Q) - BENCH04_R * (x / BENCH04_Q); /* x div q */
-      if (x <= 0) {
-        x += BENCH04_M; /* x is new random number */
-      }
+  int x = 1; // 1=Last random value
+  for (i = 1; i <= n; i++) {
+    x = BENCH04_A * (x % BENCH04_Q) - BENCH04_R * (x / BENCH04_Q); /* x div q */
+    if (x <= 0) {
+      x += BENCH04_M; /* x is new random number */
     }
-    x -= check;
   }
   return x;
 }
@@ -251,68 +255,66 @@ static int bench04(int loops, int n, int check) {
 
 /*
  * bench05 (Integer 32 bit)
- * n over n/2 mod 65536 (Pascal's triangle)
- * (we just need to store the last 2 lines of computation)
+ * (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
+ * Using dynamic programming and Pascal's triangle, storing only one line
+ * Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
+ * Example: (2000 choose 1000) mod 65536 = 27200
  */
- static int bench05(int loops, int n_p, int check) {
-  int x = 0;
+  static int bench05(int n) {
   typedef int line_t;
-  int n = (int)(n_p / 500);
-  int k = n / 2;
-  int i, j, min1;
-  /* allocate memory ... */
-  /* pas_t  *pas1[2]; */
+  int k, i, j, min1, prev, num, x;
+  line_t *line;
+  /* n /= 200; // compute only up to n/200 */
+
+  /* Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4 */
+  n /= 2;
+
+  k = n / 2;
   if ((n - k) < k) {
     k = n - k; /* keep k minimal with  n over k  =  n over n-k */
   }
 
-  line_t *line = (line_t *)malloc(((unsigned)k + 1) * sizeof(line_t));
+  /* allocate memory ... */
+  if (benchMemPtr == NULL) {
+    benchMemPtr = (line_t *)malloc(((unsigned)k + 1) * sizeof(line_t));
+  }
+  line = benchMemPtr;
   if (line == NULL) {
     return -1; /* error */
   }
 
-  line_t *lastLine = (line_t *)malloc(((unsigned)k + 1) * sizeof(line_t));
-  if (lastLine == NULL) {
-    return -1; /* error */
-  }
-     
   line[0] = 1;
-  lastLine[0] = 1; /* set first column */
+  line[1] = 2; /* for line 2, second column is 2 */
 
-  while (loops-- > 0 && x == 0) {
-    for (i = 3; i <= n; i++) {
-      //i_mod_2 = i % 2;
-      min1 = (i - 1) / 2;
-      if (k < min1) {
-        min1 = k;
-      }
-      line[1] = i; /* second column is i */
-      for (j = 2; j <= min1; j++) { /* up to min((i-1)/2, k) */
-        line[j] = (lastLine[j - 1] + lastLine[j]);
-      }
-      if ((min1 < k) && ((i & 1) == 0)) { /* new element */
-        line[min1 + 1] = 2 * lastLine[min1];
-      }
-      line_t *tempLine = lastLine;
-      lastLine = line;
-      line = tempLine;
+  /* compute lines of Pascal's triangle */
+  for (i = 3; i <= n; i++) {
+    min1 = (i - 1) / 2;
+    if ((i & 1) == 0) { /* new element? */
+      line[min1 + 1] = 2 * line[min1];
     }
-    x += lastLine[k] & 0xffff;
-    x -= check;
+    prev = line[1];
+    for (j = 2; j <= min1; j++) {
+      num =  line[j];
+      line[j] += prev;
+      prev = num;
+    }
+    line[1] = i; /* second column is i */
   }
 
-  /* free memory */
-  if (line != NULL) {
-    free(line);
-    line = NULL;
-  }
-  if (lastLine != NULL) {
-    free(lastLine);
-    lastLine= NULL;
-  }
-  return x;
+  /* compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2 */
+  x = 0;
+  for (j = 0; j < k; j++) {
+    x += 2 * line[j] * line[j]; /* add nCk and nC(n-k) */
+	}
+	x += line[k] * line[k]; /* we assume that k is even, so we need to take the middle element */
+
+  return x & 0xffff;
 }
 
+
+static int (*benchList[5+1])(int) = {
+  bench00, bench01, bench02, bench03, bench04, bench05
+};
 
 /*
  * run a benchmark
@@ -323,34 +325,20 @@ static int bench04(int loops, int n, int check) {
  */
 static int run_bench(int bench, int loops, int n, int check) {
   int x = 0;
-  switch(bench) {
-    case 0:
-      x = bench00(loops, n, (unsigned short int)check);
-    break;
+  int (*benchPtr)(int);
 
-    case 1:
-      x = bench01(loops, n, check);
-    break;
+  if (bench > 5) {
+    fprintf(stderr, "Error: Unknown benchmark: %d\n", bench);
+  }
+  benchPtr = benchList[bench];
 
-    case 2:
-      x = bench02(loops, n, check);
-    break;
+  if (benchMemPtr != NULL) { /* should not occur */
+    fprintf(stderr, "Error(bench%d): benchMemPtr != NULL\n", bench);
+  }
 
-    case 3:
-      x = bench03(loops, n, check);
-    break;
-
-    case 4:
-      x = bench04(loops, n, check);
-    break;
-
-    case 5:
-      x = bench05(loops, n, check);
-    break;
-	
-    default:
-      fprintf(stderr, "Error: Unknown benchmark: %d\n", bench);
-    break;
+  while (loops-- > 0 && x == 0) {
+    x = benchPtr(n);
+    x -= check;
   }
 
   x += check;
@@ -358,6 +346,13 @@ static int run_bench(int bench, int loops, int n, int check) {
     fprintf(stderr, "Error(bench%d): x=%d\n", bench, x);
     x = -1; /* exit */
   }
+
+  /* free memory */
+  if (benchMemPtr != NULL) {
+    free(benchMemPtr);
+    benchMemPtr = NULL;
+  }
+
   return x;
 }
 
@@ -365,7 +360,7 @@ static int run_bench(int bench, int loops, int n, int check) {
 static int bench03Check(int n) {
   int x = 0, j, i, isPrime;
 
-  n = (n / 2) | 0; // compute only up to n/2
+  /* n = (n / 2) | 0; // compute only up to n/2 */
 
   for (j = 2; j <= n; j++) {
     isPrime = 1;
@@ -385,9 +380,15 @@ static int bench03Check(int n) {
 
 static int getCheck(int bench, int n) {
   int check;
+
+  if (benchMemPtr != NULL) { /* should not occur */
+    fprintf(stderr, "Error(bench%d): benchMemPtr != NULL\n", bench);
+  }
+
   switch(bench) {
-    case 0:
-	    check = ((n / 2) * (n + 1)) & 0xffff; // short int
+    case 0: /* (n / 2) * (n + 1) */
+	    //check = ((n / 2) * (n + 1)) & 0xffff; /* short int */
+      check = (((n + (n & 1)) >> 1) * (n + 1 - (n & 1))) & 0xffff; /* 10528 for n=1000000 */
     break;
 
     case 1:
@@ -399,15 +400,15 @@ static int getCheck(int bench, int n) {
     break;
 
     case 3:
-      check = (n == 1000000) ? 41538 : bench03Check(n);
+      check = (n == 500000) ? 41538 : bench03Check(n);
     break;
 
     case 4:
-      check = (n == 1000000) ? 1227283347 : bench04(1, n, 0); // bench04 not a real check
+      check = (n == 1000000) ? 1227283347 : bench04(n); /* bench04 not a real check */
     break;
 
     case 5:
-      check = (n == 1000000) ? 27200 : bench05(1, n, 0); // bench05 not a real check
+      check = (n == 5000) ? 17376 : bench05(n); /* bench05 not a real check */
     break;
 	
     default:
@@ -416,21 +417,34 @@ static int getCheck(int bench, int n) {
     break;
   }
 
+  /* free memory */
+  if (benchMemPtr != NULL) {
+    free(benchMemPtr);
+    benchMemPtr = NULL;
+  }
+
   return check;
 }
+
 
 static struct bm_timeval get_raw_ts(void) {
   struct bm_timeval bmtv;
 #ifdef _WIN32
   struct _timeb tb;
   _ftime(&tb);
-  //ltime = (bmtime_t)tb.time * 1000.0 + tb.millitm;
+  /* ltime = (bmtime_t)tb.time * 1000.0 + tb.millitm; */
   bmtv.tv_sec = tb.time;
   bmtv.tv_usec = tb.millitm * 1000;
-#else // e.g. gcc
+#else
+#ifdef _TURBOC
+  struct time tm;
+  gettime(&tm);
+  bmtv.tv_sec = tm.ti_hour * 3600 + tm.ti_min * 60 + tm.ti_sec;
+  bmtv.tv_usec = 0;
+#else /* e.g. gcc */
   struct timeval tv;
   gettimeofday(&tv, NULL);
-  //ltime = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+  /* ltime = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0; */
   bmtv.tv_sec = tv.tv_sec;
   bmtv.tv_usec = tv.tv_usec;
   /*
@@ -440,29 +454,30 @@ static struct bm_timeval get_raw_ts(void) {
   ltime -= initialTime;
   */
 #endif
+#endif
   return bmtv;
 }
 
 
 /* https://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html */
 static int timeval_subtract(struct bm_timeval *result, struct bm_timeval *x, struct bm_timeval *y) {
-  /* Perform the carry for the later subtraction by updating y. */
+  /* Perform the carry for the later subtraction by updating y */
   if (x->tv_usec < y->tv_usec) {
-    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    int nsec = (int)((y->tv_usec - x->tv_usec) / 1000000 + 1);
     y->tv_usec -= 1000000 * nsec;
     y->tv_sec += nsec;
   }
   if (x->tv_usec - y->tv_usec > 1000000) {
-    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    int nsec = (int)((x->tv_usec - y->tv_usec) / 1000000);
     y->tv_usec += 1000000 * nsec;
     y->tv_sec -= nsec;
   }
 
-  /* Compute the time remaining to wait. tv_usec is certainly positive. */
+  /* Compute the time remaining to wait. tv_usec is certainly positive */
   result->tv_sec = x->tv_sec - y->tv_sec;
   result->tv_usec = x->tv_usec - y->tv_usec;
 
-  /* Return 1 if result is negative. */
+  /* Return 1 if result is negative */
   return x->tv_sec < y->tv_sec;
 }
 
@@ -471,7 +486,7 @@ static int get_ts(void) {
   struct bm_timeval restv;
 
   timeval_subtract(&restv, &bmtv, &g_start_ts);
-  return restv.tv_sec * 1000000 + restv.tv_usec;
+  return (int)(restv.tv_sec * 1000000 + restv.tv_usec);
 }
 
 static double conv_ms(int ts) {
@@ -479,23 +494,13 @@ static double conv_ms(int ts) {
 }
 
 
-static time_t *get_time1(void) {
-  static time_t t;  /* need static because we return a pointer... */
-  t = time(NULL);
-  return(&t);
-}
-
-
 static double correctTime(double tMeas, double tMeas2, int measCount) {
   int tsPrecCnt = g_tsPrecCnt;
 
   if (measCount < tsPrecCnt) {
-    tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); // ts + correction
-    //printf("DEBUG: correctTime: tMeas=%f cntDiff=%d corr=%f\n", tMeas, (tsPrecCnt - measCount), tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt));
-    //printf("DEBUG: \n");
-    //TTT bench01(1000, 1000000, ((1000000 + 1) / 2) | 0); 
+    tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); /* ts + correction */
     if (tMeas > tMeas2) {
-        tMeas = tMeas2; // cannot correct
+        tMeas = tMeas2; /* cannot correct */
     }   
   }
   return tMeas;
@@ -503,6 +508,7 @@ static double correctTime(double tMeas, double tMeas2, int measCount) {
 
 static double getPrecMs(int stopFlg) {
   int measCount = 0;
+  double tMeasD;
 
   int tMeas0 = get_ts();
   int tMeas = tMeas0;
@@ -512,16 +518,17 @@ static double getPrecMs(int stopFlg) {
   }
   g_tsMeasCnt = measCount; /* memorize count */
 
-  double tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount);
+  tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount);
   return tMeasD;
 }
 
 /* usually only needed if time precision is low, e.g. one second */
 static void determineTsPrecision(void) {
-  g_start_ts = get_raw_ts(); // memorize start time //TTT copy?
+  double tMeas0, tMeas1;
+  g_start_ts = get_raw_ts(); /* memorize start time */
 
-  double tMeas0 = getPrecMs(0);
-  double tMeas1 = getPrecMs(0);
+  tMeas0 = getPrecMs(0);
+  tMeas1 = getPrecMs(0);
   g_tsPrecMs = tMeas1 - tMeas0;
   g_tsPrecCnt = g_tsMeasCnt;
 
@@ -529,11 +536,11 @@ static void determineTsPrecision(void) {
   tMeas0 = tMeas1;
   tMeas1 = getPrecMs(0);
   if (g_tsMeasCnt > g_tsPrecCnt) { /* taker maximum count */
-    //printf("DEBUG: determineTsPrecision: Overwriting old measurement: tsPrecMs=%f tsPrecCnt=%d\n", g_tsPrecMs, g_tsPrecCnt);
+    /* printf("DEBUG: determineTsPrecision: Overwriting old measurement: tsPrecMs=%f tsPrecCnt=%d\n", g_tsPrecMs, g_tsPrecCnt); */
     g_tsPrecCnt = g_tsMeasCnt;
     g_tsPrecMs = tMeas1 - tMeas0;
   }
-  //printf("DEBUG: determineTsPrecision: tsPrecMs=%f tsPrecCnt=%d, tmeas0=%f tMeas1=%f tsMeasCnt=%d\n", g_tsPrecMs, g_tsPrecCnt, tMeas0, tMeas1, g_tsMeasCnt);
+  /* printf("DEBUG: determineTsPrecision: tsPrecMs=%f tsPrecCnt=%d, tmeas0=%f tMeas1=%f tsMeasCnt=%d\n", g_tsPrecMs, g_tsPrecCnt, tMeas0, tMeas1, g_tsMeasCnt); */
 }
 
 
@@ -547,7 +554,7 @@ static int checkbits_short1(void) {
     num *= 2;
     num++;
     bits++;
-	//printf("DEBUG: bits=%d num=%d last_num=%d, (num-1)/2=%d\n", bits, num, last_num, (num - 1) / 2);
+	/* printf("DEBUG: bits=%d num=%d last_num=%d, (num-1)/2=%d\n", bits, num, last_num, (num - 1) / 2); */
   } while ( (((num - 1) / 2) == last_num) && (bits < 101) );
   return bits;
 }
@@ -561,7 +568,6 @@ static int checkbits_int1(void) {
     num *= 2;
     num++;
     bits++;
-	//printf("DEBUG: bits=%d num=%u last_num=%u, (num-1)/2=%u\n", bits, num, last_num, (num - 1) / 2);
   } while ( (num > last_num) && (((num - 1) / 2) == last_num) && (bits < 101) );
   return bits;
 }
@@ -576,12 +582,10 @@ static int checkbits_ulonglong(void) {
     num *= 2;
     num++;
     bits++;
-	//printf("DEBUG: bits=%d num=%u last_num=%u, (num-1)/2=%u\n", bits, num, last_num, (num - 1) / 2);
   } while ( (num > last_num) && (((num - 1) / 2) == last_num) && (bits < 101) );
   return bits;
 }
 */
-
 
 static int checkbits_float1(void) {
   float num = 1.0;
@@ -610,14 +614,39 @@ static int checkbits_double1(void) {
 }
 
 
+/*
+static time_t *get_time1(void) {
+  static time_t t;  / * need static because we return a pointer... * /
+  t = time(NULL);
+  return(&t);
+}
+*/
 
 static void print_info(void) {
+  char str[40];
+  time_t t = time(NULL);
+  struct tm *tm1;
+  
   printf("BM Bench v%s (%s) -- (short:%d int:%d float:%d double:%d tsMs:%lf tsCnt:%d) ", PRG_VERSION, PRG_LANGUAGE,
     checkbits_short1(), checkbits_int1(), checkbits_float1(), checkbits_double1(),
     g_tsPrecMs, g_tsPrecCnt);
-  printf(MY_VERSION); // maybe multiple arguments!
-  printf("(c) Marco Vieth, 2002-2022\n");
-  printf("Date: %s", ctime(get_time1()));
+  printf(MY_VERSION); /* maybe multiple arguments! */
+  printf("(c) Marco Vieth, 2002-2023\n");
+
+  tm1 = localtime(&t);
+  if (tm1 == NULL) {
+    perror("localtime");
+    return;
+  }
+
+  /* https://www.tutorialspoint.com/c_standard_library/c_function_strftime.htm */
+  if (strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S\n", tm1) == 0) {
+    perror("localtime");
+    return;
+  }
+
+  /* printf("Date: %s", ctime(get_time1())); */
+  printf("Date: %s", str);
 }
 
 
@@ -628,7 +657,7 @@ static void print_results(int bench1, int bench2, double *bench_res1) {
   int i;
   int bench;
   printf("\nThroughput for all benchmarks (loops per sec):\n");
-  for (i = (int)strlen(PRG_LANGUAGE); i < MAX_LANGUAGE_LEN1; i++) {
+  for (i = (int)strlen(PRG_LANGUAGE); i < sizeof(str); i++) {
     strcat(str, " ");
   }
   printf("BMR (%s)%s: ", PRG_LANGUAGE, str);
@@ -654,6 +683,7 @@ static double measureBench(int bench, int n, int check) {
   double tMeas = 0; /* measured time */
   double tEsti = 0; /* estimated time */
   double throughput = 0;
+  double t_delta, loops_p_sec;
 
   printf("Calibrating benchmark %d with n=%d, check=%d\n", bench, n, check);
   while (throughput == 0) {
@@ -661,9 +691,8 @@ static double measureBench(int bench, int n, int check) {
     x = run_bench(bench, loops, n, check);
     tMeas = getPrecMs(1) - tMeas;
 
-    double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); /* compute difference abs(measures-estimated) */
-    double loops_p_sec = (tMeas > 0) ? ((loops * 1000.0) / tMeas) : 0;
-    //printf("DEBUG: (time=%9.3f ms, delta=%9.3f ms, tsMeasCnt=%d)\n",tMeas, t_delta, g_tsMeasCnt);
+    t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); /* compute difference abs(measures-estimated) */
+    loops_p_sec = (tMeas > 0) ? ((loops * 1000.0) / tMeas) : 0;
     printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)\n", loops_p_sec, tMeas, loops, t_delta);
   
     if (x == -1) { /* some error? */
@@ -679,12 +708,12 @@ static double measureBench(int bench, int n, int check) {
       if (tMeas == 0) {
         scale_fact = 50;
       } else if (tMeas < cali_ms) {
-        scale_fact = (int)((cali_ms + 100) / tMeas) + 1; // scale a bit up to 1100 ms (cali_ms+100)
+        scale_fact = (int)((cali_ms + 100) / tMeas) + 1; /* scale a bit up to 1100 ms (cali_ms+100) */
       } else {
         scale_fact = 2;
       }
       /* scale a bit up to 1100 ms (cali_ms+100) */
-      //printf("DEBUG: scale_fact=%lf, tMeas=%lf, tEsti=%lf\n", (double)scale_fact, tMeas, tEsti);
+      /* printf("DEBUG: scale_fact=%lf, tMeas=%lf, tEsti=%lf\n", (double)scale_fact, tMeas, tEsti); */
       loops *= scale_fact;
       tEsti = tMeas * scale_fact;
     }
@@ -694,23 +723,29 @@ static double measureBench(int bench, int n, int check) {
 }
 
 
-/* #define MAX_BENCH (5 + 1) */
-
 static int start_bench(int bench1, int bench2, int n) {
   double *bench_res = NULL;
-  int bench;
+  int bench, n2, check;
+  unsigned int bench_res_size;
+  double throughput;
   
   print_info();
 
-  unsigned int bench_res_size = ((unsigned)bench2 + 1) * sizeof(double);
+  bench_res_size = ((unsigned)bench2 + 1) * sizeof(double);
   if ((bench_res = (double *)malloc(bench_res_size)) == NULL) {
     fprintf(stderr, "Error: malloc(bench_res)\n");
     exit(1);
   }
 
   for (bench = bench1; bench <= bench2; bench++) {
-    int check = getCheck(bench, n);
-    double throughput = (check > 0) ? measureBench(bench, n, check) : -1;
+    n2 = n;
+    if (bench == 3) {
+      n2 = n2 / 2;
+    } else if (bench == 5) {
+      n2 = n2 / 200;
+    }
+    check = getCheck(bench, n2);
+    throughput = (check > 0) ? measureBench(bench, n2, check) : -1;
     bench_res[bench] = throughput;
   }
 
@@ -738,7 +773,7 @@ int main(int argc, char **argv) {
     bench2 = atoi(argv[2]);
   }
   if (argc > 3) {
-    n = atol(argv[3]);
+    n = atoi(argv[3]);
   }
   
   determineTsPrecision();

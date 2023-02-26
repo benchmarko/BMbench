@@ -11,6 +11,7 @@
 // 23.05.2006 0.06  based on version 0.05
 // 05.05.2019 0.07  changed bench 00-03; time interval estimation
 // 03.12.2022 0.072 bench03 corrected, bench05 improved
+// 19.02.2023 0.08  bench05 optimized
 //
 // Compile & Run:
 // java bmbench.java [bench] [n]
@@ -26,7 +27,7 @@
 import java.text.SimpleDateFormat; // just to print date
 
 class bmbench {
-  static String prg_version = "0.072";
+  static String prg_version = "0.08";
   static String prg_language = "Java";
 
   private static long gState_startTs = 0;
@@ -59,25 +60,21 @@ class bmbench {
   // (sum of 1..n) mod 65536
   // can be computed with short
   //
-  private static int bench00(int loops, int n, int check) {
+  private static int bench00(int n) {
     short x = 0; // short is -32767..32768
     short n_div_65536 = (short)(n >> 16);
     short n_mod_65536 = (short)(n & 0xffff);
     //System.out.println("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
-    while (loops-- > 0 && x == 0) {
-      for (int i = n_div_65536; i > 0; i--) {
-        for (short j = 32767; j > 0; j--) {
-          x += j;
-        }
-        for (short j = -32768; j < 0; j++) {
-          x += j;
-        }
-      }
-      for (short j = n_mod_65536; j > 0; j--) {
+    for (int i = n_div_65536; i > 0; i--) {
+      for (short j = 32767; j > 0; j--) {
         x += j;
       }
-      //x &= 0xffff; // not needed because x is short
-      x -= check;
+      for (short j = -32768; j < 0; j++) {
+        x += j;
+      }
+    }
+    for (short j = n_mod_65536; j > 0; j--) {
+      x += j;
     }
     return x & 0xffff;
   }
@@ -87,18 +84,15 @@ class bmbench {
   // bench01 (Integer 16/32 bit)
   // (arithmetic mean of 1..n) mod 65536
   //
-  private static int bench01(int loops, int n, int check) {
+  private static int bench01(int n) {
     int x = 0;
-    while (loops-- > 0 && x == 0) {
-      int sum = 0;
-      for (int i = 1; i <= n; i++) {
-        sum += i;
-        if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
-          sum -= n;
-          x++;
-        }
+    int sum = 0;
+    for (int i = 1; i <= n; i++) {
+      sum += i;
+      if (sum >= n) { // to avoid numbers above 2*n, divide by n using subtraction
+        sum -= n;
+        x++;
       }
-      x -= check;
     }
     return x;
   }
@@ -108,66 +102,68 @@ class bmbench {
   // bench02 (Floating Point, normally 64 bit)
   // (arithmetic mean of 1..n) mod 65536
   //
-  private static int bench02(int loops, int n, int check) {
+  private static int bench02(int n) {
     int x = 0;
-    while (loops-- > 0 && x == 0) {
-      double sum = 0.0;
-      for (int i = 1; i <= n; i++) {
-        sum += i;
-        if (sum >= n) {
-          sum -= n;
-          x++;
-        }
+    double sum = 0.0;
+    for (int i = 1; i <= n; i++) {
+      sum += i;
+      if (sum >= n) {
+        sum -= n;
+        x++;
       }
-      x -= check;
     }
     return x;
   }
 
+  private static boolean bench03Sieve1[];
 
   //
   // bench03 (Integer)
   // number of primes less than or equal to n (prime-counting function)
   // Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
-  // (Sieve of Eratosthenes, no multiples of 2's are stored)
+  // (Sieve of Eratosthenes, no multiples of 2 are stored)
   //
-  private static int bench03(int loops, int n, int check) {
-    n /= 2; // compute only up to n/2
-    int x = 0; // number of primes below n
+  private static int bench03(int n) {
+    //n /= 2; // compute only up to n/2
+    
     int nHalf = n >> 1;
-    boolean sieve1[] = new boolean[nHalf + 1];
 
-    while (loops-- > 0 && x == 0) {
-      // initialize sieve
-      for (int i = 0; i <= nHalf; i++) {
-        sieve1[i] = false;
-      }
-      // compute primes
-      int i = 0;
-      int m = 3;
-      x++; // 2 is prime
-      while (m * m < n) {
-        if (!sieve1[i]) {
-          x++; // m is prime
-          int j = (m * m - 3) >> 1; // div 2
-          while (j < nHalf) {
-            sieve1[j] = true;
-            j += m;
-          }
-        }
-        i++;
-        m += 2;
-      }
+    // allocate memory...
+    if (bench03Sieve1 == null) {
+      bench03Sieve1 = new boolean[nHalf + 1];
+    }
+    boolean sieve1[] = bench03Sieve1;
 
-      // count remaining primes
-      while (m <= n) {
-        if (!sieve1[i]) {
-          x++; // m is prime
+    int i;
+    // initialize sieve
+    for (i = 0; i <= nHalf; i++) {
+      sieve1[i] = false;
+    }
+
+    // compute primes
+    i = 0;
+    int m = 3;
+    int x = 1; // number of primes below n (2 is prime)
+    while (m * m < n) {
+      if (!sieve1[i]) {
+        x++; // m is prime
+        int j = (m * m - 3) >> 1; // div 2
+        while (j < nHalf) {
+          sieve1[j] = true;
+          j += m;
         }
-        i++;
-        m += 2;
       }
-      x -= check;
+      i++;
+      m += 2;
+    }
+
+    // count remaining primes
+    while (m <= n) {
+      if (!sieve1[i]) {
+        x++; // m is prime
+      }
+      i++;
+      m += 2;
     }
     return x;
   }
@@ -181,31 +177,96 @@ class bmbench {
   // It needs longs with at least 32 bit.
   // Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
   //
-  private static int bench04(int loops, int n, int check) {
+  private static int bench04(int n) {
     final int m = 2147483647; // modulus, do not change!
-    final int a = 16807;      // multiplier
-    final int q = 127773;     // m div a
-    final int r = 2836;       // m mod a
-    int x = 0;                // last random value
-    while (loops-- > 0 && x == 0) {
-      x++; // start with 1
-      for (int i = n; i > 0; i--) {
-        x = a * (x % q) - r * (x / q); // x div q
-        if (x <= 0) {
-          x += m; // x is new random number
-        }
+    final int a = 16807; // multiplier
+    final int q = 127773; // m div a
+    final int r = 2836; // m mod a
+    int x = 1; // 1=last random value
+
+    for (int i = n; i > 0; i--) {
+      int xDivQ = x / q;
+		  int xModQ = x - q * xDivQ;
+		  x = a * xModQ - r * xDivQ;
+      //x = a * (x % q) - r * (x / q); // x div q
+      if (x <= 0) {
+        x += m; // x is new random number
       }
-      x -= check;
     }
     return x;
   }
 
 
+  private static int bench05Line1[];
+
   //
   // bench05 (Integer 32 bit)
-  // n over n/2 mod 65536 (Pascal's triangle)
+  // (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
+  // Using dynamic programming and Pascal's triangle, storing only one line
+  // Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
+  // Example: (2000 choose 1000) mod 65536 = 27200
   //
- private static int bench05(int loops, int n_p, int check) {
+  private static int bench05(int n) {
+    //n /= 200; // compute only up to n/200
+
+    // Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+	  n /= 2;
+
+    int k = n / 2;
+    if ((n - k) < k) {
+      k = n - k; // keep k minimal with  n over k  =  n over n-k
+    }
+
+    // allocate memory...
+    if (bench05Line1 == null) {
+      bench05Line1 = new int[k + 1];
+    }
+    int line[] = bench05Line1;
+
+    // initialize (not needed)
+    for (int j = 0; j <= k; j++) {
+      line[j] = 0;
+    }
+
+    line[0] = 1;
+    line[1] = 2; // for line 2, second column is 2
+
+    // compute lines of Pascal's triangle
+    for (int i = 3; i <= n; i++) {
+      int min1 = (i - 1) / 2;
+      if ((i & 1) == 0) { // new element?
+        line[min1 + 1] = 2 * line[min1];
+      }
+      
+      int prev = line[1];
+      for (int j = 2; j <= min1; j++) {
+        int num =  line[j];
+        line[j] += prev;
+        prev = num;
+      }
+      line[1] = i; // second column is i
+
+      /*
+      String str = "";
+      for (int j = 0; j < k; j++) {
+        str += ","+ line[j];
+      }
+      System.out.println("DEBUG: " + i + ": " + str);
+      */
+    }
+
+    // compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+    int x = 0;
+    for (int j = 0; j < k; j++) {
+      x += 2 * line[j] * line[j]; /* add nCk and nC(n-k) */
+	  }
+	  x += line[k] * line[k]; /* we assume that k is even, so we need to take the middle element */
+
+    return x & 0xffff;
+  }
+
+/*
+ private static int bench05_ok1(int n_p) {
     int x = 0;
     int n = n_p / 500; // compute only up to n/500
     int k = n / 2;
@@ -214,41 +275,39 @@ class bmbench {
       k = n - k; // keep k minimal with  n over k  =  n over n-k
     }
 
-    // allocate memory...
-    int line[] = new int[k + 1];
-    int lastLine[] = new int[k + 1];
-    line[0] = 1;
-    lastLine[0] = 1; // set first column
+  // allocate memory...
+  int line[] = new int[k + 1];
+  int lastLine[] = new int[k + 1];
+  line[0] = 1;
+  lastLine[0] = 1; // set first column
 
-    while (loops-- > 0 && x == 0) {
-      // initialize
-      for (int j = 1; j <= k; j++) {
-        line[j] = 0;
-        lastLine[j] = 0;
-      }
-
-		  // compute
-      for (int i = 3; i <= n; i++) {
-        int min1 = (i - 1) / 2;
-        if (k < min1) {
-          min1 = k;
-        }
-        line[1] = i; // second column is i
-        for (int j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
-          line[j] = (lastLine[j - 1] + lastLine[j]); // & 0xffff;
-        }
-        if ((min1 < k) && ((i & 1) == 0)) { // new element
-          line[min1 + 1] = 2 * lastLine[min1];
-        }
-        int tempLine[] = lastLine;
-			  lastLine = line;
-			  line = tempLine;
-      }
-      x += lastLine[k] & 0xffff;
-      x -= check;
+    // initialize
+    for (int j = 1; j <= k; j++) {
+      line[j] = 0;
+      lastLine[j] = 0;
     }
+
+    // compute
+    for (int i = 3; i <= n; i++) {
+      int min1 = (i - 1) / 2;
+      if (k < min1) {
+        min1 = k;
+      }
+      line[1] = i; // second column is i
+      for (int j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
+        line[j] = (lastLine[j - 1] + lastLine[j]); // & 0xffff;
+      }
+      if ((min1 < k) && ((i & 1) == 0)) { // new element
+        line[min1 + 1] = 2 * lastLine[min1];
+      }
+      int tempLine[] = lastLine;
+      lastLine = line;
+      line = tempLine;
+    }
+    x += lastLine[k] & 0xffff;
     return x;
   }
+  */
 
 
   //
@@ -259,35 +318,42 @@ class bmbench {
   // out:    x = result
   //
   public static int run_bench(int bench, int loops, int n, int check) {
+    if (bench > 5) {
+      System.out.println("Error: Unknown benchmark " + bench);
+    }
+
     int x = 0;
-    switch (bench) {
-      case 0:
-        x = bench00(loops, n, check);
-        break;
+    while (loops-- > 0 && x == 0) {
+      switch (bench) {
+        case 0:
+          x = bench00(n);
+          break;
 
-      case 1:
-        x = bench01(loops, n, check);
-        break;
+        case 1:
+          x = bench01(n);
+          break;
 
-      case 2:
-        x = bench02(loops, n, check);
-        break;
+        case 2:
+          x = bench02(n);
+          break;
 
-      case 3:
-        x = bench03(loops, n, check);
-        break;
+        case 3:
+          x = bench03(n);
+          break;
 
-      case 4:
-        x = bench04(loops, n, check);
-        break;
+        case 4:
+          x = bench04(n);
+          break;
 
-      case 5:
-        x = bench05(loops, n, check);
-        break;
+        case 5:
+          x = bench05(n);
+          break;
 
-      default:
-        System.out.println("Error: Unknown benchmark " + bench);
-        break;
+        default:
+          System.out.println("Error: Unknown benchmark " + bench);
+          break;
+      }
+      x -= check;
     }
 
     x += check;
@@ -300,10 +366,9 @@ class bmbench {
 
 
   public static int bench03Check(int n) {
+    //n /= 2; // compute only up to n/2
+
 		int x = 0;
-
-    n = (n / 2) | 0; // compute only up to n/2
-
     for (int j = 2; j <= n; j++) {
       boolean isPrime = true;
       for (int i = 2; i * i <= j; i++) {
@@ -321,9 +386,10 @@ class bmbench {
 
   public static int getCheck(int bench, int n) {
     int check;
+
     switch (bench) {
-      case 0:
-        check = (short)((n / 2) * (n + 1)) & 0xffff;
+      case 0: // (n / 2) * (n + 1)
+        check = (((n + (n & 1)) >> 1) * (n + 1 - (n & 1))) & 0xffff; // 10528 for n=1000000
         break;
 
       case 1:
@@ -335,15 +401,15 @@ class bmbench {
         break;
 
       case 3:
-        check = (n == 1000000) ? 41538 : bench03Check(n);
+        check = (n == 500000) ? 41538 : bench03Check(n);
         break;
 
       case 4:
-        check = (n == 1000000) ? 1227283347 : bench04(1, n, 0); // bench04 not a real check
+        check = (n == 1000000) ? 1227283347 : bench04(n); // bench04 not a real check
         break;
 
       case 5:
-        check = (n == 1000000) ? 27200 : bench05(1, n, 0); // bench05 not a real check
+        check = (n == 5000) ? 17376 : bench05(n); // bench05 not a real check
         break;
 
       default:
@@ -378,11 +444,14 @@ class bmbench {
     return ts;
   }
 
+
+  /*
   private static String getdate1() {
     long date_ms = System.currentTimeMillis();
     SimpleDateFormat format1 = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
     return format1.format(new java.util.Date(date_ms));
   }
+  */
 
 
   private static double correctTime(double tMeas, double tMeas2, int measCount) {
@@ -541,15 +610,18 @@ class bmbench {
   }
 
 
-  private static void print_info() {
-    System.out.print("BM Bench v" + prg_version + " (" + prg_language + ") -- (short:" + checkbits_short1() + " int:" + checkbits_int1()
-      + " long:" + checkbits_long1() + " float:" + checkbits_float1() + " double:" + checkbits_double1() + " tsMs:" + gState_tsPrecMs + " tsCnt:" + gState_tsPrecCnt + ") ");
-    System.out.print("java.version=" + System.getProperty("java.version") + ", java.vendor=" + System.getProperty("java.vendor"));
-    System.out.println("os.name=" + System.getProperty("os.name") + ", os.arch=" + System.getProperty("os.arch")
-      + ", os.version=" + System.getProperty("os.version"));
-    System.out.println("(c) Marco Vieth, 2002-2022");
-    System.out.println("Date: " + getdate1());
+  private static String get_info() {
+    String str = "BM Bench v" + prg_version + " (" + prg_language + ") -- (short:" + checkbits_short1() + " int:" + checkbits_int1()
+      + " long:" + checkbits_long1() + " float:" + checkbits_float1() + " double:" + checkbits_double1() + " tsMs:" + gState_tsPrecMs + " tsCnt:" + gState_tsPrecCnt + ")"
+      + " java.version=" + System.getProperty("java.version") + ", java.vendor=" + System.getProperty("java.vendor") + " "
+      + ", os.name=" + System.getProperty("os.name") + ", os.arch=" + System.getProperty("os.arch")
+      + ", os.version=" + System.getProperty("os.version") + "\n"
+      + "(c) Marco Vieth, 2002-2022\n"
+      + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(System.currentTimeMillis()));
+      
+    //System.out.println("Date: " + getdate1());
     //System.out.println("properties="+ System.getProperties());
+    return str;
   }
 
 
@@ -578,7 +650,7 @@ class bmbench {
     double tEsti = 0;   // estimated time
     double throughput = 0;
 
-    System.out.println("Calibrating benchmark " + bench + " with n=" + n + ", ckeck=" + check);
+    System.out.println("Calibrating benchmark " + bench + " with n=" + n + ", check=" + check);
     while (throughput == 0) {
       tMeas = getPrecMs(false);
       x = run_bench(bench, loops, n, check);
@@ -614,13 +686,19 @@ class bmbench {
   }
 
   private static int start_bench(int bench1, int bench2, int n) {
-    print_info();
+    System.out.println(get_info());
 
     double bench_res[] = new double[bench2 + 1];
 
     for (int bench = bench1; bench <= bench2; bench++) {
-      int check = getCheck(bench, n);
-      double throughput = (check > 0) ? measureBench(bench, n, check) : -1;
+      int n2 = n;
+      if (bench == 3) {
+        n2 = n2 / 2;
+      } else if (bench == 5) {
+        n2 = n2 / 200;
+      }
+      int check = getCheck(bench, n2);
+      double throughput = (check > 0) ? measureBench(bench, n2, check) : -1;
       bench_res[bench] = throughput;
     }
 
@@ -651,6 +729,12 @@ class bmbench {
     rc = rc; //avoid warning
     System.out.println("Total elapsed time: " + (int)(conv_ms(get_ts())) + " ms");
   }
+}
+
+public class Main {  
+    public static void main(String args[]) {
+        bmbench.main(args);
+    }
 }
 
 /*

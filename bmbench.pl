@@ -11,6 +11,7 @@
 # 30.05.2006 0.06  based on version 0.05
 # 11.05.2019 0.07  changed bench 01-03; time interval estimation
 # 03.12.2022 0.072 bench03 corrected, bench05 improved
+# 19.02.2023 0.08  bench05 optimized
 #
 # Usage:
 # perl bmbench.pl [bench1] [bench2] [n]
@@ -19,7 +20,7 @@
 
 use strict;
 
-my $G_PRG_VERSION = "0.072";
+my $G_PRG_VERSION = "0.08";
 my $G_PRG_LANGUAGE = "Perl";
 
 my $g_allowHiRes = 1; #1; # can be switched off for testing time with second resolution
@@ -43,35 +44,31 @@ my $g_tsMeasCnt = 0; # last measured count
 #
 
 
-
 #
 # bench00 (Integer 16 bit)
 # (sum of 1..n) mod 65536
 #
-sub bench00($$$) {
+sub bench00($) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n, $check) = @_;
+  my($n) = @_;
   my $x = 0;
   my $n_div_65536 = ($n >> 16) & 0xffff;
   my $n_mod_65536 = $n & 0xffff;
+
   #print "DEBUG: n=$n, sum1=$sum1, n_div_65536=$n_div_65536, n_mod_65536=$n_mod_65536\n";
-  while ($loops-- > 0) {
-    # simulate summation with 16 bit borders...
-    for (my $i = $n_div_65536; $i > 0; $i--) {
-      for (my $j = 65535; $j > 0; $j--) {
-        $x += $j;
-        #$x &= 0xffff;
-      }
-    }
-    for (my $j = $n_mod_65536; $j > 0; $j--) {
+  # simulate summation with 16 bit borders...
+  for (my $i = $n_div_65536; $i > 0; $i--) {
+    for (my $j = 65535; $j > 0; $j--) {
       $x += $j;
       #$x &= 0xffff;
     }
-    $x &= 0xffff;
-    #print "DEBUG: x0=$x, x-sum1=". ($x - $sum1) ."\n";
-    $x -= $check;
   }
-  return $x & 0xffff;
+  for (my $j = $n_mod_65536; $j > 0; $j--) {
+    $x += $j;
+    #$x &= 0xffff;
+  }
+  $x &= 0xffff;
+  return $x;
 }
 
 
@@ -79,20 +76,17 @@ sub bench00($$$) {
 # bench01 (Integer 32 bit)
 # (arithmetic mean of 1..n) mod 65536
 #
-sub bench01($$$) {
+sub bench01($) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n, $check) = @_;
+  my($n) = @_;
   my $x = 0;
-  while ($loops-- > 0 && $x == 0) {
-    my $sum = 0;
-    for (my $i = 1; $i <= $n; $i++) {
-      $sum += $i;
-			if ($sum >= $n) { # to avoid numbers above 2*n, divide by n using subtraction
-				$sum -= $n;
-				$x++;
-			}
+  my $sum = 0;
+  for (my $i = 1; $i <= $n; $i++) {
+    $sum += $i;
+    if ($sum >= $n) { # to avoid numbers above 2*n, divide by n using subtraction
+      $sum -= $n;
+      $x++;
     }
-    $x -= $check;
   }
   return $x;
 }
@@ -102,19 +96,16 @@ sub bench01($$$) {
 # bench02 (Floating Point, normally 64 bit)
 # (arithmetic mean of 1..n) mod 65536
 #
-sub bench02($$$) {
-  my($loops, $n, $check) = @_;
+sub bench02($) {
+  my($n) = @_;
   my $x = 0;
-  while ($loops-- > 0 && $x == 0) {
-    my $sum = 0.0;
-    for (my $i = 1; $i <= $n; $i++) {
-      $sum += $i;
-			if ($sum >= $n) { # to avoid numbers above 2*n, divide by n using subtraction
-				$sum -= $n;
-				$x++;
-			}
+  my $sum = 0.0;
+  for (my $i = 1; $i <= $n; $i++) {
+    $sum += $i;
+    if ($sum >= $n) { # to avoid numbers above 2*n, divide by n using subtraction
+      $sum -= $n;
+      $x++;
     }
-    $x -= $check;
   }
   return $x;
 }
@@ -127,10 +118,10 @@ sub bench02($$$) {
 # (Sieve of Eratosthenes, no multiples of 2's are stored)
 # (We could use bit vector vec($s, 0, 1), but it is slower than array access.)
 #
-sub bench03($$$) {
+sub bench03($) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n, $check) = @_;
-  $n /= 2; # compute only up to n/2 
+  my($n) = @_;
+  #$n /= 2; # compute only up to n/2 
   my $nHalf = $n >> 1; # div 2
   my $x = 0; # number of primes below n
   my $m;
@@ -138,37 +129,34 @@ sub bench03($$$) {
   my $j;
   my @sieve = ();
 
-  while ($loops-- > 0 && $x == 0) {
-    # initialize sieve
-    for ($i = 0; $i <= $nHalf; $i++) {
-      $sieve[$i] = 0; # odd numbers are possible primes
-    }
-    # compute primes
-    $i = 0;
-	$m = 3;
-    $x += 1; # 2 is prime
-	while ($m * $m < $n) {
-      if (!$sieve[$i]) {
-        $x++; # m is prime
-		$j = ($m * $m - 3) >> 1; # div 2
-		while ($j < $nHalf) {
-          $sieve[$j] = 1;
-          $j += $m;
-        }
-	  }
-	  $i++;
-	  $m += 2; # or: =2 * $i + 3;
-    }
-
-    # count remaining primes
-    while ($m <= $n) {
-      if (!$sieve[$i]) {
-        $x++; # m is prime
+  # initialize sieve
+  for ($i = 0; $i <= $nHalf; $i++) {
+    $sieve[$i] = 0; # odd numbers are possible primes
+  }
+  # compute primes
+  $i = 0;
+  $m = 3;
+  $x += 1; # 2 is prime
+  while ($m * $m < $n) {
+    if (!$sieve[$i]) {
+      $x++; # m is prime
+      $j = ($m * $m - 3) >> 1; # div 2
+      while ($j < $nHalf) {
+        $sieve[$j] = 1;
+        $j += $m;
       }
-      $i++;
-      $m += 2;
+  }
+  $i++;
+  $m += 2; # or: =2 * $i + 3;
+  }
+
+  # count remaining primes
+  while ($m <= $n) {
+    if (!$sieve[$i]) {
+      $x++; # m is prime
     }
-    $x -= $check;
+    $i++;
+    $m += 2;
   }
   return $x;
 }
@@ -187,34 +175,98 @@ sub BENCH04_A() { 16807; }      # multiplier
 sub BENCH04_Q() { 127773; }     # m div a
 sub BENCH04_R() { 2836; }       # m mod a
 
-sub bench04($$$) {
+sub bench04($) {
   use integer; # it is possible to use integer arithmetic
-  my($loops, $n, $check) = @_;
-  my $x = 0; # last random value
-  while ($loops-- > 0) {
-		$x++; # start with 1=last random value
-    for (my $i = 1; $i <= $n; $i++) {
-      $x = BENCH04_A() * ($x % BENCH04_Q()) - BENCH04_R() * (($x / BENCH04_Q()) | 0);
-      if ($x <= 0) {
-        $x += BENCH04_M();
-      }
-
+  my($n) = @_;
+  my $x = 1; # 1=Last random value
+  for (my $i = 1; $i <= $n; $i++) {
+    # not so fast as direct...
+    #my ($x_div_q, $x_mod_q);
+    #$x_div_q = $x / BENCH04_Q();
+    #$x_mod_q = $x - BENCH04_Q() * $x_div_q;
+    #$x = BENCH04_A() * $x_mod_q - BENCH04_R() * $x_div_q;
+    $x = BENCH04_A() * ($x % BENCH04_Q()) - BENCH04_R() * (($x / BENCH04_Q()) | 0);
+    if ($x <= 0) {
+      $x += BENCH04_M();
     }
-    $x -= $check;
+
   }
   return $x;
 }
 
+#my @bench05Line;
 
-#
 # bench05 (Integer 32 bit)
-# n over n/2 mod 65536 (Pascal's triangle)
-# (we just need to store the last 2 lines of computation)
+# (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
+# Using dynamic programming and Pascal's triangle, storing only one line
+# Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
+# Example: (2000 choose 1000) mod 65536 = 27200
 #
 # using arrays
-sub bench05($$$) {
+sub bench05($) {
   use integer; # we need integer arithmetic
-  my($loops, $n, $check) = @_;
+  my($n) = @_;
+  #$n = int($n / 200); # compute only up to n/125
+
+  # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+	$n = int($n / 2);
+
+  my $k = int($n / 2);
+  if (($n - $k) < $k) {
+    $k = $n - $k; # keep k minimal with  n over k  =  n over n-k
+  }
+
+  #if (!@bench05Line) {
+  #  @bench05Line = (0) x ($k + 1);
+  #}
+  #my @line = @bench05Line;
+  my @line = (0) x ($k + 1);
+  
+  ## initialize (not needed)
+  #for (my $j = 0; $j <= $k; $j++) {
+  #  $line[$j] = 0;
+  #}
+
+  $line[0] = 1;
+  $line[1] = 2; # for line 2, second column is 2
+
+  # compute lines of Pascal's triangle
+  my ($num, $prev);
+  for (my $i = 3; $i <= $n; $i++) {
+    my $min1 = ($i - 1) / 2; # int(...)
+    
+    if (($i & 1) == 0) { # new element?
+      $line[$min1 + 1] = 2 * $line[$min1];
+    }
+
+    $prev = $line[1];
+    for (my $j = 2; $j <= $min1; $j++) {
+      $num = $line[$j];
+      #$line[$j] = ($line[$j] + $prev) & 0xffff;
+      $line[$j] += $prev;
+      $prev = $num;
+    }
+    $line[1] = $i; # second column is i
+    #print "DEBUG: ", $i, ": ", @line, "\n";
+  }
+
+  # compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+  my $x = 0;
+  for (my $j = 0; $j < $k; $j++) {
+    #$x = ($x + 2 * $line[$j] * $line[$j]) & 0xffff; # add nCk and nC(n-k)
+    $x += 2 * $line[$j] * $line[$j]; # add nCk and nC(n-k)
+  }
+  #$x = ($x + $line[$k] * $line[$k]) & 0xffff; # we assume that k is even, so we need to take the middle element
+  $x += $line[$k] * $line[$k]; # we assume that k is even, so we need to take the middle element
+
+  return $x & 0xffff;
+}
+
+
+=for nobody
+sub bench05_ok1($) {
+  use integer; # we need integer arithmetic
+  my($n) = @_;
   my $x = 0;
   $n = int($n / 500);
   my $k = int($n / 2);
@@ -230,39 +282,36 @@ sub bench05($$$) {
   $line[0] = 1;
   $lastLine[0] = 1; # set first column
   
-  while ($loops-- > 0 && $x == 0) {
-    # initialize
-    for (my $j = 1; $j <= $k; $j++) {
-      $line[$j] = 0;
-      $lastLine[$j] = 0;
-    }
-      
-    # compute
-    for (my $i = 2; $i <= $n; $i++) {
-      #my $i_mod_2 = $i % 2;
-      my $min1 = ($i - 1) / 2; # int(...)
-      if ($k < $min1) {
-        $min1 = $k;
-      }
-      $line_r->[1] = $i; # second column is i
-      for (my $j = 2; $j <= $min1; $j++) { # up to min((i-1)/2, k)
-        #$pas1[$i_mod_2][$j] = ($pas1[$i_mod_2 ^ 1][$j - 1] + $pas1[$i_mod_2 ^ 1][$j]);
-        $line_r->[$j] = ($lastLine_r->[$j - 1] + $lastLine_r->[$j]); # & 0xffff;
-      }
-      if (($min1 < $k) && (($i & 1) == 0)) { # new element
-        #$pas1[$i_mod_2][$min1 + 1] = 2 * $pas1[$i_mod_2 ^ 1][$min1];
-        $line_r->[$min1 + 1] = 2 * $lastLine_r->[$min1];
-      }
-      my $tempLine_r = $lastLine_r;
-      $lastLine_r = $line_r;
-	  $line_r = $tempLine_r;
-    }
-    $x += $lastLine_r->[$k] & 0xffff;
-    $x -= $check;
+  # initialize
+  for (my $j = 1; $j <= $k; $j++) {
+    $line[$j] = 0;
+    $lastLine[$j] = 0;
   }
+    
+  # compute
+  for (my $i = 2; $i <= $n; $i++) {
+    #my $i_mod_2 = $i % 2;
+    my $min1 = ($i - 1) / 2; # int(...)
+    if ($k < $min1) {
+      $min1 = $k;
+    }
+    $line_r->[1] = $i; # second column is i
+    for (my $j = 2; $j <= $min1; $j++) { # up to min((i-1)/2, k)
+      #$pas1[$i_mod_2][$j] = ($pas1[$i_mod_2 ^ 1][$j - 1] + $pas1[$i_mod_2 ^ 1][$j]);
+      $line_r->[$j] = ($lastLine_r->[$j - 1] + $lastLine_r->[$j]); # & 0xffff;
+    }
+    if (($min1 < $k) && (($i & 1) == 0)) { # new element
+      #$pas1[$i_mod_2][$min1 + 1] = 2 * $pas1[$i_mod_2 ^ 1][$min1];
+      $line_r->[$min1 + 1] = 2 * $lastLine_r->[$min1];
+    }
+    my $tempLine_r = $lastLine_r;
+    $lastLine_r = $line_r;
+  $line_r = $tempLine_r;
+  }
+  $x += $lastLine_r->[$k] & 0xffff;
   return $x;
 }
-
+=cut
 
 =for nobody
 # lists
@@ -314,26 +363,29 @@ sub bench05_lists($$$) { # (list implementation)
 sub run_bench($$$$) {
   my($bench, $loops, $n, $check) = @_;
   my $x = 0;
-  if ($bench == 0) {
-    $x = bench00($loops, $n, $check);
+  while ($loops-- > 0 && $x == 0) {
+    if ($bench == 0) {
+      $x = bench00($n);
 
-  } elsif ($bench == 1) {
-    $x = bench01($loops, $n, $check);
+    } elsif ($bench == 1) {
+      $x = bench01($n);
 
-  } elsif ($bench == 2) {
-    $x = bench02($loops, $n, $check);
+    } elsif ($bench == 2) {
+      $x = bench02($n);
 
-  } elsif ($bench == 3) {
-    $x = bench03($loops, $n, $check);
+    } elsif ($bench == 3) {
+      $x = bench03($n);
 
-  } elsif ($bench == 4) {
-    $x = bench04($loops, $n, $check);
+    } elsif ($bench == 4) {
+      $x = bench04($n);
 
-  } elsif ($bench == 5) {
-    $x = bench05($loops, $n, $check);
-  
-  } else {
-    print STDERR "Error: Unknown benchmark ", $bench, "\n";
+    } elsif ($bench == 5) {
+      $x = bench05($n);
+    
+    } else {
+      print STDERR "Error: Unknown benchmark ", $bench, "\n";
+    }
+    $x -= $check;
   }
 
   $x += $check;
@@ -350,7 +402,7 @@ sub bench03Check($) {
 	#var i, j, isPrime,
 	my $x = 0;
 
-	$n = ($n / 2) | 0; # compute only up to n/2
+	#$n = ($n / 2) | 0; # compute only up to n/2
 
 	for (my $j = 2; $j <= $n; $j++) {
 		my $isPrime = 1;
@@ -370,8 +422,9 @@ sub bench03Check($) {
 sub getCheck($$) {
   my($bench, $n) = @_;
   my $check = 0;
-  if ($bench == 0) {
-    $check = (($n / 2) * ($n + 1)) & 0xffff;
+  if ($bench == 0) { # ($n / 2) * ($n + 1)
+    #$check = (($n / 2) * ($n + 1)) & 0xffff;
+    $check = ((($n + ($n & 1)) >> 1) * ($n + 1 - ($n & 1))) & 0xffff;
 
   } elsif ($bench == 1) {
     $check = int(($n + 1) / 2);
@@ -380,13 +433,13 @@ sub getCheck($$) {
     $check = int(($n + 1) / 2);
 
   } elsif ($bench == 3) {
-    $check = ($n == 1000000) ? 41538 : bench03Check($n);
+    $check = ($n == 500000) ? 41538 : bench03Check($n);
 
   } elsif ($bench == 4) {
-    $check = ($n == 1000000) ? 1227283347 : bench04(1, $n, 0); # bench04 not a real check
+    $check = ($n == 1000000) ? 1227283347 : bench04($n); # bench04 not a real check
 
   } elsif ($bench == 5) {
-    $check = ($n == 1000000) ? 27200 : bench05(1, $n, 0); # bench05 not a real check
+    $check = ($n == 5000) ? 17376 : bench05($n); # bench05 not a real check
   
   } else {
     print STDERR "Error: Unknown benchmark ", $bench, "\n";
@@ -537,7 +590,7 @@ sub print_info() {
   my $perl_version = $];
   $perl_version =~ tr/\n/;/;
   print("BM Bench v", $G_PRG_VERSION, " (", $G_PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(),  " tsType:", $g_tsType, " tsMs:", $g_tsPrecMs, " tsCnt:", $g_tsPrecCnt, ") $perl_version, osname: $^O\n");
-  print("(c) Marco Vieth, 2002-2022\n");
+  print("(c) Marco Vieth, 2002-2023\n");
   print("Date: ". localtime(time()) ."\n");
   #system("uname -a");        
 }
@@ -616,8 +669,17 @@ sub start_bench($$$) {
 
   my @bench_res1 = ();
   for (my $bench = $bench1; $bench <= $bench2; $bench++) {
-    my $check = getCheck($bench, $n);
-    my $throughput = ($check > 0) ? measureBench($bench, $n, $check) : -1;
+    my $n2 = $n;
+
+    # reduce problem size
+  	if ($bench == 3) {
+	  	$n2 /= 2;
+  	} elsif ($bench == 5) {
+	  	$n2 /= 200;
+	  }
+
+    my $check = getCheck($bench, $n2);
+    my $throughput = ($check > 0) ? measureBench($bench, $n2, $check) : -1;
     $bench_res1[$bench] = $throughput;
   }
 

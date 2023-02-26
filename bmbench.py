@@ -10,6 +10,7 @@
 # 03.12.2006 0.06  based on version 0.05
 # 05.05.2019 0.07  changed bench 01-03; time interval estimation
 # 03.12.2022 0.072 bench03 corrected, bench05 improved
+# 19.02.2023 0.08  bench05 optimized
 #
 # Python version 2 or 3
 #
@@ -46,7 +47,7 @@ import sys # for flush()
 #check this: https://www.numpy.org/  used at: http://zwmiller.com/blogs/python_data_structure_speed.html
 #import numpy as np
 
-G_PRG_VERSION = "0.072"
+G_PRG_VERSION = "0.08"
 G_PRG_LANGUAGE = "Python"
 
 
@@ -67,46 +68,36 @@ g_tsMeasCnt = 0 # last measured count
 #
 
 #
-# bench00 (Integer 16 bit) -- adapt!! TODO
+# bench00 (Integer 16 bit)
 # (sum of 1..n) mod 65536
 #
-def bench00(loops, n, check1):
+def bench00(n):
   x = 0
-  #sum1 = int((n / 2) * (n + 1)) & 0xffff # this produces an integer
-  # sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
   n_div_65536 = (n >> 16) & 0xffff
   n_mod_65536 = n & 0xffff;
-  #print 'DEBUG: sum1='+ str(sum1) +', n_div='+ str(n_div_65536) +', n_mod='+ str(n_mod_65536)
-  while loops > 0 and x == 0:
-    loops = loops - 1
 
-    # simulate summation with 16 bit borders...
-    for i in range(n_div_65536, 0, -1):
-      for j in range(65535, 0, -1):
-        x += j
-    for j in range(n_mod_65536, 0, -1):
+  # simulate summation with 16 bit borders...
+  for i in range(n_div_65536, 0, -1):
+    for j in range(65535, 0, -1):
       x += j
+  for j in range(n_mod_65536, 0, -1):
+    x += j
 
-    x &= 0xffff
-    x -= check1
   return int(x & 0xffff)
 
 
 # bench01 (Integer 32 bit)
 # (arithmetic mean of 1..n) mod 65536
 #
-def bench01(loops, n, check):
+def bench01(n):
   x = 0
-  while loops > 0 and x == 0:
-    loops = loops - 1
-    sum = 0
-    for i in range(1, n + 1):
-      sum += i
-      if (sum >= n): # to avoid numbers above 2*n, divide by n using subtraction
-        sum -= n
-        x += 1
+  sum = 0
+  for i in range(1, n + 1):
+    sum += i
+    if (sum >= n): # to avoid numbers above 2*n, divide by n using subtraction
+      sum -= n
+      x += 1
 
-    x -= check
   return x
 
 
@@ -114,18 +105,15 @@ def bench01(loops, n, check):
 # bench02 (Floating Point, normally 64 bit)
 # (arithmetic mean of 1..n) mod 65536
 #
-def bench02(loops, n, check):
+def bench02(n):
   x = 0
-  while loops > 0 and x == 0:
-    loops = loops - 1
-    sum = 0.0
-    for i in range(1, n + 1):
-      sum += i
-      if (sum >= n):
-        sum -= n
-        x += 1
+  sum = 0.0
+  for i in range(1, n + 1):
+    sum += i
+    if (sum >= n):
+      sum -= n
+      x += 1
 
-    x -= check
   return x
 
 
@@ -137,45 +125,42 @@ def bench02(loops, n, check):
 #
 # (It would be possible to put all in a long integer but this is extremely slow.)
 #
-def bench03(loops, n, check):
-  n = int(n / 2)  # compute only up to n/2
+def bench03(n):
+  #n = int(n / 2)  # compute only up to n/2
   x = 0      # number of primes below n
   nHalf = n >> 1
   #sieve1 = []  #nHalf + 1 elements
   sieve1 = [0 for i in range(nHalf + 1)]
 
-  while loops > 0 and x == 0:
-    loops = loops - 1
-    # initialize sieve
-    #sieve1.clear()
-    #print(len(sieve1))
-    #sieve1 = [0 for i in range(nHalf + 1)]
-    for i in range(0, nHalf + 1):
-      sieve1[i] = 0
+  # initialize sieve
+  #sieve1.clear()
+  #print(len(sieve1))
+  #sieve1 = [0 for i in range(nHalf + 1)]
+  for i in range(0, nHalf + 1):
+    sieve1[i] = 0
 
-    # compute primes
-    i = 0
-    m = 3
-    x += 1 # 2 is prime
-    while (m * m) < n:
-      if (sieve1[i] == 0):
-        x += 1 # m is prime
-        j = (m * m - 3) >> 1 # div 2
-        while (j < nHalf):
-          sieve1[j] = 1
-          j += m
-      i += 1
-      m += 2
+  # compute primes
+  i = 0
+  m = 3
+  x += 1 # 2 is prime
+  while (m * m) < n:
+    if (sieve1[i] == 0):
+      x += 1 # m is prime
+      j = (m * m - 3) >> 1 # div 2
+      while (j < nHalf):
+        sieve1[j] = 1
+        j += m
+    i += 1
+    m += 2
 
-    # count remaining primes
-    while (m <= n):
-      if (sieve1[i] == 0):
-        x += 1 # m is prime
+  # count remaining primes
+  while (m <= n):
+    if (sieve1[i] == 0):
+      x += 1 # m is prime
 
-      i += 1
-      m += 2
+    i += 1
+    m += 2
 
-    x -= check
   return x
 
 
@@ -187,109 +172,71 @@ def bench03(loops, n, check):
 # It needs longs with at least 32 bit.
 # Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 #
-def bench04(loops, n, check):
+def bench04(n):
   m = 2147483647  # modulus, do not change!
   a = 16807       # multiplier
   q = 127773      # m div a
   r = 2836        # m mod a
   x = 0 # last random value
 
-  while loops > 0 and x == 0:
-    loops = loops - 1
-    x = x + 1 # start with 1=last random value
-    for i in range(1, n + 1):
-      #x_div_q = x / q;
-      #x_mod_q = x % q  # faster than  x_mod_q = x - q * x_div_q
-      x = (a * (x % q) - r * (x // q))  # int(a * (x % q) - r * int(x / q))
-      #print('DEBUG(bench'+ str(type(x)))
-      if (x <= 0):
-        x += m  # x is new random number
-
-    #print('DEBUG(bench'+ str(4) +'): x='+ str(x*2))
-    x -= check
+  x = x + 1 # start with 1=last random value
+  for i in range(1, n + 1):
+    #x_div_q = x / q;
+    #x_mod_q = x % q  # faster than  x_mod_q = x - q * x_div_q
+    x = (a * (x % q) - r * (x // q))  # int(a * (x % q) - r * int(x / q))
+    #print('DEBUG(bench'+ str(type(x)))
+    if (x <= 0):
+      x += m  # x is new random number
 
   return x
 
 
-#
 # bench05 (Integer 32 bit)
-# n over n/2 mod 65536 (Pascal's triangle)
-# We start with an empty list and append elements.
+# (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
+# Using dynamic programming and Pascal's triangle, storing only one line
+# Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
+# Example: (2000 choose 1000) mod 65536 = 27200
 #
-def bench05(loops, n, check):
-  x = 0
-  n = int(n / 500)
-  k = int(n / 2)
+def bench05(n):
+  #n = int(n / 200) # compute only up to n/200
 
+  # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+  n = int(n / 2)
+
+  k = int(n / 2)
   if ((n - k) < k):
     k = n - k # keep k minimal with  n over k  =  n over n-k
 
   line = [0 for i in range(k + 1)]
-  lastLine = [0 for i in range(k + 1)]
 
-  while loops > 0 and x == 0:
-    loops = loops - 1
+  # initialize (already done)
+  #for j in range(0, k + 1):
+  #  line[j] = 0
 
-    # initialize
-    for j in range(1, k + 1):
-      line[j] = 0
-      lastLine[j] = 0
+  line[0] = 1
+  line[1] = 2 # for line 2, second column is 2
 
-    # compute
-    for i in range(2, n + 1):
-      min1 = (i - 1) >> 1 #int((i - 1) / 2)
-      if (k < min1):
-        min1 = k
-
-      line[1] = i # second column is i
-      for j in range(2, min1 + 1):
-        line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff # we use & 0xffff to avoid (slow) long int
-
-      if (min1 < k) and ((i & 1) == 0): # new element
-        line[min1 + 1] = 2 * lastLine[min1]
-
-      tempLine = lastLine
-      lastLine = line
-      line = tempLine
-
-    x += lastLine[k] & 0xffff
-    x -= check
-
-  return x
-
-
-# with list it is slower:
-def bench05_ok1(loops, n, check):
   x = 0
-  n = int(n / 500)
-  k = int(n / 2)
+  # compute lines of Pascal's triangle
+  for i in range(3, n + 1):
+    min1 = (i - 1) >> 1 #int((i - 1) / 2)
+    if ((i & 1) == 0): # new element
+      line[min1 + 1] = 2 * line[min1]
 
-  if ((n - k) < k):
-    k = n - k # keep k minimal with  n over k  =  n over n-k
+    prevElem = line[1]
+    for j in range(2, min1 + 1):
+      elem = line[j]
+      line[j] = (prevElem + line[j]) & 0xffff # we use & 0xffff to avoid (slow) long int
+      prevElem = elem
 
-  while loops > 0 and x == 0:
-    loops = loops - 1
-    pas1 = [1]
-    for i in range(2, n + 1):
-      pas2 = pas1 # get last line to pas2
-      pas1 = [1] # and restart with new list
+    line[1] = i # second column is i
 
-      min1 = (i - 1) >> 1 #int((i - 1) / 2)
-      if (k < min1):
-        min1 = k
+  # compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+  x = 0
+  for j in range(0, k):
+    x = (x + 2 * line[j] * line[j]) & 0xffff # add nCk and nC(n-k)
 
-      pas1.append(i)
-
-      for j in range(2, min1 + 1):
-        pas1.append((pas2[j - 1] + pas2[j]) & 0xffff) # we use & 0xffff to avoid (slow) long int
-
-      if (min1 < k) and (i % 2 == 0): # new element
-        pas1.append(2 * pas2[min1])
-
-    x += pas1[k] & 0xffff;
-
-    x -= check
-
+  x = (x + line[k] * line[k]) & 0xffff # we assume that k is even, so we need to take the middle element
   return x
 
 
@@ -302,20 +249,24 @@ def bench05_ok1(loops, n, check):
 #
 def run_bench(bench, loops, n, check):
   x = 0
-  if bench == 0:
-    x = bench00(loops, n, check)
-  elif bench == 1:
-    x = bench01(loops, n, check)
-  elif bench == 2:
-    x = bench02(loops, n, check)
-  elif bench == 3:
-    x = bench03(loops, n, check)
-  elif bench == 4:
-    x = bench04(loops, n, check)
-  elif bench == 5:
-    x = bench05(loops, n, check)
-  else:
-    print('Error: Unknown benchmark: '+ str(bench))
+
+  while loops > 0 and x == 0:
+    loops = loops - 1
+    if bench == 0:
+      x = bench00(n)
+    elif bench == 1:
+      x = bench01(n)
+    elif bench == 2:
+      x = bench02(n)
+    elif bench == 3:
+      x = bench03(n)
+    elif bench == 4:
+      x = bench04(n)
+    elif bench == 5:
+      x = bench05(n)
+    else:
+      print('Error: Unknown benchmark: '+ str(bench))
+    x -= check
 
   x += check
   if (x != check):
@@ -325,9 +276,10 @@ def run_bench(bench, loops, n, check):
 
 
 def bench03Check(n):
-  n = n // 2 # compute only up to n/2
+  #n = n // 2 # compute only up to n/2
+
   x = 0
-  for j in range(2, n):
+  for j in range(2, n + 1):
     isPrime = True
     i = 2
     while (i * i) <= j:
@@ -342,14 +294,14 @@ def bench03Check(n):
 
 def getCheck(bench, n):
   check = 0
-  if bench == 0:
-    check = int((n // 2) * (n + 1)) & 0xffff # 10528 for n=1000000
+  if bench == 0: # (n / 2) * (n + 1)
+    check = (((n + (n & 1)) >> 1) * (n + 1 - (n & 1))) & 0xffff # 10528 for n=1000000
   elif bench == 1:
     check = (n + 1) // 2
   elif bench == 2:
     check = (n + 1) // 2
   elif bench == 3:
-    if n == 1000000:
+    if n == 500000:
       check = 41538
     else:
       check = bench03Check(n)
@@ -357,13 +309,12 @@ def getCheck(bench, n):
     if n == 1000000:
       check = 1227283347
     else:
-      check = bench04(1, n, 0); # bench04 not a real check
+      check = bench04(n); # bench04 not a real check
   elif bench == 5:
-    if n == 1000000:
-      check = 27200
+    if n == 5000:
+      check = 17376
     else:
-      check = bench05(1, n, 0); # bench05 not a real check
-    check = 27200
+      check = bench05(n); # bench05 not a real check
   else:
     print('Error: Unknown benchmark: '+ str(bench))
     check = -1 # force error
@@ -484,15 +435,17 @@ def checkbits_double1():
   return bits
 
 
-def print_info():
+def get_info():
   global g_tsPrecMs
   python_version = sys.version.replace('\n', '')
-  print('BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(G_PRG_VERSION, G_PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1()), end=' ')
-  print("tsMs:" + str(g_tsPrecMs), "tsCnt:" + str(g_tsPrecCnt) + ")", end=' ')
-  print('version: '+ python_version +'; platform:', sys.platform)
-  print('(c) Marco Vieth, 2002-2022')
-  print('Date:', time.ctime(time.time()))
-
+  str1 = 'BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(G_PRG_VERSION, G_PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1())
+  str1 += ", tsMs:" + str(g_tsPrecMs) + ", tsCnt:" + str(g_tsPrecCnt) + ")"
+  str1 += ', version: '+ python_version +'; platform: ' + sys.platform + "\n"
+  str1 += '(c) Marco Vieth, 2002-2023' + "\n"
+  str1 += 'Date: ' + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    #print('Date:', time.ctime(time.time()))
+    # https://docs.python.org/3/library/time.html#module-time
+  return str1
 
 def print_results(bench_res1):
   max_language_len1 = 10
@@ -548,9 +501,6 @@ def measureBench(bench, n, check):
         throughput = -1
 
     else:
-      # scale_fact = 2
-      # if ((tMeas < cali_ms) and (tMeas > 0)):
-      #   scale_fact = int(((cali_ms + 100) / tMeas) + 1) # scale a bit up to 1100 ms (cali_ms+100)
       scale_fact = 2
       if (tMeas == 0):
         scale_fact = 50
@@ -570,12 +520,19 @@ def measureBench(bench, n, check):
 def start_bench(bench1, bench2, n):
   bench_res = []
 
-  print_info()
+  print(get_info())
 
   for bench in range(bench1, bench2 + 1):
-    check = getCheck(bench, n)
+    n2 = n
+    # reduce problem size
+    if (bench == 3):
+      n2 = int(n2 / 2)
+    elif (bench == 5):
+      n2 = int(n2 / 200)
+
+    check = getCheck(bench, n2)
     if (check > 0):
-      throughput = measureBench(bench, n, check)
+      throughput = measureBench(bench, n2, check)
     else:
       throughput = -1
     bench_res.append(throughput)
@@ -611,5 +568,9 @@ if __name__ == '__main__':
     main(sys.argv)
   else:
     main(("argv0 " + sys.stdin.readline().rstrip()).rstrip().split(' '))
+
+#
+# https://replit.com/languages/python3
+#
 
 # end

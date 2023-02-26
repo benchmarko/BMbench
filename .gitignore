@@ -1,0 +1,6 @@
+/.bashrc
+/node_modules
+/dist
+/bin/
+/obj/
+/tmp/

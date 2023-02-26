@@ -1,5 +1,5 @@
 '
-' BM Bench - bmbench.vb (Visual Basic .NET)
+' BM Bench - bmbench.vb (Visual Basic .NET) TODO: overflow
 ' (c) Marco Vieth, 2006
 ' http://www.benchmarko.de
 '
@@ -7,6 +7,7 @@
 ' 11.05.2002 0.02  bench1 = (sum 1..n) mod 65536
 ' 03.05.2006 0.05  created .vb based on .vba
 ' 17.05.2019 0.07  changed bench 01-03; time interval estimation
+' 19.02.2023 0.08  bench05 optimized
 '
 '
 ' Compile & Run:
@@ -40,7 +41,7 @@ Imports System
 
 Public Module Module1
 
-    Dim g_prg_version as String = "0.07"
+    Dim g_prg_version as String = "0.08"
     Dim g_prg_language as String = "VB"
 
     Dim g_startTs As Long = 0
@@ -55,30 +56,24 @@ Public Module Module1
     '
     ' bench00 (Integer 16 bit)
     ' (sum of 1..n) mod 65536
-    Function bench00(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
+    Function bench00(ByVal n As Integer) As Integer
         Dim i As Integer
         Dim j As Short
         Dim x As Integer = 0
         'Dim sum1 As Integer = ((n / 2) * (n + 1)) Mod 65536 'assuming n even! (sum should be ...)
         Dim n_div_65536 As Integer = n >> 16 'use short?
         Dim n_mod_65536 As Integer = n And &HFFFF
-        While loops > 0 And x = 0
-            For i = n_div_65536 To 1 Step -1
-                For j = 32767 To 1 Step -1
-                    x += j
-                Next j
-                For j = -32768 To -1
-                    x += j
-                Next j
-            Next i
-            For j = n_mod_65536 To 1 Step -1
+        For i = n_div_65536 To 1 Step -1
+            For j = 32767 To 1 Step -1
                 x += j
             Next j
-
-            loops -= 1
-            x = x Mod 65536
-            x -= check
-        End While
+            For j = -32768 To -1
+                x += j
+            Next j
+        Next i
+        For j = n_mod_65536 To 1 Step -1
+            x += j
+        Next j
         Return x Mod 65536
     End Function
 
@@ -86,21 +81,16 @@ Public Module Module1
     '
     ' bench01 (Integer 16/32 bit)
     ' (arithmetic mean of 1..n)
-    Function bench01(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
+    Function bench01(ByVal n As Integer) As Integer
         Dim x As Integer = 0
-        'Dim sum1 As Integer = ((n / 2) * (n + 1)) Mod 65536 'assuming n even! (sum should be ...)
-        While loops > 0 And x = 0
-            Dim sum as Integer = 0
-            For i As Integer = 1 To n Step 1
-                sum += i
-                If sum >= n Then 'to avoid numbers above 2*n, divide by n using subtraction
-                    sum -= n
-                    x += 1
-                End If
-            Next i
-            loops -= 1
-            x -= check
-        End While
+        Dim sum as Integer = 0
+        For i As Integer = 1 To n Step 1
+            sum += i
+            If sum >= n Then 'to avoid numbers above 2*n, divide by n using subtraction
+                sum -= n
+                x += 1
+            End If
+        Next i
         Return x
     End Function
 
@@ -108,22 +98,16 @@ Public Module Module1
     '
     ' bench02 (Floating Point, normally 64 bit)
     ' (arithmetic mean of 1..n)
-    Function bench02(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
+    Function bench02(ByVal n As Integer) As Integer
         Dim x As Integer = 0
-        'Dim sum1 As Double = (n / 2.0) * (n + 1.0) 'assuming n even! (sum should be ...)
-        While loops > 0 And x = 0
-            Dim sum as Double = 0.0
-            For i As Integer = 1 To n Step 1
-                sum += i
-                If sum >= n Then
-                    sum -= n
-                    x += 1
-                End If
-            Next i
-
-            loops -= 1
-            x -= check
-        End While
+        Dim sum as Double = 0.0
+        For i As Integer = 1 To n Step 1
+            sum += i
+            If sum >= n Then
+                sum -= n
+                x += 1
+            End If
+        Next i
         Return x
     End Function
 
@@ -134,86 +118,40 @@ Public Module Module1
     ' Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
     ' (Byte consumes 8 bits, Boolean 16, so use Byte; BitArray is slow)
     ' (For loop is much faster than while here)
-    Function bench03(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
-        n >>= 1 'compute only up to n/2
+    Function bench03(ByVal n As Integer) As Integer
+        'n >>= 1 'compute only up to n/2
         Dim i, m, j As Integer
         Dim x As Integer = 0 'number of primes below n
 
         Dim nHalf As Integer = n >> 1
         Dim sieve1(nHalf + 1) As Byte 'or: new BitArray(n + 1)
 
-        While loops > 0 And x = 0
-            'initialize sieve
-            For i = 0 To nHalf
-                sieve1(i) = 0
-            Next i
+        'initialize sieve
+        For i = 0 To nHalf
+            sieve1(i) = 0
+        Next i
 
-            'compute primes
-            i = 0
-            m = 3
-            While (m * m < n)
-                If (sieve1(i) = 0) Then
-                    x += 1
-                    j = (m * m - 3) >> 1 'div 2
-                    For j = j to nHalf - 1 Step m
-                        sieve1(j) = 1
-                    Next j
-                End If
-                i += 1
-                m += 2
-            End While
-
-            'count remaining primes
-            For i = i To nHalf
-                If (sieve1(i) = 0) Then
-                    x += 1
-                End If
-            Next i
-
-            'check prime count
-            loops -= 1
-            x -= check
+        'compute primes
+        i = 0
+        m = 3
+        While (m * m < n)
+            If (sieve1(i) = 0) Then
+                x += 1
+                j = (m * m - 3) >> 1 'div 2
+                For j = j to nHalf - 1 Step m
+                    sieve1(j) = 1
+                Next j
+            End If
+            i += 1
+            m += 2
         End While
-        Return x
-    End Function
 
-
-    Function bench03_ok1_was_fast(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
-        n >>= 1 'compute only up to n/2
-        Dim i, j As Integer
-        Dim sieve1(n + 1) As Byte 'or: new BitArray(n + 1)
-        Dim x As Integer = 0 'number of primes below n
-        sieve1(0) = 0
-        sieve1(1) = 0
-
-        While loops > 0 And x = 0
-            'initialize sieve
-            For i = 2 To n
-                sieve1(i) = 1
-            Next i
-
-            ' compute primes
-            i = 2
-            While (i * i) <= n
-                If (sieve1(i) <> 0) Then
-                    For j = i * i To n Step i
-                        sieve1(j) = 0
-                    Next j
-                End If
-                i += 1
-            End While
-
-            ' count primes
-            For i = 0 To n
-                If (sieve1(i) <> 0) Then
-                    x += 1
-                End If
-            Next i
-
-            'check prime count
-            loops -= 1
-            x -= check
-        End While
+        'count remaining primes
+        For i = i To nHalf
+            If (sieve1(i) = 0) Then
+                x += 1
+            End If
+        Next i
         Return x
     End Function
 
@@ -225,28 +163,22 @@ Public Module Module1
     ' Raj Jain: The Art of Computer Systems Performance Analysis, John Wiley & Sons, 1991, page 442-444.
     ' It needs longs with at least 32 bit.
     ' Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
-    Function bench04(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
+    Function bench04(ByVal n As Integer) As Integer
         Dim m As Integer = 2147483647 'modulus, do not change!
         Dim a As Integer = 16807      'multiplier
         Dim q As Integer = 127773     'm div a
         Dim r As Integer = 2836       'm mod a
-        Dim x As Integer = 0          'last random value
+        Dim x As Integer = 1          'last random value
 
-        While loops > 0 And x = 0
-            x += 1
-            For i As Integer = n To 1 Step -1
-                'Dim x_div_q As Integer = x / q '(int)
-                'Dim x_mod_q As Integer = x - q * x_div_q
-                'x = a * x_mod_q - r * x_div_q
-                x = a * (x Mod q) - r * (x \ q) 'x div q !
-                If (x <= 0) Then
-                    x += m 'x is new random number
-                End If
-            Next i
-
-            loops -= 1
-            x -= check
-        End While
+        For i As Integer = n To 1 Step -1
+            'Dim x_div_q As Integer = x / q '(int)
+            'Dim x_mod_q As Integer = x - q * x_div_q
+            'x = a * x_mod_q - r * x_div_q
+            x = a * (x Mod q) - r * (x \ q) 'x div q !
+            If (x <= 0) Then
+                x += m 'x is new random number
+            End If
+        Next i
         Return x
     End Function
 
@@ -255,9 +187,12 @@ Public Module Module1
     ' bench05 (Integer 32 bit)
     ' n over n/2 mod 65536 (Pascal's triangle)
     '
-    Function bench05(ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
-        Dim x As Integer = 0
-        n = n / 500
+    Function bench05(ByVal n As Integer) As Integer
+        'n = n / 200
+
+        'Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+        n >>= 1 'div 2
+
         Dim k As Integer = n >> 1 'div 2
 
         If ((n - k) < k) Then
@@ -265,39 +200,67 @@ Public Module Module1
         End If
 
         'allocate memory...
-        Dim pas1(2, k + 1) As Integer
-        pas1(0, 0) = 1
-        pas1(1, 0) = 1 'set first column
+        Dim line(k + 1) As Integer
 
-        While loops > 0 And x = 0
-            For i As Integer = 3 To n
-                Dim i_mod_2 As Integer = i And 1
-                Dim i1_mod_2 As Integer = i_mod_2 Xor 1
-                Dim min1 As Integer
-                If (i_mod_2 = 0) Then 'Math.floor((i - 1) / 2)
-                    min1 = (i - 2) >> 1
-                Else
-                    min1 = (i - 1) >> 1
-                End If
+        'initialize (not needed)
+        For j As Integer = 0 To k
+          line(j) = 0
+        Next j
 
-                If (k < min1) Then
-                    min1 = k
-                End If
-                pas1(i_mod_2, 1) = i 'second column is i
-                For j As Integer = 2 To min1 'up to min((i-1)/2, k)
-                    pas1(i_mod_2, j) = (pas1(i_mod_2 Xor 1, j - 1) + pas1(i_mod_2 Xor 1, j)) And &HFFFF
-                    '% 65536 -- we need mod here to avoid overflow
-                Next j
-                If ((min1 < k) And (i_mod_2 = 0)) Then 'new element
-                    'pas1[i_mod_2][Math.floor(i / 2)] = 2 * pas1[i_mod_2 ^ 1][Math.floor((i - 1) / 2)];
-                    pas1(i_mod_2, min1 + 1) = 2 * pas1(i_mod_2 Xor 1, min1)
-                End If
-            Next i
-            x += pas1(n And 1, k) And &HFFFF '% 65536
+        line(0) = 1
+        line(1) = 2 'for line 2, second column is 2
 
-            loops -= 1
-            x -= check
-        End While
+        'compute lines of Pascal's triangle
+        For i As Integer = 3 To n
+            'Dim i_mod_2 As Integer = i And 1
+            Dim min1 As Integer =  (i - 1) >> 1
+            'If (i_mod_2 = 0) Then 'Math.floor((i - 1) / 2)
+            '    min1 = (i - 2) >> 1
+            'Else
+            '    min1 = (i - 1) >> 1
+            'End If
+
+            If (i And 1) = 0 Then 'new element?
+                'line(i_mod_2, min1 + 1) = 2 * line(i_mod_2 Xor 1, min1)
+                line(min1 + 1) = 2 * line(min1)
+            End If
+
+            Dim prev As Integer = line(1)
+            For j As Integer = 2 To min1
+                'line(i_mod_2, j) = (line(i_mod_2 Xor 1, j - 1) + line(i_mod_2 Xor 1, j)) And &HFFFF
+                '% 65536 -- we need mod here to avoid overflow
+                Dim num As Integer = line(j)
+                line(j) = (line(j) + prev) And &HFFFF
+                prev = num
+            Next j
+            line(1) = i 'second column is i
+
+
+            'Dim str as String = ""
+            'For j As Integer = 0 to min1
+            '    str += String.Format(nfi, "{0,6:F0} ", line(j))
+            'Next j
+            'System.Console.WriteLine("DEBUG1:" & str)
+
+        Next i
+        'x += line(n And 1, k) And &HFFFF '% 65536
+
+        'System.Console.WriteLine("DDD: ok " & k)
+        'compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+        Dim x As Integer = 0
+        Dim xHelp as Long
+        For j As Integer = 0 To k - 1
+            'x = (x + 2 * line(j) * line(j)) And &HFFFF
+            'System.Console.WriteLine("D1: ok" & line(j))
+            xHelp = line(j)
+            xHelp = 2 * (xHelp * xHelp) And &HFFFF
+            x = (x + xHelp) And &HFFFF
+        Next j
+        'System.Console.WriteLine("DDD2: ok" & k)
+        'x = (x + line(k) * line(k)) And &HFFFF
+            xHelp = line(k)
+            xHelp = (xHelp * xHelp) And &HFFFF
+            x = (x + xHelp) And &HFFFF
         Return x
     End Function
 
@@ -309,33 +272,30 @@ Public Module Module1
     '         n = maximum number (used in some benchmarks to define size of workload)
     ' out:    x = result
     '
-    Function run_bench(ByVal bench As Integer, ByVal loops As Integer, ByVal n As Integer) As Integer
+    Function run_bench(ByVal bench As Integer, ByVal loops As Integer, ByVal n As Integer, ByVal check As Integer) As Integer
         Dim x As Integer = 0
-        Dim check As Integer = 0
 
-        Select Case bench
-            Case 0
-                check = ((n / 2) * (n + 1)) And &HFFFF
-                x = bench00(loops, n, check)
-            Case 1
-                check = (n + 1) / 2
-                x = bench01(loops, n, check)
-            Case 2
-                check = (n + 1) / 2
-                x = bench02(loops, n, check)
-            Case 3
-                check = 41538
-                x = bench03(loops, n, check)
-            Case 4
-                check = 1227283347
-                x = bench04(loops, n, check)
-            Case 5
-                check = 27200
-                x = bench05(loops, n, check)
-            Case Else
-                System.Console.WriteLine("Error: Unknown benchmark: " & bench)
-                check = -1
-        End Select
+        While loops > 0 And x = 0
+            Select Case bench
+                Case 0
+                    x = bench00(n)
+                Case 1
+                    x = bench01(n)
+                Case 2
+                    x = bench02(n)
+                Case 3
+                    x = bench03(n)
+                Case 4
+                    x = bench04(n)
+                Case 5
+                    x = bench05(n)
+                Case Else
+                    System.Console.WriteLine("Error: Unknown benchmark: " & bench)
+                    check = -1
+            End Select
+            loops -= 1
+            x -= check
+        End While
 
         x += check
         If x <> check Then
@@ -343,6 +303,65 @@ Public Module Module1
             x = -1 'exit
         End If
         Return x
+    End Function
+
+
+    Function bench03Check(ByVal n As Integer) As Integer
+        Dim check As Integer = 0
+
+        Dim x As Integer = 0
+
+        For j As Integer = 2 To n
+            Dim isPrime As Boolean = true
+            Dim i As Integer = 2
+            While (i * i <= j) And (isPrime = true)
+                if (j Mod i = 0) Then
+                    isPrime = false
+                End If
+                i += 1
+            End While
+            if (isPrime) Then
+                x += 1
+            End If
+        Next j
+      Return x
+    End Function
+
+    Function getCheck(ByVal bench As Integer, ByVal n As Integer) As Integer
+        Dim check As Integer = 0
+
+        Select Case bench
+            Case 0
+                'check = ((n / 2) * (n + 1)) And &HFFFF 'TTT
+                'check = (((n + (n And 1)) >> 1) * (n + 1 - (n And 1))) And &HFFFF '10528 for n=1000000 overflow?
+                check = ((n / 2) * (n + 1)) And &HFFFF
+            Case 1
+                check = (n + 1) / 2
+            Case 2
+                check = (n + 1) / 2
+            Case 3
+                If n = 500000 Then
+                    check = 41538
+                Else
+                    check = bench03Check(n)
+                End If
+            Case 4
+                If n = 1000000 Then
+                    check = 1227283347
+                Else
+                    check = bench04(n)
+                End If
+            Case 5
+                If n = 5000 Then
+                    check = 17376
+                Else
+                    check = bench05(n)
+                End If
+            Case Else
+                System.Console.WriteLine("Error: Unknown benchmark: " & bench)
+                check = -1
+        End Select
+        Return check
     End Function
 
 
@@ -448,12 +467,6 @@ Public Module Module1
         Return bits
     End Function
 
-    Function getdate1() As String
-        Dim dtfi as System.Globalization.DateTimeFormatInfo = new System.Globalization.CultureInfo("de-DE", false).DateTimeFormat
-        Return System.DateTime.Now.ToString(dtfi) 'always German format
-    End Function
-
-
 'TODO https://stackoverflow.com/questions/8413922/programmatically-determining-mono-runtime-version
 'TODO https://stackoverflow.com/questions/4178129/how-to-determine-the-revision-from-which-current-mono-runtime-was-built-and-inst
 
@@ -485,16 +498,19 @@ Public Module Module1
         Return runtimeName & " " & runtimeVersion
     End Function
 
-    Sub print_info()
+    Function get_info() As String
         Dim version1 As String = "Runtime: " & getruntime1() & ", " & System.Environment.OSVersion.ToString()
         Try
           version1 = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version().ToString() & ", " & version1
         Catch ex As System.Security.SecurityException
         End Try
-        System.Console.WriteLine("BM Bench v" & g_prg_version & " (" & g_prg_language & ") -- (int:" & checkbits_int1() & " double:" & checkbits_double1() & " tsMs:" & g_tsPrecMs & " tsCnt:" & g_tsPrecCnt & ") " & version1)
-        System.Console.WriteLine("(c) Marco Vieth, 2006-2019")
-        System.Console.WriteLine(getdate1())
-    End Sub
+        
+        Dim str As String = "BM Bench v" & g_prg_version & " (" & g_prg_language & ") -- (int:" & checkbits_int1() & " double:" & checkbits_double1() & " tsMs:" & g_tsPrecMs & " tsCnt:" & g_tsPrecCnt & ") " & version1 & Environment.NewLine
+        str += "(c) Marco Vieth, 2006-2023" & Environment.NewLine
+        str += "Date: " & System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture)
+        
+        return str
+    End Function
 
 
     Sub print_results(ByVal bench1 as Integer, ByVal bench2 As Integer, bench_res1() as Double)
@@ -515,7 +531,7 @@ Public Module Module1
     End Sub
 
 
-    Function measureBench(ByVal bench As Integer, ByVal n As Integer) As Double
+    Function measureBench(ByVal bench As Integer, ByVal n As Integer, ByVal check As Integer) As Double
         Dim cali_ms As Integer = 1001 '401 '1001 TTT
         Dim delta_ms As Integer = 100 '150 '100 TTT
         Dim max_ms As Integer = 10000
@@ -525,10 +541,10 @@ Public Module Module1
         Dim tEsti as Double = 0  'estimated time
         Dim throughput As Double = 0
 
-        System.Console.WriteLine("Calibrating benchmark " & bench & " with n=" & n)
+        System.Console.WriteLine("Calibrating benchmark " & bench & " with n=" & n &", check=" & check)
         While (throughput = 0)
             tMeas = getPrecMs(false)
-            x = run_bench(bench, loops, n)
+            x = run_bench(bench, loops, n, check)
             tMeas = getPrecMs(true) - tMeas
 
             Dim t_delta As Double
@@ -580,11 +596,24 @@ Public Module Module1
 
 
     Function start_bench(ByVal bench1 as Integer, ByVal bench2 As Integer, ByVal n as Integer) As Integer
-        print_info()
+        System.Console.WriteLine(get_info())
+
         Dim bench_res(bench2 + 1) As Double
-        Dim bench As Integer 'benchmark to test
-        For bench = bench1 To bench2
-            Dim throughput As Double = measureBench(bench, n)
+        'Dim bench As Integer 'benchmark to test
+        For bench As integer = bench1 To bench2
+            Dim n2 as integer = n
+            If bench = 3 Then
+                n2 = n2 / 2
+            Else If bench = 5 Then
+                n2 = n2 / 200
+            End If
+            Dim check As Integer = getCheck(bench, n2)
+            Dim throughput As Double
+            If check > 0
+                throughput = measureBench(bench, n2, check)
+            Else
+                throughput = -1
+            End If
             bench_res(bench) = throughput
         Next bench
         print_results(bench1, bench2, bench_res)
@@ -642,7 +671,9 @@ Public Module Module1
 End Module
 
 
-'Can be run in https://rextester.com/l/visual_basic_online_compiler
+'https://www.onlinegdb.com/online_vb_compiler
+
+'https://rextester.com/l/visual_basic_online_compiler
 #if False then
 Namespace Rextester
     Public Module Program

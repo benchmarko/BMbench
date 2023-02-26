@@ -3,7 +3,7 @@
 exec tclsh "$0" "$@"
 
 #
-# BM Bench - bmbench1.pl (Tcl)
+# BM Bench - bmbench1.pl (Tcl) # TODO
 # (c) Marco Vieth, 2002-2006
 # http://www.benchmarko.de
 #
@@ -13,6 +13,7 @@ exec tclsh "$0" "$@"
 # 20.07.2002 0.04  some errors corrected
 # 24.01.2003 0.05  output format changed
 # 30.05.2006 0.06  based on version 0.05
+# 19.02.2023 0.08  bench05 optimized
 #
 # Usage:
 # tclsh bmbench.tcl [bench1] [bench2] [n]
@@ -46,37 +47,35 @@ exec tclsh "$0" "$@"
 # loops may be increased to produce a longer runtime without changing the result.
 #
 
-set PRG_VERSION "0.072";
+set PRG_VERSION "0.08";
 set PRG_LANGUAGE "Tcl";
 
 set gState(tsType) "msec";
 set gState(tsPrecCnt) 0;
 set gState(tsMeasCnt) 0;
-set gState(fact) {0 0 0 20 0 0}; # benchmark simplification factors for n
+
+# do not use it any more:
+#set gState(fact) {0 0 0 20 0 0}; # benchmark simplification factors for n
+set gState(fact) {0 0 0 0 0 0}; # benchmark simplification factors for n
 
 #
 # bench00 (Integer 16 bit)
 # (sum of 1..n) mod 65536
 #
-# (Tcl tries to compute with C longs as long as no floating point number is introdced.)
-proc bench00 {loops n check} {
+# (Tcl tries to compute with C longs as long as no floating point number is introdced)
+proc bench00 {n} {
   set x 0;
   #set sum1 [expr {(($n / 2) * ($n + 1)) & 0xffff}];
   set n_div_65536 [expr {($n >> 16) & 0xffff}];
   set n_mod_65536 [expr {$n & 0xffff}];
   #puts "DEBUG: sum1=$sum1, n_div=$n_div_65536, n_mod=$n_mod_65536";
-  while {$loops > 0 && $x == 0} {
-    incr loops -1;
-    for {set i $n_div_65536} {$i > 0} {incr i -1} {
-      for {set j 65535} {$j > 0} {incr j -1} {
-        incr x $j; # a bit faster than "set x [expr {$x + $j}]"
-      }
-    }
-    for {set j $n_mod_65536} {$j > 0} {incr j -1} {
+  for {set i $n_div_65536} {$i > 0} {incr i -1} {
+    for {set j 65535} {$j > 0} {incr j -1} {
       incr x $j; # a bit faster than "set x [expr {$x + $j}]"
     }
-    set x [expr {$x & 0xffff}];
-    incr x -$check;
+  }
+  for {set j $n_mod_65536} {$j > 0} {incr j -1} {
+    incr x $j; # a bit faster than "set x [expr {$x + $j}]"
   }
   return [expr {$x & 0xffff}];
 }
@@ -88,19 +87,15 @@ proc bench00 {loops n check} {
 #
 # (Tcl tries to compute with C longs as long as no floating point number is introduced)
 #
-proc bench01 {loops n check} {
+proc bench01 {n} {
   set x 0;
-  while {$loops > 0 && $x == 0} {
-    incr loops -1;
-    set sum 0;
-    for {set i 1} {$i <= $n} {incr i} {
-      incr sum $i; # a bit faster than "set sum [expr {$sum + $i}]"
-      if {$sum >= $n} {
-        incr sum -$n;
-        incr x;
-      }
+  set sum 0;
+  for {set i 1} {$i <= $n} {incr i} {
+    incr sum $i; # a bit faster than "set sum [expr {$sum + $i}]"
+    if {$sum >= $n} {
+      incr sum -$n;
+      incr x;
     }
-    incr x -$check;
   }
   return $x;
 }
@@ -110,42 +105,17 @@ proc bench01 {loops n check} {
 # bench02 (Floating Point, normally 64 bit)
 # (arithmetic mean of 1..n)
 #
-proc bench02 {loops n check} {
+proc bench02 {n} {
   set x 0;
-  while {$loops > 0 && $x == 0} {
-    incr loops -1;
-    set sum 0.0; # force floating point
-    for {set i 1} {$i <= $n} {incr i} {
-      set sum [expr {$sum + $i}]; # cannot use incr for fp
-      if {$sum >= $n} {
-        set sum [expr {$sum - $n}]; # cannot use incr for fp
-        incr x;
-      }
+  set sum 0.0; # force floating point
+  for {set i 1} {$i <= $n} {incr i} {
+    set sum [expr {$sum + $i}]; # cannot use incr for fp
+    if {$sum >= $n} {
+      set sum [expr {$sum - $n}]; # cannot use incr for fp
+      incr x;
     }
-    incr x -$check;
   }
   return $x;
-}
-
-
-#TTT remove:
-proc bench02_old1 {loops n check} {
-  set x 0.0; # force floating point
-  set sum1 [expr {($n / 2.0) * ($n + 1.0)}]
-  while {$loops > 0} {
-    incr loops -1;
-    for {set i $n} {$i > 0} {incr i -1} {
-      set x [expr {$x + $i}];
-    }
-    if {$loops > 0} { # some more loops left?
-      set x [expr {$x - $sum1}];  # yes, set x back to 0 (assuming n even)
-      if {$x != 0.0} { # now x must be 0 again
-        incr x;
-        break; #error
-      }
-    }
-  }
-  return [expr {int($x - int($x / 65536.0) * 65536.0)}]; # % is for integer only, could use fmod()
 }
 
 
@@ -154,96 +124,51 @@ proc bench02_old1 {loops n check} {
 # number of primes below n (Sieve of Eratosthenes)
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 #
-# I have not found bit arrays in Tcl so I used lists, but it is very slow, if we need to
-# replace elements with lreplace.
+# We can use lset (old comment: I have not found bit arrays in Tcl so I used lists, but it is very slow, if we need to
+# replace elements with lreplace.)
 # Strings could also be used but are even slower:
 # - init sieve: set sieve1 [string repeat 1 [expr {$n + 1}]];
 #               set sieve1 [string replace $sieve1 0 0 0]; set sieve1 [string replace $sieve1 1 1 0];
 # - res bit:    set sieve1 [string replace $sieve1 $j $j 0];
 # - test bit:   [string index $sieve1 $i]
 #
-proc bench03 {loops n check} {
-  set n [expr {$n / 2}]; # compute only up to n/2
-  set x 0; # number of primes below n
-  #set sieve1 [list 0 0]; # set first 2 elements
-
-  #set n [expr {$n / 40}]; # Tcl is slow, so use this factor
-  #puts "Important note: For Tcl we use 1/40 of the problem to get to an end (n=$n)...";
+proc bench03 {n} {
+  #set n [expr {$n / 2}]; # compute only up to n/2
 
   set nHalf [expr {$n / 2}]; 
 
-  while {$loops > 0 && $x == 0} {
-    incr loops -1
-    # initialize sieve
-    set sieve1 {0 0}; # set first 2 elements
-    for {set i 2} {$i <= $nHalf} {incr i} {
-      lappend sieve1 0;
-    }
-    # compute primes
-    set i 0; 
-    set m 3; 
-    incr x; # 2 is prime
-    while {[expr {$i * $i}] <= $n} {
-      if {![lindex $sieve1 $i]} {
-        incr x; # m is prime
-        set j [expr {($m * $m - 3) >> 1}];
-        while {$j < $nHalf} {
-          set sieve1 [lreplace $sieve1 $j $j 1];
-          #puts "DEBUG: res (j=$j): sieve=$sieve1";
-          incr j $m; #set j [expr {$j + $m}];
-        }
-      }
-      incr i;
-      incr m 2;
-    }
-
-    # count remaining primes
-    while {$m < $n} {
-      if {![lindex $sieve1 $i]} {
-        incr x;
-      }
-      incr i;
-      incr m 2;
-    }
-
-    incr x -$check;
+  # initialize sieve
+  set sieve1 {0 0}; # set first 2 elements
+  for {set i 2} {$i <= $nHalf} {incr i} {
+    lappend sieve1 0;
   }
-  #puts "DEBUG: sieve=$sieve1";
-  return $x;
-}
-
-proc bench03_old_ok1 {loops n check} {
-  set n [expr {$n / 2}]; # compute only up to n/2
-  set x 0; # number of primes below n
-  #set sieve1 [list 0 0]; # set first 2 elements
-
-  set n [expr {$n / 40}]; # Tcl is slow, so use this factor
-  puts "Important note: For Tcl we use 1/40 of the problem to get to an end (n=$n)...";
-
-  while {$loops > 0 && $x == 0} {
-    incr loops -1
-    # initialize sieve
-    set sieve1 {0 0}; # set first 2 elements
-    for {set i 2} {$i <= $n} {incr i} {
-      lappend sieve1 1; #$sieve1[$i] = 1;
-    }
-    # compute primes
-    for {set i 2} {[expr {$i * $i}] <= $n} {incr i} {
-      if {[lindex $sieve1 $i]} {
-        for {set j [expr {$i * $i}]} {$j <= $n} {incr j $i} {
-          set sieve1 [lreplace $sieve1 $j $j 0];
-          #puts "DEBUG: res (j=$j): sieve=$sieve1";
-        }
+  # compute primes
+  set i 0; 
+  set m 3; 
+  set x 1; # number of primes below n (2 is prime)
+  while {[expr {$i * $i}] <= $n} {
+    if {![lindex $sieve1 $i]} {
+      incr x; # m is prime
+      set j [expr {($m * $m - 3) >> 1}];
+      while {$j < $nHalf} {
+        lset sieve1 $j 1;
+        #puts "DEBUG: res (j=$j): sieve=$sieve1";
+        incr j $m; #set j [expr {$j + $m}];
       }
     }
-    # count primes
-    for {set i 0} {$i <= $n} {incr i} {
-      if {[lindex $sieve1 $i]} {
-        incr x;
-      }
-    }
-    incr x -$check;
+    incr i;
+    incr m 2;
   }
+
+  # count remaining primes
+  while {$m < $n} {
+    if {![lindex $sieve1 $i]} {
+      incr x;
+    }
+    incr i;
+    incr m 2;
+  }
+
   #puts "DEBUG: sieve=$sieve1";
   return $x;
 }
@@ -257,84 +182,88 @@ proc bench03_old_ok1 {loops n check} {
 # It needs longs with at least 32 bit.
 # Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 #
-proc bench04 {loops n check} {
+proc bench04 {n} {
   set m 2147483647; # modulus, do not change!
   set a 16807;      # multiplier
   set q 127773;     # m div a
   set r 2836;       # m mod a
-  set x 0;          # last random value
-  while {$loops > 0 && $x == 0} {
-    incr loops -1;
-    incr x; # start with 1
-    for {set i $n} {$i > 0} {incr i -1} {
-      set x [expr {$a * ($x % $q) - $r * ($x / $q)}]; # x div q
-      if {$x <= 0} {
-        incr x $m; # x is new random number
-      }
+  set x 1;          # last random value
+  for {set i $n} {$i > 0} {incr i -1} {
+    #using additional variables xDivQ, xModQ and multiple expressions would be slower...
+    #set xDivQ [expr {$x / $q}]; # x div q
+		#set xModQ [expr {$x - $q * $xDivQ}];
+    #set x [expr {$a * $xModQ - $r * $xDivQ}];
+    set x [expr {$a * ($x % $q) - $r * ($x / $q)}]; # x div q
+    if {$x <= 0} {
+      incr x $m; # x is new random number
     }
-    incr x -$check;
   }
   return $x;
 }
 
+#set gState(benchxxLine) {}; 
 
+# bench05 (Integer 32 bit)
+# (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
+# Using dynamic programming and Pascal's triangle, storing only one line
+# Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
+# Example: (2000 choose 1000) mod 65536 = 27200
 #
-# bench05 (Integer 32 bit) (list implementation)
-# n over n/2 mod 65536 (Pascal's triangle)
-# We start with an empty list and append elements, this will be much faster than replacing elements in a list with
-# e.g.  set pas1 [lreplace $pas1 $j $j [expr {[lindex $pas2 $j_1] + [lindex $pas2 $j]}]];
+# (We use lset, which is probably as good as lappend, which is much faster than lreplace)
 #
-proc bench05 {loops n check} {
-  set x 0;
-  set n [expr {$n / 500}];
+proc bench05 {n} {
+  #set n [expr {$n / 200}]; # compute only up to n/200
+
+  # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+  set n [expr {$n / 2}];
+
   set k [expr {$n / 2}];
-
   if { (($n - $k) < $k) } {
     set k [expr {$n - $k}]; # keep k minimal with  n over k  =  n over n-k
   }
+
+  # initialize (not needed)
+  #for {set j 0} {$j < $k} {incr j} {
+  #  lset line $j 0;
+  #}
   
-  # allocate memory... (not needed for Tcl)
-  #int pas1[][] = new int[2][k + 1];
-  #pas1[0][0] = 1; pas1[1][0] = 1; // set first column
+  set line {};
+  lset line 0 1;
+  lset line 1 2;
 
-  while {$loops > 0 && $x == 0} {
-    incr loops -1;
-    set pas1 {1};
-    for {set i 2} {$i <= $n} {incr i} {
-      set pas2 $pas1; # get last line to pas2
-      set pas1 {1};   # and restart with new list
-      set i_mod_2 [expr {$i % 2}];
-      set min1 [expr {($i - 1) / 2}];
-      if {$k < $min1} {
-        set min1 $k;
-      }
+  for {set i 3} {$i <= $n} {incr i} {
+    set min1 [expr {($i - 1) / 2}];
 
-      #pas1[i_mod_2][1] = i; # second column is i
-      lappend pas1 $i;
-
-      #puts "DEBUG -- (i=$i): pas1=$pas1, pas2=$pas2";
-      for {set j 2} {$j <= $min1} {incr j} { # up to min((i-1)/2, k)
-        #pas1[i_mod_2][j] = (pas1[i_mod_2 ^ 1][j - 1] + pas1[i_mod_2 ^ 1][j]);
-        lappend pas1 [expr {[lindex $pas2 [expr {$j - 1}]] + [lindex $pas2 $j]}];
-        #puts "DEBUG (j=$j): pas1=$pas1, pas2=$pas2";
-      }
-      if { [expr {($min1 < $k) && ($i_mod_2 == 0)}] } { # new element
-        #pas1[i_mod_2][min1 + 1] = 2 * pas1[i_mod_2 ^ 1][min1];
-        #lappend pas1 [expr {2 * [lindex $pas2 [expr {($i - 1) / 2}]]}];
-        lappend pas1 [expr {2 * [lindex $pas2 $min1]}];
-      }
+    if { [expr {($i % 2 == 0)}] } { # new element
+      set min1_plus1 $min1;
+      incr min1_plus1;
+      lset line $min1_plus1 [expr {2 * [lindex $line $min1]}];
     }
 
-    #puts "DEBUG: pas1=$pas1, pas2=$pas2";
-
-    #x += pas1[n % 2][k] & 0xffff; // % 65536
-    set x [expr {$x + [lindex $pas1 $k] & 0xffff}];
-
-    incr x -$check;
+    set prev [lindex $line 1];
+    for {set j 2} {$j <= $min1} {incr j} {
+      set num [lindex $line $j];
+      lset line $j [expr {($prev + [lindex $line $j]) & 0xffff}];
+      set prev $num;
+    }
+    lset line 1 $i;
+    #puts "DEBUG: line=$line";
   }
-  return $x;
+
+  # compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+  set x 0;
+  for {set j 0} {$j < $k} {incr j} {
+    set num [lindex $line $j];
+    set x [expr {($x + 2 * $num * $num) & 0xffff}]; 
+  }
+
+  set num [lindex $line $k];
+  set x [expr {($x + $num * $num) & 0xffff}]; 
+
+  return [expr {$x & 0xffff}];
 }
 
+set gState(bench) {bench00 bench01 bench02 bench03 bench04 bench05};
 
 #
 # run a benchmark
@@ -344,30 +273,20 @@ proc bench05 {loops n check} {
 # out:    x = result
 #
 proc run_bench {bench loops n check} {
-  set x 0;
+  global gState;
 
-  if {$bench == 0} {
-    set x [bench00 $loops $n $check];
+  set bench_func [lindex $gState(bench) $bench];
 
-  } elseif {$bench == 1} {
-    set x [bench01 $loops $n $check];
-
-  } elseif {$bench == 2} {
-    set x [bench02 $loops $n $check];
-
-  } elseif {$bench == 3} {
-    set x [bench03 $loops $n $check];
-
-  } elseif {$bench == 4} {
-    set x [bench04 $loops $n $check];
-
-  } elseif {$bench == 5} {
-    set x [bench05 $loops $n $check];
-
-  } else {
+  if {$bench > 5} {
     puts "Error: Unknown benchmark: $bench";
   }
-  # can we use Tcl switch?
+
+  set x 0;
+  while {$loops > 0 && $x == 0} {
+    incr loops -1;
+    set x [$bench_func $n];
+    incr x -$check;
+  }
 
   incr x $check;
   if {$x != $check} {
@@ -382,7 +301,7 @@ proc run_bench {bench loops n check} {
 proc bench03Check {n} {
   set check 0;
 
-  set n [expr {$n / 2}];
+  #set n [expr {$n / 2}];
 
   for {set j 2} {$j <= $n} {incr j} {
     set isPrime 1;
@@ -409,9 +328,10 @@ proc getCheck {bench n} {
     puts "Note: $PRG_LANGUAGE is rather slow, so reduce n by factor $fact to $n.";
   }
 
-  if {$bench == 0} {
+  if {$bench == 0} { # ($n / 2) * ($n + 1)
     #set check 10528;
-    set check [expr {(($n / 2) * ($n + 1)) & 0xffff}];
+    #set check [expr {(($n / 2) * ($n + 1)) & 0xffff}];
+    set check [expr {((($n + ($n & 1)) >> 1) * ($n + 1 - ($n & 1))) & 0xffff}]; # 10528 for n=1000000
 
   } elseif {$bench == 1} {
     #set check 10528;
@@ -421,15 +341,15 @@ proc getCheck {bench n} {
     set check [expr {($n + 1) / 2}];
 
   } elseif {$bench == 3} {
-    set check [expr $n == 1000000 ? 41538 : [bench03Check $n]];
+    set check [expr $n == 500000 ? 41538 : [bench03Check $n]];
 
   } elseif {$bench == 4} {
     #set check 1227283347;
-    set check [expr {$n == 1000000 ? 1227283347 : [bench04 1 $n 0]}]; # bench04 not a real check
+    set check [expr {$n == 1000000 ? 1227283347 : [bench04 $n]}]; # bench04 not a real check
 
   } elseif {$bench == 5} {
-    #set check 27200;
-    set check [expr {$n == 1000000 ? 27200 : [bench05 1 $n 0]}]; # bench045not a real check
+    #set check 17376;
+    set check [expr {$n == 5000 ? 17376 : [bench05 $n]}]; # bench05 not a real check
 
   } else {
     puts "Error: Unknown benchmark: $bench";
@@ -538,14 +458,18 @@ proc checkbits_double1 {} {
 }
 
 
-proc print_info {} {
+proc get_info {} {
   global PRG_VERSION;
   global PRG_LANGUAGE;
   global gState;
-  puts "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:[checkbits_int1] double:[checkbits_double1] tsType:$gState(tsType) tsMs:$gState(tsPrecMs) tsCnt:$gState(tsPrecCnt)) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
-  puts "Date: [clock format [clock seconds]]";
+#  puts "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:[checkbits_int1] double:[checkbits_double1] tsType:$gState(tsType) tsMs:$gState(tsPrecMs) tsCnt:$gState(tsPrecCnt)) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
+  set str "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:[checkbits_int1] double:[checkbits_double1] tsType:$gState(tsType) tsMs:$gState(tsPrecMs) tsCnt:$gState(tsPrecCnt)) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
+  set str "$str\n(c) Marco Vieth, 2002-2023\nDate: [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]";
+#  puts "Date: [clock format [clock seconds]]";
+  #set str "$str\n(c) Marco Vieth, 2002-2023\nDate: [clock format [clock seconds]]";
 #  puts "t1: $tcl_precision";
 #  puts "on platform [$tcl_platform{2}]";
+  return $str;
 }
 
 
@@ -637,13 +561,20 @@ proc measureBench {bench n check} {
 
 
 proc start_bench {bench1 bench2 n} {
-  print_info;
+  puts [get_info];
 
-  set bench_res [list ];
+  set bench_res [list];
   for {set bench $bench1} {$bench <= $bench2} {incr bench} {
-    set check [getCheck $bench $n];
+    set n2 $n;
+    if {$bench == 3} {
+		  set n2 [expr {$n / 2}];
+	  } elseif {$bench == 5} {
+		  set n2 [expr {$n / 200}]; 
+	  }
+
+    set check [getCheck $bench $n2];
     if {$check > 0} {
-      set throughput [measureBench $bench $n $check];
+      set throughput [measureBench $bench $n2 $check];
     } else {
       set throughput -1;
     }
@@ -678,7 +609,15 @@ proc main {argc argv} {
   return rc;
 }
 
+if {![info exists argc]} { # no argc?
+  set argc 0;
+  set argv {};
+}
 
 main $argc $argv;
+
+#
+# https://replit.com/languages/tcl
+#
 
 # end
