@@ -82,12 +82,16 @@ var gState = {
 	prgLanguage: "JavaScript",
 	mode: 0, // runmode: 1=test (todo), 2=node BenchmarkJs
 
-	fnGetMs: null, // get ms, set below
-	fnGetPrecMs: null, // get precise ms, set below
-	startMs: null, // set later
+	fnGetMs: undefined, // get ms, set below
+	fnGetPrecMs: undefined, // get precise ms, set below
+	startMs: undefined, // set later
 	bench1: 0, // bench1: first benchmark
 	bench2: 5, // bench2: last benchmark
 	n: 1000000, // n: max number
+
+	benchList: undefined,
+	checkList: undefined,
+	nPerBench: [],
 	caliMs: 1001, // calibration ms (minimum time needed for calibration)
 	deltaMs: 100, // delta ms (maximum delta between estimation and measurement to use result)
 	maxMs: 10000, // max ms (maximum time of a single benchmark run)
@@ -98,12 +102,11 @@ var gState = {
 	tsPrecCnt: 0, // time stamp count (calls) per precision interval (until time change)
 	tsMeasCnt: 0, // last measured count
 	bWantStop: false, // set to break benchmark execution
-	fnLog: null, // log function, set below
-	fnDone: null, // callback when done
-	benchList: null,
-	bench03Sieve: null,
-	bench05Line: null,
-	bench05LastLine: null
+	fnLog: undefined, // log function, set below
+	fnDone: undefined, // callback when done
+	bench03Sieve: undefined,
+	bench05Line: undefined,
+	bench05LastLine: undefined
 };
 
 
@@ -142,7 +145,6 @@ function bench00(n) {
 	}
 	return x & 0xffff;
 }
-
 
 //
 // bench01 (Integer 32 bit)
@@ -190,16 +192,14 @@ function bench02(n) {
 // number of primes less than or equal to n (prime-counting function)
 // Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 // (Sieve of Eratosthenes, no multiples of 2's are stored)
-function bench03(n) {
-	var x, sieve1, i, j, nHalf, m;
+function bench03(n, state) {
+	var nHalf = n >> 1, // div 2
+		x, sieve1, i, j, m;
 
-	//n = (n / 2) | 0; // compute only up to n/2
-	nHalf = n >> 1; // div 2
-
-	if (!gState.bench03Sieve || gState.bench03Sieve.length !== nHalf + 1) {
-		gState.bench03Sieve = typeof Uint8Array !== "undefined" ? new Uint8Array(nHalf + 1) : new Array(nHalf + 1); // set the size we need, only for odd numbers
+	if (!state.bench03Sieve) {
+		state.bench03Sieve = typeof Uint8Array !== "undefined" ? new Uint8Array(nHalf + 1) : new Array(nHalf + 1); // set the size we need, only for odd numbers
 	}
-	sieve1 = gState.bench03Sieve;
+	sieve1 = state.bench03Sieve;
 
 	// initialize sieve
 	if (sieve1.fill) {
@@ -247,24 +247,6 @@ function bench03(n) {
 // (or: https://www.cse.wustl.edu/~jain/cse567-08/ftp/k_26rng.pdf 26.21, Example 26.3; q=127773; 26.45)
 // It needs longs with at least 32 bit.
 // Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347
-/*
-function bench04(n) {
-	var m = 2147483647, // prime number 2^31-1; modulus, do not change!
-		a = 16807, // 7^5, one primitive root; multiplier
-		q = 127773, // m div a
-		r = 2836, // m mod a
-		x = 1, // 1=Last random value
-		i;
-
-	for (i = 0; i < n; i++) {
-		x = a * (x % q) - r * ((x / q) | 0); // x div q
-		if (x <= 0) {
-			x += m; // x is new random number
-		}
-	}
-	return x;
-}
-*/
 function bench04(n) {
 	var m = 2147483647, // prime number 2^31-1; modulus, do not change!
 		a = 16807, // 7^5, one primitive root; multiplier
@@ -293,10 +275,8 @@ function bench04(n) {
 // Instead of nCk mod 65536 with k=n/2, we compute the product of (n/2)Ck mod 65536 with k=0..n/4 (Vandermonde folding)
 // Example: (2000 choose 1000) mod 65536 = 27200
 //
-function bench05(n) {
+function bench05(n, state) {
 	var	x, k, i, j, min1, line, num, prev;
-
-	//n = (n / 125) | 0; // compute only up to n/125
 
 	// Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
 	n = (n / 2) | 0; // div 2
@@ -306,10 +286,10 @@ function bench05(n) {
 		k = n - k; // keep k minimal with  n over k  =  n over n-k
 	}
 
-	if (!gState.bench05Line || gState.bench05Line.length !== k + 1) {
-		gState.bench05Line = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
+	if (!state.bench05Line || state.bench05Line.length !== k + 1) {
+		state.bench05Line = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
 	}
-	line = gState.bench05Line;
+	line = state.bench05Line;
 
 	// initialize (not needed)
 	if (line.fill) {
@@ -337,7 +317,7 @@ function bench05(n) {
 			prev = num;
 		}
 		line[1] = i; // second column is i
-		// console.log("DEBUG: " + i + ": " + line.join(","));
+		// gState.fnLog("DEBUG: " + i + ": " + line.join(","));
 	}
 
 	// compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
@@ -350,141 +330,53 @@ function bench05(n) {
 	return x;
 }
 
+// checks
 
-/*
-function bench05_ok1(n) {
-	var	x, k, i, j, min1, line, lastLine, tempLine;
+function bench00Check(n) {
+	// (n / 2) * (n + 1)
+	//check = ((n / 2) * (n + 1)) % 65536; // NGS: cannot use "& 0xffff" here because it would use integer then
+	return (((n + (n & 1)) >> 1) * (n + 1 - (n & 1))) & 0xffff; // 10528 for n=1000000
+	//gState.fnLog("DEBUG: check " + check);
+}
 
-	n = (n / 500) | 0; // compute only up to n/500
+function bench01Check(n) {
+	return ((n + 1) / 2) | 0;
+}
 
-	k = (n / 2) | 0; // div 2
-	if ((n - k) < k) {
-		k = n - k; // keep k minimal with  n over k  =  n over n-k
-	}
+function bench02Check(n) {
+	return ((n + 1) / 2) | 0;
+}
 
-	if (!gState.bench05LastLine || gState.bench05LastLine.length !== k + 1) {
-		gState.bench05LastLine = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
-	}
-	if (!gState.bench05Line || gState.bench05Line.length !== k + 1) {
-		gState.bench05Line = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
-	}
-	line = gState.bench05Line;
-	lastLine = gState.bench05LastLine;
+function bench03Check(n) {
+	var x, i, j, isPrime;
 
-	// initialize
-	if (line.fill) {
-		line.fill(0);
-		lastLine.fill(0);
+	if (n === 500000) {
+		x = 41538;
 	} else {
-		for (j = 0; j <= k; j++) {
-			line[j] = 0;
-			lastLine[j] = 0;
+		x = 1; // 2 is prime
+		for (j = 3; j <= n; j += 2) {
+			isPrime = true;
+			for (i = 3; i * i <= j; i += 2) {
+				if (j % i === 0) {
+					isPrime = false;
+					break;
+				}
+			}
+			if (isPrime) {
+				x++;
+			}
 		}
 	}
-	line[0] = 1;
-	lastLine[0] = 1;
-
-	// compute
-	x = 0;
-	for (i = 3; i <= n; i++) {
-		min1 = (i - 1) >> 1;
-		if (k < min1) {
-			min1 = k;
-		}
-		line[1] = i; // second column is i
-		for (j = 2; j <= min1; j++) {
-			line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff; // for Uint16Array we could skip the & 0xffff but not for Array
-		}
-		if ((min1 < k) && ((i & 1) === 0)) { // new element
-			line[min1 + 1] = 2 * lastLine[min1];
-		}
-
-		tempLine = lastLine;
-		lastLine = line;
-		line = tempLine;
-		//console.log("T1: " + lastLine[min1]); //debug
-	}
-
-	x += lastLine[k] & 0xffff;
-//x=0;
 	return x;
 }
-*/
 
-/*
-// with Vandermond's identity, roughly 4 times faster...
-function bench05_fast1(n) {
-	var	x, k, i, j, min1, line, lastLine, tempLine;
-
-	n = (n / 500) | 0; // compute only up to n/500
-
-	k = (n / 2) | 0; // div 2
-	if ((n - k) < k) {
-		k = n - k; // keep k minimal with  n over k  =  n over n-k
-	}
-
-	n = (n / 2) | 0; // div 2
-	k = (k / 2) | 0; // div 2 //TTT
-
-	// example: n = 8; k = 4;
-	//console.log("DDD: n=" + n + ", k=" + k);
-
-	if (!gState.bench05LastLine || gState.bench05LastLine.length !== k + 1) {
-		gState.bench05LastLine = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
-	}
-	if (!gState.bench05Line || gState.bench05Line.length !== k + 1) {
-		gState.bench05Line = typeof Uint16Array !== "undefined" ? new Uint16Array(k + 1) : new Array(k + 1);
-	}
-	line = gState.bench05Line;
-	lastLine = gState.bench05LastLine;
-
-	// initialize
-	if (line.fill) {
-		line.fill(0);
-		lastLine.fill(0);
-	} else {
-		for (j = 0; j <= k; j++) {
-			line[j] = 0;
-			lastLine[j] = 0;
-		}
-	}
-	line[0] = 1;
-	lastLine[0] = 1;
-
-	// compute
-	x = 0;
-	for (i = 3; i <= n; i++) {
-		min1 = (i - 1) >> 1;
-		if (k < min1) {
-			min1 = k;
-		}
-		line[1] = i; // second column is i
-		for (j = 2; j <= min1; j++) {
-			line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff; // for Uint16Array we could skip the & 0xffff but not for Array
-		}
-		if ((min1 < k) && ((i & 1) === 0)) { // new element
-			line[min1 + 1] = 2 * lastLine[min1];
-		}
-		tempLine = lastLine;
-		lastLine = line;
-		line = tempLine;
-		//console.log("T1: " + i + ": " + lastLine.join(","));
-		//console.log("T1: " + i + ": " + lastLine[min1 + 1]); //debug
-	}
-
-	// compute part 2
-	// assuming k is even (for even lines, there is a middle element...)
-	for (j = 0; j < k; j++) {
-		//console.log("D1: bin=" + lastLine[j] + ", pow=" + (lastLine[j] * lastLine[j]));
-		x = (x + 2 * lastLine[j] * lastLine[j]) & 0xffff;
-	}
-	x = (x + lastLine[k] * lastLine[k]) & 0xffff;
-
-	//x=0; //debug
-
-	return x;
+function bench04Check(n) {
+	return (n === 1000000) ? 1227283347 : bench04(n); // bench04 not a real check
 }
-*/
+
+function bench05Check(n) {
+	return (n === 5000) ? 17376 : bench05(n, gState); // bench05 not a real check
+}
 
 
 //
@@ -498,13 +390,9 @@ function runBench(bench, loops, n, check) {
 	var fnBench = gState.benchList[bench],
 		x;
 
-	if (!fnBench) {
-		gState.fnLog("Error: Unknown benchmark " + bench);
-	}
-
 	x = 0;
 	while (loops-- > 0 && x === 0) {
-		x = fnBench(n);
+		x = fnBench(n, gState);
 		x -= check;
 	}
 
@@ -515,30 +403,6 @@ function runBench(bench, loops, n, check) {
 	}
 	return x;
 }
-
-
-// bench03 check function (used for n !== 1000000)
-function bench03Check(n) {
-	var i, j, isPrime, x;
-
-	//n = (n / 2) | 0; // compute only up to n/2
-
-	x = 0;
-	for (j = 2; j <= n; j++) {
-		isPrime = true;
-		for (i = 2; i * i <= j; i++) {
-			if (j % i === 0) {
-				isPrime = false;
-				break;
-			}
-		}
-		if (isPrime) {
-			x++;
-		}
-	}
-	return x;
-}
-
 
 /*
 function bench05Check(n) {
@@ -603,46 +467,6 @@ public static long nCr(long n,long r,long p)
 	return (numerator/denominator*Math.pow(10,numCount-denCount))%p;
 }
 */
-
-
-function getCheck(bench, n) {
-	var check;
-
-	switch (bench) {
-	case 0: // (n / 2) * (n + 1)
-		//check = ((n / 2) * (n + 1)) % 65536; // NGS: cannot use "& 0xffff" here because it would use integer then
-		check = (((n + (n & 1)) >> 1) * (n + 1 - (n & 1))) & 0xffff; // 10528 for n=1000000
-		//gState.fnLog("DEBUG: check " + check);
-		break;
-
-	case 1:
-		check = ((n + 1) / 2) | 0;
-		break;
-
-	case 2:
-		check = ((n + 1) / 2) | 0;
-		break;
-
-	case 3:
-		check = (n === 500000) ? 41538 : bench03Check(n);
-		break;
-
-	case 4:
-		check = (n === 1000000) ? 1227283347 : bench04(n); // bench04 not a real check
-		break;
-
-	case 5:
-		check = (n === 5000) ? 17376 : bench05(n); // bench05 not a real check
-		break;
-
-	default:
-		gState.fnLog("Error: Unknown benchmark " + bench);
-		check = -1;
-		break;
-	}
-	return check;
-}
-
 
 function strNumFormat(s, iLen, sFillChar) {
 	var i;
@@ -717,6 +541,11 @@ function checkbitsDouble() {
 }
 
 
+function strZeroFormat(s, iLen) {
+	return strNumFormat(s, iLen, "0"); // NSG JS engine has no slice()
+}
+
+
 function getInfo() {
 	var d = new Date(),
 		str, jls;
@@ -727,9 +556,9 @@ function getInfo() {
 		str += " appCodeName=" + navigator.appCodeName + ", appName=" + navigator.appName
 			+ ", appVersion=" + navigator.appVersion + ", platform=" + navigator.platform + ", userAgent=" + navigator.userAgent;
 	}
-	if (typeof process !== "undefined") { // node.js
-		str += " name=" + process.release.name + ", version=" + process.version + ", v8=" + process.versions.v8 + ", arch=" + process.arch + ", platform=" + process.platform;
-		// console.log(process);
+	if (typeof global !== "undefined" && typeof global.process !== "undefined") { // node.js
+		str += " name=" + global.process.release.name + ", version=" + global.process.version + ", v8=" + global.process.versions.v8 + ", arch=" + global.process.arch + ", platform=" + global.process.platform;
+		// gState.fnLog(process);
 	}
 	if (typeof System !== "undefined") { // NGS JS Engine
 		str += " Interpreter: " + System.canonicalHost + ", VM.version=" + VM.version;
@@ -763,11 +592,10 @@ function getInfo() {
 	*/
 
 	str += "\n(c) Marco Vieth, 2002-2023\n"
-		+ "Date: " + ((d.getFullYear) ? d.getFullYear() : ("0" + (d.getYear()).slice(-2))) + "-"
-		+ ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2) + " "
-		+ ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + ":" + ("0" + d.getSeconds()).slice(-2);
-		//+ "." + ("0" + d.getMilliseconds()).slice(-3);
-	// NSG JS engine has no Date().getFullYear()
+		+ "Date: " + ((d.getFullYear) ? d.getFullYear() : strZeroFormat(String(d.getYear()), 2)) + "-"
+		+ strZeroFormat(String(d.getMonth()), 2) + "-" + strZeroFormat(String(d.getDate()), 2) + " "
+		+ strZeroFormat(String(d.getHours()), 2) + ":" + strZeroFormat(String(d.getMinutes()), 2) + ":" + strZeroFormat(String(d.getSeconds()), 2);
+	// NSG JS engine has no Date().getFullYear(), no slice()
 
 	return str;
 }
@@ -808,18 +636,6 @@ function measureBench(bench, n, check) {
 
 	gState.fnLog("Calibrating benchmark " + bench + " with n=" + n + ", check=" + check);
 
-	/*
-	//TTT
-	do {
-		tDelta = tMeas || 100000;
-		tMeas = fnGetPrecMs(); // start measurement when time changes
-		x = runBench(bench, loops, n, check);
-		tMeas = fnGetPrecMs(1) - tMeas; // stop measurement and count until time changes
-		gState.fnLog("TTT: tMeas=", tMeas);
-	} while (tMeas < tDelta);
-	//TTT
-	*/
-
 	while (!throughput && !gState.bWantStop) {
 		tMeas = fnGetPrecMs(); // start measurement when time changes
 		x = runBench(bench, loops, n, check);
@@ -853,37 +669,6 @@ function measureBench(bench, n, check) {
 }
 
 
-/*
-// only useful for linear problem size:
-function determineProblemSizeN(bench, n) {
-	var fnGetPrecMs = gState.fnGetPrecMs,
-		n1 = 100,
-		check, tMeas, x;
-
-	while (n1 <= n) {
-		check = getCheck(bench, n1);
-		tMeas = fnGetPrecMs(); // start measurement when time changes
-		x = runBench(bench, 1, n1, check);
-		tMeas = fnGetPrecMs(1) - tMeas; // stop measurement and count until time changes
-		gState.fnLog("TEST: n=" + n1 + ", tMeas=" + tMeas + ", x=" + x);
-		if (tMeas > 10) {
-			n = n1;
-			break;
-		}
-		if ((tMeas * 10) < 10) {
-			n1 *= 10;
-		} else {
-			n1 *= 2;
-		}
-	}
-	return n;
-}
-
-function determineProblemSizeN(_bench, n) {
-	return n;
-}
-*/
-
 function endBench(startMs) {
 	printResults(gState.bench1, gState.bench2, gState.benchRes);
 	gState.fnLog("Total elapsed time: " + (gState.fnGetMs() - startMs) + " ms");
@@ -903,29 +688,19 @@ function fnSetTimeout(func, time) {
 
 
 function doBench() {
-	var n = gState.n, //determineProblemSizeN(bench, gState.n),
-		scaleN = gState.n / n,
-		bench = gState.bench,
-		check, rc;
+	var bench = gState.bench,
+		n, check, rc;
 
-	// reduce problem size
-	if (bench === 3) {
-		n = (n / 2) | 0;
-	} else if (bench === 5) {
-		n = (n / 200) | 0;
-	}
-
-	check = getCheck(bench, n);
-	if (check > 0) {
+	if (bench >= 0 && bench < gState.benchList.length) {
+		n = gState.nPerBench[bench];
+		check = gState.checkList[bench](n);
 		rc = measureBench(bench, n, check);
-		rc /= scaleN;
-		if (scaleN !== 1) {
-			gState.fnLog("Note: Result scaled by factor " + scaleN + " to " + rc);
-		}
 	} else {
+		gState.fnLog("Error: Unknown benchmark " + bench);
 		rc = -1;
 	}
 	gState.benchRes[bench] = rc;
+
 	bench++;
 	if (bench <= gState.bench2 && !gState.bWantStop) {
 		gState.bench = bench;
@@ -1014,93 +789,57 @@ function determineTsPrecision() {
 }
 
 
-function onBenchmarkJsCycle(event) {
-	console.log(String(event.target));
+function onBenchmarkJsEvent(event) {
+	//gState.fnLog(event);
+	if (event.type === "cycle") {
+		gState.fnLog(String(event.target));
+	} else if (event.type === "complete") {
+		gState.fnLog("\n");
+		gState.fnLog("Fastest is " + JSON.stringify(event.currentTarget));
+	} else {
+		gState.fnLog("Error: unknown event type: " + event.type);
+		//gState.fnLog("xxx: " + JSON.stringify(event));
+	}
 }
 
-function onBenchmarkJsComplete(event) {
-	console.log("Fastest is " + JSON.stringify(event.currentTarget));
+function runOneBenchmarkJs() {
+	//console.log("TTT: ", this); //TTT
+	//console.log("TTT: ", arguments); //TTT
+	return this._benchFn(this._n, gState); // eslint-disable-line no-underscore-dangle, no-invalid-this
 }
 
-/*
-function benchmarkJsCreate(i) {
-	//return new Function("function() { return bench0" + i + "(gState.n)");
-	return new Function("return bench0" + i + "(" + 10 + ");");
-}
-*/
+function benchmarkJsCreateFunction(i) {
+	return {
+		_n: gState.nPerBench[i],
+		_benchFn: gState.benchList[i],
 
-function benchmarkJs00() {
-	return gState.benchList[0](gState.n);
+		fn: runOneBenchmarkJs
+		//onStart: onBenchmarkJsEvent,
+		//onComplete: onBenchmarkJsEvent
+	};
 }
-
-function benchmarkJs01() {
-	return gState.benchList[1](gState.n);
-}
-
-function benchmarkJs02() {
-	return gState.benchList[2](gState.n);
-}
-
-function benchmarkJs03() {
-	return gState.benchList[3](gState.n);
-}
-
-function benchmarkJs04() {
-	return gState.benchList[4](gState.n);
-}
-
-function benchmarkJs05() {
-	return gState.benchList[5](gState.n);
-}
-
 
 function doBenchmarkJs() {
 	// https://benchmarkjs.com/
 	// https://github.com/bramstein/hypher/blob/110febf9abadc6f91aeb118e475d0b98ec0a9e19/test/benchmark.js#L3
 
-	// eslint-disable-next-line global-require
-	var Benchmark = require("benchmark");
-	// eslint-disable-next-line one-var
-	var suite = new Benchmark.Suite("BMBench BenchmarkJs"),
-		i,
-		benchmarkJList = [
-			benchmarkJs00,
-			benchmarkJs01,
-			benchmarkJs02,
-			benchmarkJs03,
-			benchmarkJs04,
-			benchmarkJs05
-		];
-		/*
-		createFunc = function (benchFn) {
-			return function() {
-				return benchFn(gState.n);
-			};
-		},
-		*/
+	var Benchmark = require("benchmark"); // eslint-disable-line global-require
+
+	var suite = new Benchmark.Suite("BMBench BenchmarkJs"), // eslint-disable-line one-var
+		i;
 
 	for (i = gState.bench1; i <= gState.bench2; i++) {
-		suite.add("bench0" + i, benchmarkJList[i]);
-		//suite.add("bench0" + i, "global.gState.benchList[" + i + "](global.gState.n)");
+		suite.add("bench0" + i, benchmarkJsCreateFunction(i));
 	}
 
-	/*
-	suite.on("cycle", function (event) {
-		console.log(String(event.target));
-	}).on("complete", function(event) {
-		console.log("Fastest is " + JSON.stringify(event.currentTarget));
-	}).run({
-		async: true
-	});
-	*/
-	suite.on("cycle", onBenchmarkJsCycle).on("complete", onBenchmarkJsComplete).run({
+	suite.on("cycle", onBenchmarkJsEvent).on("complete", onBenchmarkJsEvent).run({
 		async: true
 	});
 }
 
 
-function startBench(oArgs) {
-	var sKey;
+function startBench(oArgs, sArgStr) {
+	var sKey, bench, n;
 
 	if (!oArgs) {
 		gState.fnLog("DEBUG: startBench: No args.");
@@ -1122,8 +861,32 @@ function startBench(oArgs) {
 		bench05
 	];
 
+	gState.checkList = [
+		bench00Check,
+		bench01Check,
+		bench02Check,
+		bench03Check,
+		bench04Check,
+		bench05Check
+	];
+
+	for (bench = 0; bench < gState.benchList.length; bench++) {
+		n = gState.n;
+
+		// reduce problem size
+		if (bench === 3) {
+			n = (n / 2) | 0;
+		} else if (bench === 5) {
+			n = (n / 200) | 0;
+		}
+		gState.nPerBench[bench] = n;
+	}
+
 	determineTsPrecision();
 	gState.fnLog(getInfo());
+	if (sArgStr) {
+		gState.fnLog("Args:" + sArgStr);
+	}
 
 	gState.bench = gState.bench1;
 	gState.benchRes = [];
@@ -1143,9 +906,11 @@ function main(args) {
 			"bench1",
 			"bench2",
 			"n",
+			"caliMs",
 			"mode" // run mode
 		],
 		index = 0,
+		argStr = "",
 		parName;
 
 	if (typeof bmBenchNoAutoStart !== "undefined") {
@@ -1154,6 +919,7 @@ function main(args) {
 	}
 
 	if (args) {
+		argStr = args.join(" ");
 		while (index < args.length) {
 			parName = parNames[index];
 			if (parName) {
@@ -1163,7 +929,7 @@ function main(args) {
 		}
 	}
 
-	startBench(oArgs);
+	startBench(oArgs, argStr);
 }
 
 // ---------------------------------------
@@ -1211,7 +977,7 @@ function fnGetNodeStdinArgs() {
 	var args = [];
 
 	try {
-		args = require("fs").readFileSync(process.stdin.fd).toString().split(/ +/);
+		args = require("fs").readFileSync(global.process.stdin.fd).toString().split(/ +/); // eslint-disable-line global-require
 	} catch (e) {
 		gState.fnLog(e.message);
 	}
@@ -1220,11 +986,11 @@ function fnGetNodeStdinArgs() {
 
 
 if (typeof window === "undefined") { // are we outside of a browser in a standalone JS engine?
-	if ((typeof process === "object") && (typeof process.versions === "object") && (typeof process.versions.node !== "undefined")) { // Node.js
+	if (typeof global !== "undefined" && typeof global.process === "object" && typeof global.process.versions === "object" && typeof global.process.versions.node !== "undefined") { // Node.js
 		gState.fnLog = console.log; // eslint-disable-line no-console
 		global.performance = require("perf_hooks").performance; // eslint-disable-line global-require
-		// console.log(performance);
-		main(process.argv.length > 2 || process.stdin.isTTY ? fnGetArguments(process.argv, 2) : fnGetNodeStdinArgs());
+		// gState.fnLog(performance);
+		main(global.process.argv.length > 2 || global.process.stdin.isTTY ? fnGetArguments(global.process.argv, 2) : fnGetNodeStdinArgs());
 	} else if (typeof System !== "undefined") { // System object is available with NGS JS Engine
 		gState.fnLog = fnLogNGS;
 		if (typeof ARGS !== "undefined") {

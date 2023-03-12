@@ -1,61 +1,63 @@
+      >>SOURCE FORMAT IS FREE
  IDENTIFICATION DIVISION.
  PROGRAM-ID. bmbench.
  AUTHOR. Marco Vieth.
  DATE-WRITTEN. 05.04.2003.
 
-* BM Bench - bmbench.cob (Cobol)
-* (c) Marco Vieth, 2002-2006
-* http://www.benchmarko.de
-*
-* 05.04.2003 0.01  first tests
-* 06.04.2003 0.02  bench01 = (sum 1..n) mod 65536 (integer)
-* 11.04.2003 0.05  other benchmark tests
-* 01.05.2008 0.06  based on version 0.05
-*
-*
-*
-* Usage (with TinyCobol):
-* - Try to use static libraries!
-*   They are twice as fast for bench02!
-* (0.58 uses static, 0.60 uses dynamic as default)
-* - (Dynamic libraries are used first if available.
-*    export LD_LIBRARY_PATH=$HOME/usr/lib ...)
-* - htcobol -L$LD_LIBRARY_PATH -F bmbench.cob
-* - ./bmbench [bench1] [bench2] [n]
-*
-*
-* Hints to compile TinyCobol (http://www.tinycobol.org/):
-* - TinyCobol (needs flex, ncurses, ncurses_devel, db-devel/libdb-4_5-devel)
-* - ./configure --prefix=/home/ali/usr; make
-*
-* Hints to compile OpenCobol (http://www.opencobol.org/):
-* - OpenCobol (needs libgmp/gmp-devel 4.1.2, ...)
-* ./configure --prefix=/home/ali/usr
-* make
-* ...
-*
+*> BM Bench - bmbench.cob (Cobol)
+*> (c) Marco Vieth, 2002-2006
+*> http://www.benchmarko.de
+*>
+*> 05.04.2003 0.01  first tests
+*> 06.04.2003 0.02  bench01 = (sum 1..n) mod 65536 (integer)
+*> 11.04.2003 0.05  other benchmark tests
+*> 01.05.2008 0.06  based on version 0.05
+*>
+*>
+*>
+*> Usage (with TinyCobol):
+*> - Try to use static libraries!
+*>   They are twice as fast for bench02!
+*> (0.58 uses static, 0.60 uses dynamic as default)
+*> - (Dynamic libraries are used first if available.
+*>    export LD_LIBRARY_PATH=$HOME/usr/lib ...)
+*> - htcobol -L$LD_LIBRARY_PATH -F bmbench.cob
+*> - ./bmbench [bench1] [bench2] [n]
+*>
+*>
+*> Hints to compile TinyCobol (http://www.tinycobol.org/):
+*> - TinyCobol (needs flex, ncurses, ncurses_devel, db-devel/libdb-4_5-devel)
+*> - ./configure --prefix=/home/ali/usr; make
+*>
+*> Hints to compile OpenCobol (http://www.opencobol.org/):
+*> - OpenCobol (needs libgmp/gmp-devel 4.1.2, ...)
+*> ./configure --prefix=/home/ali/usr
+*> make
+*> ...
+*>
+*> https://www.onlinegdb.com/online_vb_compiler
+*>
 
-
-* Notes (TinyCobol):
-* - Data definition:
-* - '01 x PIC S9(12) value 0'  is slower than
-* - '01 x USAGE COMP-5 PIC S9(12) value 0' is slower than
-* - '01 x USAGE BINARY PIC S9(12) value 0'
-* - [is slower than: '01 x USAGE BINARY PIC S9(10) value 0']
-* - Loops:
-* - 'PERFORM VARYING i FROM n BY -1 UNTIL i <= 0' is slower than
-* - 'PERFORM VARYING i FROM 1 BY 1 UNTIL i > n' is slower than
-* - 'PERFORM UNTIL i <= 0 ... SUBTRACT 1 FROM i' is slower than
-* - 'PERFORM n TIMES ... ADD 1 TO i'
-* - Computing with same data types (e.g. FP) is faster than
-*   mixed data types.
-*
-*
-* Tips:
-* - 'DIVIDE x-s BY 65536 GIVING x-help REMAINDER x-s'
-*
-*
-*
+*> Notes (TinyCobol):
+*> - Data definition:
+*> - '01 x PIC S9(12) value 0'  is slower than
+*> - '01 x USAGE COMP-5 PIC S9(12) value 0' is slower than
+*> - '01 x USAGE BINARY PIC S9(12) value 0'
+*> - [is slower than: '01 x USAGE BINARY PIC S9(10) value 0']
+*> - Loops:
+*> - 'PERFORM VARYING i FROM n BY -1 UNTIL i <= 0' is slower than
+*> - 'PERFORM VARYING i FROM 1 BY 1 UNTIL i > n' is slower than
+*> - 'PERFORM UNTIL i <= 0 ... SUBTRACT 1 FROM i' is slower than
+*> - 'PERFORM n TIMES ... ADD 1 TO i'
+*> - Computing with same data types (e.g. FP) is faster than
+*>   mixed data types.
+*>
+*>
+*> Tips:
+*> - 'DIVIDE x-s BY 65536 GIVING x-help REMAINDER x-s'
+*>
+*>
+*>
 
  ENVIRONMENT DIVISION.
 
@@ -106,18 +108,18 @@
    05 bench-res1 OCCURS 6 TIMES USAGE BINARY PIC S9(9).
 
 
-* data for bench00:
+*> data for bench00:
  01 bench00-n-div-q USAGE BINARY PIC S9(4) value 0.
  01 bench00-n-mod-q USAGE BINARY PIC S9(4) value 0.
 
-* data for bench03:
+*> data for bench03:
  01 bench03-save-n USAGE BINARY PIC S9(9) value 0.
  01 bench03-x USAGE BINARY PIC S9(9) value 0.
  01 bench03-sieve1-array.
    05 bench03-sieve1 OCCURS 500001 TIMES PIC X.
  01 bench03-n2 USAGE BINARY PIC S9(9) value 0.
 
-* data for bench04:
+*> data for bench04:
  01 bench04-m USAGE BINARY PIC S9(10) value 2147483647.
  01 bench04-a USAGE BINARY PIC S9(10) value 16807.
  01 bench04-q USAGE BINARY PIC S9(10) value 127773.
@@ -125,7 +127,7 @@
  01 bench04-x-div-q USAGE BINARY PIC S9(10) value 0.
  01 bench04-x-mod-q USAGE BINARY PIC S9(10) value 0.
 
-* data for bench05:
+*> data for bench05:
  01 bench05-save-n USAGE BINARY PIC S9(9) value 0.
  01 bench05-k USAGE BINARY PIC S9(9) value 0.
  01 bench05-pas1-array.
@@ -137,35 +139,35 @@
  01 bench05-min1 USAGE BINARY PIC S9(9) value 0.
 
 
-* data for checkbits:
+*> data for checkbits:
  01 num USAGE BINARY PIC S9(12) value 0.
  01 num-s USAGE BINARY PIC S9(4) value 0.
-* 16 bit: 01 num-s USAGE BINARY PIC 9(5) value 0.
- 01 num-f USAGE COMP-1 PIC S9(12) value 0.
- 01 num-d USAGE COMP-2 PIC S9(12) value 0.
+*> 16 bit: 01 num-s USAGE BINARY PIC 9(5) value 0.
+ 01 num-f USAGE COMP-1 value 0.
+ 01 num-d USAGE COMP-2 value 0.
  01 last-num USAGE BINARY PIC S9(12) value 0.
  01 last-num-s USAGE BINARY PIC S9(4) value 0.
- 01 last-num-f USAGE COMP-1 PIC S9(9) value 0.
- 01 last-num-d USAGE COMP-2 PIC S9(9) value 0.
+ 01 last-num-f USAGE COMP-1 value 0.
+ 01 last-num-d USAGE COMP-2 value 0.
  01 bits USAGE BINARY PIC S9(9) value 0.
 
 
-* data for number printing
-* 01 num-str PIC Z(19) JUSTIFIED RIGHT.
-* 01 h1 USAGE BINARY PIC S9(9) value 0.
+*> data for number printing
+*> 01 num-str PIC Z(19) JUSTIFIED RIGHT.
+*> 01 h1 USAGE BINARY PIC S9(9) value 0.
 
-* 01 h1 PIC S9(10).
-*   88 h1-c value 2147483647.
+*> 01 h1 PIC S9(10).
+*>   88 h1-c value 2147483647.
 
 
  PROCEDURE DIVISION.
 
-*  MOVE bench04-r to num-str.
-*  INSPECT num-str REPLACING LEADING SPACES BY LOW-VALUE.
-*  DISPLAY "num-str='" num-str "'".
+*>  MOVE bench04-r to num-str.
+*>  INSPECT num-str REPLACING LEADING SPACES BY LOW-VALUE.
+*>  DISPLAY "num-str='" num-str "'".
 
-*  MOVE 2.6 TO h1.
-*  DISPLAY "h1='" h1 "'".
+*>  MOVE 2.6 TO h1.
+*>  DISPLAY "h1='" h1 "'".
 
   ACCEPT ARGS-STR FROM COMMAND-LINE.
   PERFORM main-form.
@@ -174,8 +176,8 @@
 bench00.
   MOVE 0 TO x-s.
   COMPUTE sum1 = ((n / 2) * (n + 1)).
-* (sum1..1000000 depends on type: 500000500000 (floating point),
-* 1784293664 (32bit), 10528 (16 bit)
+*> (sum1..1000000 depends on type: 500000500000 (floating point),
+*> 1784293664 (32bit), 10528 (16 bit)
   MOVE sum1 TO sum1-s.
   COMPUTE bench00-n-div-q = n / 65536.
   COMPUTE bench00-n-mod-q = n - bench00-n-div-q * 65536.
@@ -185,7 +187,7 @@ bench00.
       PERFORM 65536 TIMES
         ADD i-s TO x-s
         ADD 1 TO i-s
-*  DISPLAY "DEBUG: bench00: x-s=" x-s
+*>  DISPLAY "DEBUG: bench00: x-s=" x-s
       END-PERFORM
     END-PERFORM
 
@@ -195,8 +197,8 @@ bench00.
       ADD 1 TO i-s
     END-PERFORM
 
-*  DISPLAY "DEBUG: bench00: x-s=" x-s ", sum1-s=" sum1-s ",\
-*   n-div-q=" bench00-n-div-q ", n-mod-q=" bench00-n-mod-q ", curr. loop=" loops
+*>  DISPLAY "DEBUG: bench00: x-s=" x-s ", sum1-s=" sum1-s ",\
+*>   n-div-q=" bench00-n-div-q ", n-mod-q=" bench00-n-mod-q ", curr. loop=" loops
 
     COMPUTE loops = loops - 1
 
@@ -204,7 +206,7 @@ bench00.
       SUBTRACT sum1-s FROM x-s
       IF (x-s <> 0)
         ADD 1 TO x-s
-*  break;
+*>  break;
       END-IF
     END-IF
   END-PERFORM
@@ -215,19 +217,19 @@ bench00.
 bench01.
   MOVE 0 TO x.
   COMPUTE sum1 = ((n / 2) * (n + 1)).
-* (sum1..1000000 depends on type: 500000500000 (floating point),
-* 1784293664 (32bit), 10528 (16 bit)
+*> (sum1..1000000 depends on type: 500000500000 (floating point),
+*> 1784293664 (32bit), 10528 (16 bit)
 
   PERFORM UNTIL loops <= 0
-* or: PERFORM loops TIMES
+*> or: PERFORM loops TIMES
     MOVE 1 TO i
     PERFORM n TIMES
       ADD i TO x
       ADD 1 TO i
     END-PERFORM
 
-*  DISPLAY "DEBUG: bench01: x=" x ", sum1=" sum1 \
-*  ", curr. loop=" loops
+*>  DISPLAY "DEBUG: bench01: x=" x ", sum1=" sum1 \
+*>  ", curr. loop=" loops
 
     COMPUTE loops = loops - 1
 
@@ -235,7 +237,7 @@ bench01.
       SUBTRACT sum1 FROM x
       IF (x <> 0)
         ADD 1 TO x
-*  break;
+*>  break;
       END-IF
     END-IF
 
@@ -245,37 +247,37 @@ bench01.
   COMPUTE x = x - (x-help * 65536).
 
 
-*
-*
-*
+*>
+*>
+*>
 bench02.
-* DISPLAY "DEBUG: bench02: loops=" loops ", n=" n.
+*> DISPLAY "DEBUG: bench02: loops=" loops ", n=" n.
   MOVE 0 TO x-d.
   COMPUTE sum1-d = ((n / 2.0) * (n + 1.0)).
-* (sum1..1000000 depends on type: 500000500000 (floating point),
-*  1784293664 (32bit), 10528 (16 bit)
+*> (sum1..1000000 depends on type: 500000500000 (floating point),
+*>  1784293664 (32bit), 10528 (16 bit)
 
   PERFORM UNTIL loops <= 0
-* or: PERFORM loops TIMES
+*> or: PERFORM loops TIMES
     MOVE 1 TO i-d
     PERFORM n TIMES
       ADD i-d TO x-d
       ADD 1 TO i-d
-* using 1.0 as constant is slower, so use 1!
+*> using 1.0 as constant is slower, so use 1!
     END-PERFORM
 
-*  DISPLAY "DEBUG: bench02: x=" x-d ", sum1=" sum1-d \
-*  ", curr. loop=" loops
+*>  DISPLAY "DEBUG: bench02: x=" x-d ", sum1=" sum1-d \
+*>  ", curr. loop=" loops
 
-* we need to modify loops because we want to detect
-* the last loop...
+*> we need to modify loops because we want to detect
+*> the last loop...
     COMPUTE loops = loops - 1
     IF loops > 0
       SUBTRACT sum1-d FROM x-d
-* use a delta to compare...
+*> use a delta to compare...
       IF (x-d > 0.000001)
         ADD 1 TO x-d
-*  break;
+*>  break;
       END-IF
     END-IF
   END-PERFORM.
@@ -288,19 +290,19 @@ bench03.
   MOVE n TO bench03-save-n.
   COMPUTE n = n / 2.
   MOVE 0 TO bench03-x.
-* we don't have index 0, son don't save number 0.
+*> we don't have index 0, son don't save number 0.
   MOVE 0 TO bench03-sieve1(1).
 
   PERFORM UNTIL loops <= 0
-* Initialize sieve
+*> Initialize sieve
     MOVE 2 TO i
     COMPUTE bench03-n2 = n - 1
-*    DISPLAY "DEBUG: bench03-n2=" bench03-n2 ", loops=" loops
+*>    DISPLAY "DEBUG: bench03-n2=" bench03-n2 ", loops=" loops
     PERFORM bench03-n2 TIMES
       MOVE 1 TO bench03-sieve1(i)
       ADD 1 TO i
     END-PERFORM
-* Compute primes
+*> Compute primes
     MOVE 2 TO i
     PERFORM UNTIL (i * i) > n
       IF (bench03-sieve1(i) > 0)
@@ -312,7 +314,7 @@ bench03.
       END-IF
       COMPUTE i = i + 1
     END-PERFORM
-* Count primes
+*> Count primes
     MOVE 1 TO i
     COMPUTE bench03-n2 = n - 1
     PERFORM bench03-n2 TIMES
@@ -327,7 +329,7 @@ bench03.
       SUBTRACT 41538 FROM bench03-x
       IF (x > 0)
         ADD 1 TO bench03-x
-*  break;
+*>  break;
       END-IF
     END-IF
   END-PERFORM.
@@ -335,12 +337,12 @@ bench03.
   MOVE bench03-x TO x.
 
 
-*
-*
-* we need 10 digits for x, check1
+*>
+*>
+*> we need 10 digits for x, check1
 bench04.
   MOVE 1 TO x.
-* DISPLAY "DEBUG: bench04: TT0: x=" x ", n=" n
+*> DISPLAY "DEBUG: bench04: TT0: x=" x ", n=" n
   PERFORM UNTIL loops <= 0
     PERFORM n TIMES
       COMPUTE bench04-x-div-q = x / bench04-q
@@ -350,27 +352,27 @@ bench04.
         ADD bench04-m to x
       END-IF
     END-PERFORM
-*    DISPLAY "DEBUG: bench04: x=" x ", curr. loop=" loops
+*>    DISPLAY "DEBUG: bench04: x=" x ", curr. loop=" loops
     COMPUTE loops = loops - 1
     IF loops > 0
       SUBTRACT 1227283347 FROM x
       IF (x <> 0)
         ADD 1 TO x
-*  break;
+*>  break;
       END-IF
       ADD 1 TO x
     END-IF
   END-PERFORM.
 
 
-*
-*
-*
+*>
+*>
+*>
 bench05.
   MOVE 0 TO x.
   MOVE n TO bench05-save-n
   COMPUTE n = n / 500.
-*  DISPLAY "n=" n.
+*>  DISPLAY "n=" n.
   COMPUTE bench05-k = n / 2.
   IF ((n - bench05-k) < bench05-k)
     COMPUTE bench05-k = n - bench05-k
@@ -421,7 +423,7 @@ bench05.
       SUBTRACT 27200 FROM x
       IF (x <> 0)
         ADD 1 TO x
-*  break;
+*>  break;
       END-IF
     END-IF
   END-PERFORM.
@@ -429,14 +431,14 @@ bench05.
 
 
 
-*
-* run a benchmark
-* in: bench = benchmark to use
-* loops = number of loops
-*  n = maximum number (used in some benchmarks to define size
-* of workload)
-* out: x = result
-*
+*>
+*> run a benchmark
+*> in: bench = benchmark to use
+*> loops = number of loops
+*>  n = maximum number (used in some benchmarks to define size
+*> of workload)
+*> out: x = result
+*>
 run-bench.
   MOVE 0 TO x.
   MOVE 0 TO check1.
@@ -470,22 +472,22 @@ run-bench.
   END-IF
   MOVE loops-save TO loops.
 
-*
-*
-*
+*>
+*>
+*>
 get-ms.
   ACCEPT w01-time FROM TIME.
   COMPUTE t1 = (((((w05-hour * 60) + w05-min) * 60) + w05-sec)
     * 1000) + (w05-hsec * 10).
-* DISPLAY "DEBUG: Redefined time: " w05-hour ":" w05-min ":"
-* w05-sec "." w05-hsec.
-* DISPLAY "DEBUG: The system time is: " t1.
+*> DISPLAY "DEBUG: Redefined time: " w05-hour ":" w05-min ":"
+*> w05-sec "." w05-hsec.
+*> DISPLAY "DEBUG: The system time is: " t1.
 
 
-*
-*
-* Here we compute the number of "significant" bits for
-* positive numbers (which means 53 for double)
+*>
+*>
+*> Here we compute the number of "significant" bits for
+*> positive numbers (which means 53 for double)
 checkbits-short1.
   MOVE 1 TO num-s.
   MOVE 0 TO last-num-s.
@@ -530,9 +532,9 @@ checkbits-double1.
     COMPUTE bits = bits + 1
   END-PERFORM.
 
-*
-*
-*
+*>
+*>
+*>
 main-form.
 
   PERFORM get-ms.
@@ -540,10 +542,10 @@ main-form.
 
   UNSTRING args-str DELIMITED BY ' ' INTO args0 args1 args2 args3.
 
-* DISPLAY "DEBUG: args1=" args1.
+*> DISPLAY "DEBUG: args1=" args1.
   IF args1 <> SPACE
     MOVE args1 TO bench1
-*   COMPUTE bench1 = FUNCTION NUMVAL(args1)
+*>   COMPUTE bench1 = FUNCTION NUMVAL(args1)
   END-IF
 
   IF args2 <> SPACE
@@ -568,7 +570,7 @@ main-form.
 
   ACCEPT w01-date FROM DATE.
   ACCEPT w01-time FROM TIME.
-* MOVE FUNCTION CURRENT-DATE to w01-datex.
+*> MOVE FUNCTION CURRENT-DATE to w01-datex.
   DISPLAY "Date: " w01-date " " w01-time.
 
   MOVE bench1 to bench.
@@ -577,7 +579,7 @@ main-form.
     MOVE 0 TO x
     MOVE 0 TO t1
 
-* Calibration
+*> Calibration
     PERFORM UNTIL (t1 >= 1001) OR (x = -1)
       DISPLAY "Calibrating benchmark " bench " with loops=" loops ", n=" n
       PERFORM get-ms
@@ -587,17 +589,17 @@ main-form.
       COMPUTE t1 = t1 - th
       DISPLAY "x=" x " (time: " t1 " ms)"
       COMPUTE loops = loops * 2
-*  DISPLAY "DEBUG: x=" x ", loops=" loops ", t1=" t1
+*>  DISPLAY "DEBUG: x=" x ", loops=" loops ", t1=" t1
     END-PERFORM
 
     IF x <> -1
       COMPUTE loops = loops / 2
       COMPUTE x-help = (min-ms / t1)
-* int!
+*> int!
       COMPUTE loops = loops * x-help + 1
       DISPLAY "Calibration done. Starting measurement with " loops " loops to get >=" min-ms " ms"
 
-* Measurement
+*> Measurement
       PERFORM get-ms
       MOVE t1 TO th
       PERFORM run-bench
@@ -605,7 +607,7 @@ main-form.
       COMPUTE t1 = t1 - th
       DISPLAY "x=" x " (time: " t1 " ms)"
       COMPUTE bench-res1(bench + 1) = (t1 * 10 / loops)
-* int!
+*> int!
       DISPLAY "Elapsed time for " loops " loops: " t1 " ms; estimation for 10 loops: " bench-res1(bench + 1) " ms"
     ELSE
       COMPUTE bench-res1(bench + 1) = -1

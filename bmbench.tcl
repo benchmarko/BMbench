@@ -53,6 +53,7 @@ set PRG_LANGUAGE "Tcl";
 set gState(tsType) "msec";
 set gState(tsPrecCnt) 0;
 set gState(tsMeasCnt) 0;
+set gState(caliMs) 1001;
 
 # do not use it any more:
 #set gState(fact) {0 0 0 20 0 0}; # benchmark simplification factors for n
@@ -299,20 +300,23 @@ proc run_bench {bench loops n check} {
 
 
 proc bench03Check {n} {
-  set check 0;
+  set x 0;
 
-  #set n [expr {$n / 2}];
-
-  for {set j 2} {$j <= $n} {incr j} {
-    set isPrime 1;
-    for {set i 2} {[expr {$i * $i}] <= $j} {incr i} {
-      if {![expr {$j % $i}]} {
-        set isPrime 0;
-        break;
+  if {$n == 500000} {
+    set x 41538;
+  } else {
+    set x 1;
+    for {set j 3} {$j <= $n} {incr j 2} {
+      set isPrime 1;
+      for {set i 3} {[expr {$i * $i}] <= $j} {incr i 2} {
+        if {![expr {$j % $i}]} {
+          set isPrime 0;
+          break;
+        }
       }
-    }
-    if {$isPrime} {
-      incr x;
+      if {$isPrime} {
+        incr x;
+      }
     }
   }
   return $x;
@@ -341,7 +345,8 @@ proc getCheck {bench n} {
     set check [expr {($n + 1) / 2}];
 
   } elseif {$bench == 3} {
-    set check [expr $n == 500000 ? 41538 : [bench03Check $n]];
+    #set check [expr $n == 500000 ? 41538 : [bench03Check $n]];
+    set check [bench03Check $n];
 
   } elseif {$bench == 4} {
     #set check 1227283347;
@@ -498,9 +503,9 @@ proc print_results {bench_res} {
 proc measureBench {bench n check} {
   global gState PRG_LANGUAGE;
 
-  set caliMs 1001; # const
   set deltaMs 100; # const
   set maxMs 10000; # const
+  set caliMs $gState(caliMs);
 
   set loops 1; # number of loops
   set x 0;     # result from benchmark
@@ -560,8 +565,11 @@ proc measureBench {bench n check} {
 }
 
 
-proc start_bench {bench1 bench2 n} {
+proc start_bench {bench1 bench2 n argStr} {
   puts [get_info];
+  if {$argStr != ""} {
+    puts "Args: $argStr";
+  }
 
   set bench_res [list];
   for {set bench $bench1} {$bench <= $bench2} {incr bench} {
@@ -586,6 +594,7 @@ proc start_bench {bench1 bench2 n} {
 
 
 proc main {argc argv} {
+  global gState;
   set start_t [get_ms]; # memorize start time
   set bench1 0;       # first benchmark to test
   set bench2 5;       # last benchmark to test
@@ -601,9 +610,14 @@ proc main {argc argv} {
   if {$argc > 2} {
     set n [lindex $argv 2];
   }
+  if {$argc > 3} {
+    set gState(caliMs) [lindex $argv 3];
+  }
 
   determineTsPrecision;
-  set rc [start_bench $bench1 $bench2 $n];
+  set argStr [concat $argv];
+
+  set rc [start_bench $bench1 $bench2 $n $argStr];
   set t1 [expr {[get_ms] - $start_t}];
   puts "Total elapsed time: $t1 ms";
   return rc;

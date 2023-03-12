@@ -50,11 +50,11 @@ import sys # for flush()
 G_PRG_VERSION = "0.08"
 G_PRG_LANGUAGE = "Python"
 
-
 g_startTs = 0
 g_tsPrecMs = 0 # measured time stamp precision
 g_tsPrecCnt = 0 # time stamp count (calls) per precision interval (until time change)
 g_tsMeasCnt = 0 # last measured count
+g_cali_ms = 1001
 
 #
 # General description for benchmark test functions
@@ -126,10 +126,7 @@ def bench02(n):
 # (It would be possible to put all in a long integer but this is extremely slow.)
 #
 def bench03(n):
-  #n = int(n / 2)  # compute only up to n/2
-  x = 0      # number of primes below n
   nHalf = n >> 1
-  #sieve1 = []  #nHalf + 1 elements
   sieve1 = [0 for i in range(nHalf + 1)]
 
   # initialize sieve
@@ -142,8 +139,8 @@ def bench03(n):
   # compute primes
   i = 0
   m = 3
-  x += 1 # 2 is prime
-  while (m * m) < n:
+  x = 1 # number of primes below n (2 is prime)
+  while (m * m) <= n:
     if (sieve1[i] == 0):
       x += 1 # m is prime
       j = (m * m - 3) >> 1 # div 2
@@ -198,8 +195,6 @@ def bench04(n):
 # Example: (2000 choose 1000) mod 65536 = 27200
 #
 def bench05(n):
-  #n = int(n / 200) # compute only up to n/200
-
   # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
   n = int(n / 2)
 
@@ -276,19 +271,20 @@ def run_bench(bench, loops, n, check):
 
 
 def bench03Check(n):
-  #n = n // 2 # compute only up to n/2
-
-  x = 0
-  for j in range(2, n + 1):
-    isPrime = True
-    i = 2
-    while (i * i) <= j:
-      if (j % i == 0):
-        isPrime = False
-        break
-      i += 1
-    if (isPrime):
-      x += 1
+  if n == 500000:
+      x = 41538
+  else:
+    x = 1
+    for j in range(3, n + 1, 2):
+      isPrime = True
+      i = 3
+      while (i * i) <= j:
+        if (j % i == 0):
+          isPrime = False
+          break
+        i += 2
+      if (isPrime):
+        x += 1
   return x
 
 
@@ -301,10 +297,7 @@ def getCheck(bench, n):
   elif bench == 2:
     check = (n + 1) // 2
   elif bench == 3:
-    if n == 500000:
-      check = 41538
-    else:
-      check = bench03Check(n)
+    check = bench03Check(n)
   elif bench == 4:
     if n == 1000000:
       check = 1227283347
@@ -460,11 +453,11 @@ def print_results(bench_res1):
 
 
 def measureBench(bench, n, check):
-  cali_ms = 1001 # const
   delta_ms = 100 # const
   max_ms = 10000 # const
-  loops = 1  # number of loops
+  cali_ms = g_cali_ms
 
+  loops = 1  # number of loops
   x = 0      # result from benchmark
   tMeas = 0     # measured time
   tEsti = 0     # estimated time
@@ -517,10 +510,12 @@ def measureBench(bench, n, check):
   return throughput
 
 
-def start_bench(bench1, bench2, n):
+def start_bench(bench1, bench2, n, argStr):
   bench_res = []
 
   print(get_info())
+  if (argStr):
+    print("Args: " + argStr)
 
   for bench in range(bench1, bench2 + 1):
     n2 = n
@@ -556,8 +551,12 @@ def main(argv=[]):
     if argv[3:]:
       n = int(argv[3]);
 
+    if argv[4:]:
+      g_cali_ms = int(argv[4]);
+
   determineTsPrecision()
-  start_bench(bench1, bench2, n)
+  argStr = " ".join(argv[1:])
+  start_bench(bench1, bench2, n, argStr)
   print("Total elapsed time: %d ms" % conv_ms(get_ts()))
 
 

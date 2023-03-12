@@ -30,6 +30,7 @@ my $g_startTs = 0;
 my $g_tsPrecMs = 0; # measured time stamp precision
 my $g_tsPrecCnt = 0; # time stamp count (calls) per precision interval (until time change)
 my $g_tsMeasCnt = 0; # last measured count
+my $g_cali_ms = 1001;
 
 #
 # General description for benchmark test functions
@@ -121,9 +122,8 @@ sub bench02($) {
 sub bench03($) {
   use integer; # it is possible to use integer arithmetic
   my($n) = @_;
-  #$n /= 2; # compute only up to n/2 
   my $nHalf = $n >> 1; # div 2
-  my $x = 0; # number of primes below n
+  my $x;
   my $m;
   my $i;
   my $j;
@@ -136,8 +136,8 @@ sub bench03($) {
   # compute primes
   $i = 0;
   $m = 3;
-  $x += 1; # 2 is prime
-  while ($m * $m < $n) {
+  $x = 1; #  number of primes below n (2 is prime)
+  while ($m * $m <= $n) {
     if (!$sieve[$i]) {
       $x++; # m is prime
       $j = ($m * $m - 3) >> 1; # div 2
@@ -206,7 +206,6 @@ sub bench04($) {
 sub bench05($) {
   use integer; # we need integer arithmetic
   my($n) = @_;
-  #$n = int($n / 200); # compute only up to n/125
 
   # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
 	$n = int($n / 2);
@@ -253,104 +252,12 @@ sub bench05($) {
   # compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
   my $x = 0;
   for (my $j = 0; $j < $k; $j++) {
-    #$x = ($x + 2 * $line[$j] * $line[$j]) & 0xffff; # add nCk and nC(n-k)
-    $x += 2 * $line[$j] * $line[$j]; # add nCk and nC(n-k)
+    $x += 2 * $line[$j] * $line[$j]; # add nCk and nC(n-k)  (& 0xffff ?)
   }
-  #$x = ($x + $line[$k] * $line[$k]) & 0xffff; # we assume that k is even, so we need to take the middle element
-  $x += $line[$k] * $line[$k]; # we assume that k is even, so we need to take the middle element
+  $x += $line[$k] * $line[$k]; # we assume that k is even, so we need to take the middle element  (& 0xffff ?)
 
   return $x & 0xffff;
 }
-
-
-=for nobody
-sub bench05_ok1($) {
-  use integer; # we need integer arithmetic
-  my($n) = @_;
-  my $x = 0;
-  $n = int($n / 500);
-  my $k = int($n / 2);
-
-  if (($n - $k) < $k) {
-    $k = $n - $k; # keep k minimal with  n over k  =  n over n-k
-  }
-  my @line = (0) x ($k + 1);
-  my @lastLine = (0) x ($k + 1);
-  my $line_r = \@line;
-  my $lastLine_r = \@lastLine;
-  
-  $line[0] = 1;
-  $lastLine[0] = 1; # set first column
-  
-  # initialize
-  for (my $j = 1; $j <= $k; $j++) {
-    $line[$j] = 0;
-    $lastLine[$j] = 0;
-  }
-    
-  # compute
-  for (my $i = 2; $i <= $n; $i++) {
-    #my $i_mod_2 = $i % 2;
-    my $min1 = ($i - 1) / 2; # int(...)
-    if ($k < $min1) {
-      $min1 = $k;
-    }
-    $line_r->[1] = $i; # second column is i
-    for (my $j = 2; $j <= $min1; $j++) { # up to min((i-1)/2, k)
-      #$pas1[$i_mod_2][$j] = ($pas1[$i_mod_2 ^ 1][$j - 1] + $pas1[$i_mod_2 ^ 1][$j]);
-      $line_r->[$j] = ($lastLine_r->[$j - 1] + $lastLine_r->[$j]); # & 0xffff;
-    }
-    if (($min1 < $k) && (($i & 1) == 0)) { # new element
-      #$pas1[$i_mod_2][$min1 + 1] = 2 * $pas1[$i_mod_2 ^ 1][$min1];
-      $line_r->[$min1 + 1] = 2 * $lastLine_r->[$min1];
-    }
-    my $tempLine_r = $lastLine_r;
-    $lastLine_r = $line_r;
-  $line_r = $tempLine_r;
-  }
-  $x += $lastLine_r->[$k] & 0xffff;
-  return $x;
-}
-=cut
-
-=for nobody
-# lists
-sub bench05_lists($$$) { # (list implementation)
-  use integer; # we need integer arithmetic
-  my($loops, $n, $check) = @_;
-  my $x = 0;
-  $n = int($n / 500);
-  my $k = int($n / 2);
-
-  if (($n - $k) < $k) {
-    $k = $n - $k; # keep k minimal with  n over k  =  n over n-k
-  }
-  my @pas1 = ();
-  my @pas2 = ();
-
-  while ($loops-- > 0) {
-    @pas1 = (1);
-    for (my $i = 2; $i <= $n; $i++) {
-      @pas2 = @pas1; # get last line to pas2
-      @pas1 = (1); # and restart with new list
-      my $min1 = ($i - 1) / 2; # int(...)
-      if ($k < $min1) {
-        $min1 = $k;
-      }
-      push(@pas1, $i); # second column is i
-      for (my $j = 2; $j <= $min1; $j++) { # up to min((i-1)/2, k)
-        push(@pas1, $pas2[$j - 1] + $pas2[$j]);
-      }
-      if (($min1 < $k) && (($i % 2) == 0)) { # new element
-        push(@pas1, 2 * $pas2[$min1]);
-      }
-    }
-    $x += $pas1[$k] & 0xffff; # % 65536
-    $x -= $check;
-  }
-  return $x;
-}
-=cut
 
 
 #
@@ -399,22 +306,24 @@ sub run_bench($$$$) {
 
 sub bench03Check($) {
   my($n) = @_;
-	#var i, j, isPrime,
-	my $x = 0;
+	my $x;
 
-	#$n = ($n / 2) | 0; # compute only up to n/2
-
-	for (my $j = 2; $j <= $n; $j++) {
-		my $isPrime = 1;
-		for (my $i = 2; $i * $i <= $j; $i++) {
-			if ($j % $i == 0) {
-				$isPrime = 0;
-				last;
-			}
-		}
-		if ($isPrime) {
-			$x++;
-		}
+  if ($n == 500000) {
+    $x = 41538;
+  } else {
+    $x = 1;
+    for (my $j = 3; $j <= $n; $j += 2) {
+      my $isPrime = 1;
+      for (my $i = 3; $i * $i <= $j; $i += 2) {
+        if ($j % $i == 0) {
+          $isPrime = 0;
+          last;
+        }
+      }
+      if ($isPrime) {
+        $x++;
+      }
+    }
 	}
 	return $x;
 }
@@ -433,7 +342,7 @@ sub getCheck($$) {
     $check = int(($n + 1) / 2);
 
   } elsif ($bench == 3) {
-    $check = ($n == 500000) ? 41538 : bench03Check($n);
+    $check = bench03Check($n);
 
   } elsif ($bench == 4) {
     $check = ($n == 1000000) ? 1227283347 : bench04($n); # bench04 not a real check
@@ -612,10 +521,10 @@ sub print_results($$$) {
 
 sub measureBench($$$) {
   my($bench, $n, $check) = @_;
-  my $cali_ms = 1001; # const
   my $delta_ms = 100; # const
   my $max_ms = 10000; # const
-
+  my $cali_ms = $g_cali_ms; # 1001
+  
   my $loops = 1; # number of loops
   my $x = 0;     # result from benchmark
   my $tMeas = 0;    # measured time
@@ -641,8 +550,6 @@ sub measureBench($$$) {
       #$throughput = -1;
       $throughput = ($loops_p_sec) ? -$loops_p_sec : -1; # cannot rely on measurement, so set to negative
     } else {
-      #my $scale_fact = (($tMeas < $cali_ms) && ($tMeas > 0)) ? int((($cali_ms + 100) / $tMeas) + 1) : 2;
-      #my $scale_fact = ($tMeas == 0) ? 50 : ($tMeas < $cali_ms) ? int((($cali_ms + 100) / $tMeas) + 1) : 2;
       my $scale_fact;
       if ($tMeas == 0) {
         $scale_fact = 50;
@@ -659,13 +566,16 @@ sub measureBench($$$) {
 }
 
 
-sub start_bench($$$) {
-  my($bench1, $bench2, $n) = @_;
-  my $cali_ms = 1001; # const
-  my $delta_ms = 100; # const
-  my $max_ms = 10000; # const
+sub start_bench($$$$) {
+  my($bench1, $bench2, $n, $argStr) = @_;
+  #my $cali_ms = 1001; # const
+  #my $delta_ms = 100; # const
+  #my $max_ms = 10000; # const
 
   print_info();
+  if ($argStr) {
+    print "Args: $argStr\n";
+  }
 
   my @bench_res1 = ();
   for (my $bench = $bench1; $bench <= $bench2; $bench++) {
@@ -701,13 +611,16 @@ sub main($) {
   if ($#ARGV > 0) {
     $bench2 = $ARGV[1];
   }
-
   if ($#ARGV > 1) {
     $n = $ARGV[2];
   }
+   if ($#ARGV > 2) {
+    $g_cali_ms = $ARGV[3];
+  }
   
   determineTsPrecision();
-  my $rc = start_bench($bench1, $bench2, $n);
+  my $argStr = "@ARGV";
+  my $rc = start_bench($bench1, $bench2, $n, $argStr);
   
   printf("Total elapsed time: %d ms\n", conv_ms(get_ts()) | 0);
   return $rc;

@@ -31,8 +31,6 @@
 //
 //
 
-// #define BENCH03_ODD // bench03: put only odd numbers in sieve?
-
 #define PRG_VERSION "0.08"
 #define PRG_LANGUAGE "C++"
 
@@ -69,6 +67,7 @@ static struct bm_timeval g_start_ts = { 0, 0 };
 static double g_tsPrecMs = 0; // measured time stamp precision
 static int g_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
 static int g_tsMeasCnt = 0; // last measured count
+static int g_cali_ms = 1001;
 
 
 //
@@ -151,7 +150,6 @@ static int bench03(int n) {
   typedef unsigned char sieve_t;
   int i;
 
-  //n /= 2; // compute only up to n/2
   int nHalf = n >> 1;
 
   // allocate memory ...
@@ -173,7 +171,7 @@ static int bench03(int n) {
   int m = 3;
   int x = 1; // number of primes below n (2 is prime)
 
-  while (m * m < n) {
+  while (m * m <= n) {
     if (!sieve[i]) {
       x++; // m is prime
       int j = (m * m - 3) >> 1; // div 2
@@ -232,7 +230,6 @@ static int bench04(int n) {
 //
 static int bench05(int n) {
   typedef int line_t;
-  //n /= 200;
 
   // Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
   n /= 2;
@@ -326,20 +323,23 @@ static int run_bench(int bench, int loops, int n, int check) {
 
 
 static int bench03Check(int n) {
-  int x = 0;
+  int x;
 
-  //n = (n / 2) | 0; // compute only up to n/2
-
-  for (int j = 2; j <= n; j++) {
-    int isPrime = 1;
-    for (int i = 2; i * i <= j; i++) {
-      if (j % i == 0) {
-        isPrime = 0;
-        break;
+   	if (n == 500000) {
+    x = 41538;
+  } else {
+		x = 1; // 2 is prime
+    for (int j = 3; j <= n; j += 2) {
+      int isPrime = 1;
+      for (int i = 3; i * i <= j; i += 2) {
+        if (j % i == 0) {
+          isPrime = 0;
+          break;
+        }
       }
-    }
-    if (isPrime) {
-      x++;
+      if (isPrime) {
+        x++;
+      }
     }
   }
   return x;
@@ -368,7 +368,7 @@ static int getCheck(int bench, int n) {
     break;
 
     case 3:
-      check = (n == 500000) ? 41538 : bench03Check(n);
+      check = bench03Check(n);
     break;
 
     case 4:
@@ -574,8 +574,8 @@ static int checkbits_double1(void) {
 // --------------------------------------------------------
 
 static void print_info() {
-  printf("BM Bench v%s (%s) -- (short:%d int:%d float:%d double:%d) ", PRG_VERSION, PRG_LANGUAGE,
-    checkbits_short1(), checkbits_int1(), checkbits_float1(), checkbits_double1());
+  printf("BM Bench v%s (%s) -- (short:%d int:%d float:%d double:%d tsMs: %lf tsCnt: %d) ", PRG_VERSION, PRG_LANGUAGE,
+    checkbits_short1(), checkbits_int1(), checkbits_float1(), checkbits_double1(), g_tsPrecMs, g_tsPrecCnt);
   printf(MY_VERSION); // maybe multiple arguments!
   printf("(c) Marco Vieth, 2006-2023\n");
   //printf("Date: %s", ctime(get_time1()));
@@ -605,7 +605,7 @@ static void print_info() {
 static void print_results(int bench1, int bench2, double bench_res1[]) {
   printf("\nThroughput for all benchmarks (loops per sec):\n");
   char str[MAX_LANGUAGE_LEN1 + 1] = "";
-  for (int i = (int)strlen(PRG_LANGUAGE); i < MAX_LANGUAGE_LEN1; i++) {
+  for (int i = (int)strlen(PRG_LANGUAGE); i < (int)sizeof(str); i++) {
     strcat(str, " ");
   }
   printf("BMR (%s)%s: ", PRG_LANGUAGE, str);
@@ -619,9 +619,9 @@ static void print_results(int bench1, int bench2, double bench_res1[]) {
 
 
 static double measureBench(int bench, int n, int check) {
-  const int cali_ms = 1001;
   const int delta_ms = 100;
   const int max_ms = 10000;
+  const int cali_ms = g_cali_ms;
   
   int loops = 1;   // number of loops
   int x = 0;     // result from benchmark
@@ -711,6 +711,9 @@ int main(int argc, char **argv) {
   }
   if (argc > 3) {
     n = atoi(argv[3]);
+  }
+  if (argc > 4) {
+    g_cali_ms = atoi(argv[4]);
   }
   
   determineTsPrecision();

@@ -48,6 +48,7 @@ Public Module Module1
     Dim g_tsPrecMs As Double = 0
     Dim g_tsPrecCnt As Integer = 0
     Dim g_tsMeasCnt As Integer = 0
+    Dim g_cali_ms As Integer = 1001
 
    ' Dim nfi As System.Globalization.NumberFormatInfo = new System.Globalization.CultureInfo("en-US", false).NumberFormat
     Dim nfi As IFormatProvider = System.Globalization.CultureInfo.InvariantCulture
@@ -119,9 +120,8 @@ Public Module Module1
     ' (Byte consumes 8 bits, Boolean 16, so use Byte; BitArray is slow)
     ' (For loop is much faster than while here)
     Function bench03(ByVal n As Integer) As Integer
-        'n >>= 1 'compute only up to n/2
         Dim i, m, j As Integer
-        Dim x As Integer = 0 'number of primes below n
+        Dim x As Integer
 
         Dim nHalf As Integer = n >> 1
         Dim sieve1(nHalf + 1) As Byte 'or: new BitArray(n + 1)
@@ -134,7 +134,8 @@ Public Module Module1
         'compute primes
         i = 0
         m = 3
-        While (m * m < n)
+        x = 1 'number of primes below n (2 is prime)
+        While (m * m <= n)
             If (sieve1(i) = 0) Then
                 x += 1
                 j = (m * m - 3) >> 1 'div 2
@@ -147,11 +148,13 @@ Public Module Module1
         End While
 
         'count remaining primes
-        For i = i To nHalf
+        While (m < n)
             If (sieve1(i) = 0) Then
                 x += 1
             End If
-        Next i
+            i += 1
+            m += 2
+        End While
         Return x
     End Function
 
@@ -188,8 +191,6 @@ Public Module Module1
     ' n over n/2 mod 65536 (Pascal's triangle)
     '
     Function bench05(ByVal n As Integer) As Integer
-        'n = n / 200
-
         'Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
         n >>= 1 'div 2
 
@@ -212,14 +213,7 @@ Public Module Module1
 
         'compute lines of Pascal's triangle
         For i As Integer = 3 To n
-            'Dim i_mod_2 As Integer = i And 1
             Dim min1 As Integer =  (i - 1) >> 1
-            'If (i_mod_2 = 0) Then 'Math.floor((i - 1) / 2)
-            '    min1 = (i - 2) >> 1
-            'Else
-            '    min1 = (i - 1) >> 1
-            'End If
-
             If (i And 1) = 0 Then 'new element?
                 'line(i_mod_2, min1 + 1) = 2 * line(i_mod_2 Xor 1, min1)
                 line(min1 + 1) = 2 * line(min1)
@@ -234,33 +228,20 @@ Public Module Module1
                 prev = num
             Next j
             line(1) = i 'second column is i
-
-
-            'Dim str as String = ""
-            'For j As Integer = 0 to min1
-            '    str += String.Format(nfi, "{0,6:F0} ", line(j))
-            'Next j
-            'System.Console.WriteLine("DEBUG1:" & str)
-
         Next i
-        'x += line(n And 1, k) And &HFFFF '% 65536
 
-        'System.Console.WriteLine("DDD: ok " & k)
         'compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
         Dim x As Integer = 0
         Dim xHelp as Long
         For j As Integer = 0 To k - 1
-            'x = (x + 2 * line(j) * line(j)) And &HFFFF
-            'System.Console.WriteLine("D1: ok" & line(j))
             xHelp = line(j)
             xHelp = 2 * (xHelp * xHelp) And &HFFFF
             x = (x + xHelp) And &HFFFF
         Next j
-        'System.Console.WriteLine("DDD2: ok" & k)
-        'x = (x + line(k) * line(k)) And &HFFFF
-            xHelp = line(k)
-            xHelp = (xHelp * xHelp) And &HFFFF
-            x = (x + xHelp) And &HFFFF
+
+        xHelp = line(k)
+        xHelp = (xHelp * xHelp) And &HFFFF
+        x = (x + xHelp) And &HFFFF
         Return x
     End Function
 
@@ -308,22 +289,26 @@ Public Module Module1
 
     Function bench03Check(ByVal n As Integer) As Integer
         Dim check As Integer = 0
+        Dim x As Integer
 
-        Dim x As Integer = 0
-
-        For j As Integer = 2 To n
-            Dim isPrime As Boolean = true
-            Dim i As Integer = 2
-            While (i * i <= j) And (isPrime = true)
-                if (j Mod i = 0) Then
-                    isPrime = false
+        If n = 500000 Then
+            x = 41538
+        Else
+            x = 1
+            For j As Integer = 3 To n Step 2
+                Dim isPrime As Boolean = true
+                Dim i As Integer = 3
+                While (i * i <= j) And (isPrime = true)
+                    if (j Mod i = 0) Then
+                        isPrime = false
+                    End If
+                    i += 2
+                End While
+                if (isPrime) Then
+                    x += 1
                 End If
-                i += 1
-            End While
-            if (isPrime) Then
-                x += 1
-            End If
-        Next j
+            Next j
+        End If
       Return x
     End Function
 
@@ -340,11 +325,7 @@ Public Module Module1
             Case 2
                 check = (n + 1) / 2
             Case 3
-                If n = 500000 Then
-                    check = 41538
-                Else
-                    check = bench03Check(n)
-                End If
+                check = bench03Check(n)
             Case 4
                 If n = 1000000 Then
                     check = 1227283347
@@ -532,9 +513,10 @@ Public Module Module1
 
 
     Function measureBench(ByVal bench As Integer, ByVal n As Integer, ByVal check As Integer) As Double
-        Dim cali_ms As Integer = 1001 '401 '1001 TTT
-        Dim delta_ms As Integer = 100 '150 '100 TTT
+        Dim delta_ms As Integer = 100
         Dim max_ms As Integer = 10000
+        Dim cali_ms As Integer = g_cali_ms
+
         Dim loops as Integer = 1 'number of loops
         Dim x as Integer 'result from benchmark
         Dim tMeas as Double = 0 'measured time
@@ -650,20 +632,25 @@ Public Module Module1
 
         Dim args() As String = GetCommandLineArgs()
 
-        If (args.Length >= 2) Then
+        If (args.Length > 1) Then
             If (args(1) <> "") Then
                 bench1 = Integer.Parse(args(1))
                 bench2 = bench1
             End If
         End If
-        If (args.Length >= 3) Then
+        If (args.Length > 2) Then
             bench2 = Integer.Parse(args(2))
         End If
-        If (args.Length >= 4) Then
+        If (args.Length > 3) Then
             n = Integer.Parse(args(3))
+        End If
+        If (args.Length > 4) Then
+            g_cali_ms = Integer.Parse(args(4))
         End If
 
         determineTsPrecision()
+        'TODO Dim argStr As String = Join(testItem, " ")
+
         Dim rc As Integer =  start_bench(bench1, bench2, n)
         System.Console.WriteLine("Total elapsed time: " & Convert.ToInt32(conv_ms(get_ts())) & " ms")
     End Sub

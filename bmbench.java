@@ -34,6 +34,7 @@ class bmbench {
   private static double gState_tsPrecMs = 0; // measured time stamp precision
   private static int gState_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
   private static int gState_tsMeasCnt = 0; // last measured count
+  private static int g_cali_ms = 1001; //
 
   
   /*
@@ -124,8 +125,6 @@ class bmbench {
   // (Sieve of Eratosthenes, no multiples of 2 are stored)
   //
   private static int bench03(int n) {
-    //n /= 2; // compute only up to n/2
-    
     int nHalf = n >> 1;
 
     // allocate memory...
@@ -144,7 +143,7 @@ class bmbench {
     i = 0;
     int m = 3;
     int x = 1; // number of primes below n (2 is prime)
-    while (m * m < n) {
+    while (m * m <= n) {
       if (!sieve1[i]) {
         x++; // m is prime
         int j = (m * m - 3) >> 1; // div 2
@@ -207,8 +206,6 @@ class bmbench {
   // Example: (2000 choose 1000) mod 65536 = 27200
   //
   private static int bench05(int n) {
-    //n /= 200; // compute only up to n/200
-
     // Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
 	  n /= 2;
 
@@ -245,14 +242,6 @@ class bmbench {
         prev = num;
       }
       line[1] = i; // second column is i
-
-      /*
-      String str = "";
-      for (int j = 0; j < k; j++) {
-        str += ","+ line[j];
-      }
-      System.out.println("DEBUG: " + i + ": " + str);
-      */
     }
 
     // compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
@@ -264,50 +253,6 @@ class bmbench {
 
     return x & 0xffff;
   }
-
-/*
- private static int bench05_ok1(int n_p) {
-    int x = 0;
-    int n = n_p / 500; // compute only up to n/500
-    int k = n / 2;
-
-    if ((n - k) < k) {
-      k = n - k; // keep k minimal with  n over k  =  n over n-k
-    }
-
-  // allocate memory...
-  int line[] = new int[k + 1];
-  int lastLine[] = new int[k + 1];
-  line[0] = 1;
-  lastLine[0] = 1; // set first column
-
-    // initialize
-    for (int j = 1; j <= k; j++) {
-      line[j] = 0;
-      lastLine[j] = 0;
-    }
-
-    // compute
-    for (int i = 3; i <= n; i++) {
-      int min1 = (i - 1) / 2;
-      if (k < min1) {
-        min1 = k;
-      }
-      line[1] = i; // second column is i
-      for (int j = 2; j <= min1; j++) { // up to min((i-1)/2, k)
-        line[j] = (lastLine[j - 1] + lastLine[j]); // & 0xffff;
-      }
-      if ((min1 < k) && ((i & 1) == 0)) { // new element
-        line[min1 + 1] = 2 * lastLine[min1];
-      }
-      int tempLine[] = lastLine;
-      lastLine = line;
-      line = tempLine;
-    }
-    x += lastLine[k] & 0xffff;
-    return x;
-  }
-  */
 
 
   //
@@ -366,19 +311,23 @@ class bmbench {
 
 
   public static int bench03Check(int n) {
-    //n /= 2; // compute only up to n/2
+		int x;
 
-		int x = 0;
-    for (int j = 2; j <= n; j++) {
-      boolean isPrime = true;
-      for (int i = 2; i * i <= j; i++) {
-        if (j % i == 0) {
-          isPrime = false;
-          break;
+   	if (n == 500000) {
+	  	x = 41538;
+	  } else {
+		  x = 1; // 2 is prime
+      for (int j = 3; j <= n; j += 2) {
+        boolean isPrime = true;
+        for (int i = 3; i * i <= j; i += 2) {
+          if (j % i == 0) {
+            isPrime = false;
+            break;
+          }
         }
-      }
-      if (isPrime) {
-        x++;
+        if (isPrime) {
+          x++;
+        }
       }
     }
 	  return x;
@@ -401,7 +350,7 @@ class bmbench {
         break;
 
       case 3:
-        check = (n == 500000) ? 41538 : bench03Check(n);
+        check = bench03Check(n);
         break;
 
       case 4:
@@ -443,16 +392,6 @@ class bmbench {
   static double conv_ms(long ts) {
     return ts;
   }
-
-
-  /*
-  private static String getdate1() {
-    long date_ms = System.currentTimeMillis();
-    SimpleDateFormat format1 = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-    return format1.format(new java.util.Date(date_ms));
-  }
-  */
-
 
   private static double correctTime(double tMeas, double tMeas2, int measCount) {
     int tsPrecCnt = gState_tsPrecCnt;
@@ -618,8 +557,7 @@ class bmbench {
       + ", os.version=" + System.getProperty("os.version") + "\n"
       + "(c) Marco Vieth, 2002-2022\n"
       + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(System.currentTimeMillis()));
-      
-    //System.out.println("Date: " + getdate1());
+    
     //System.out.println("properties="+ System.getProperties());
     return str;
   }
@@ -641,9 +579,10 @@ class bmbench {
   }
 
   private static double measureBench(int bench, int n, int check) {
-    final int cali_ms = 1001;
     final int delta_ms = 100;
     final int max_ms = 10000;
+    final int cali_ms = g_cali_ms;
+
     int loops = 1; // number of loops
     int x;     // result from benchmark
     double tMeas = 0;   // measured time
@@ -685,8 +624,12 @@ class bmbench {
     return throughput;
   }
 
-  private static int start_bench(int bench1, int bench2, int n) {
+  private static int start_bench(int bench1, int bench2, int n, String argStr) {
+    determineTsPrecision();
     System.out.println(get_info());
+  	if (argStr.length() > 0) {
+	  	System.out.println("Args:" + argStr);
+	  }
 
     double bench_res[] = new double[bench2 + 1];
 
@@ -714,6 +657,7 @@ class bmbench {
   // if you call it with java...
   //
   public static void main(String args[]) {
+    String argStr = "";
     if (args.length > 0) {
       default_bench1 = Integer.parseInt(args[0]);
       default_bench2 = default_bench1;
@@ -724,8 +668,15 @@ class bmbench {
     if (args.length > 2) {
       default_n = Integer.parseInt(args[2]);
     }
-    determineTsPrecision();
-    int rc = start_bench(default_bench1, default_bench2, default_n);
+    if (args.length > 3) {
+      g_cali_ms = Integer.parseInt(args[3]);
+    }
+
+    for (String s: args) {
+      argStr += " " +  s;
+    }
+
+    int rc = start_bench(default_bench1, default_bench2, default_n, argStr);
     rc = rc; //avoid warning
     System.out.println("Total elapsed time: " + (int)(conv_ms(get_ts())) + " ms");
   }

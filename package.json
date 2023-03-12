@@ -1,6 +1,6 @@
 {
   "name": "bmbench",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "BM Benchmarks",
   "main": "bmbench.js",
   "directories": {
@@ -10,7 +10,6 @@
     "benchmark": "^2.1.4"
   },
   "devDependencies": {
-    "@types/node": "^18.11.19",
     "gh-pages": "^3.2.3",
     "qunit": "^2.19.1"
   },

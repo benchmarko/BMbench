@@ -35,6 +35,7 @@ public class Bmbench {
   private static double g_tsPrecMs = 0; // measured time stamp precision
   private static int g_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
   private static int g_tsMeasCnt = 0; // last measured count
+  private static int g_cali_ms = 1001; //
 
   //private static System.Globalization.NumberFormatInfo nfi = new System.Globalization.CultureInfo("en-US", false).NumberFormat;
   private static IFormatProvider nfi = System.Globalization.CultureInfo.InvariantCulture; //new System.Globalization.CultureInfo("en-US", false).NumberFormat;
@@ -108,8 +109,6 @@ public class Bmbench {
   // (BitArray sieve1 = new BitArray(n + 1); // slower than bool)
   // (BitArray from http://www.csharpfriends.com/Spec/index.aspx?specID=17.8.htm)
   private static int bench03(int n) {
-    //n >>= 1; // compute only up to n/2
-
     int nHalf = n >> 1;
 
     // allocate memory...
@@ -128,7 +127,7 @@ public class Bmbench {
     i = 0;
     int m = 3;
     int x = 1; // number of primes below n (2 is prime)
-    while (m * m < n) {
+    while (m * m <= n) {
       if (!sieve1[i]) {
         x++; // m is prime
         int j = (m * m - 3) >> 1; // div 2
@@ -184,8 +183,6 @@ public class Bmbench {
   // Example: (2000 choose 1000) mod 65536 = 27200
   //
   private static int bench05(int n) {
-    //n /= 200; // compute only up to n/200
-
     // Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
 	  n /= 2;
 
@@ -233,54 +230,6 @@ public class Bmbench {
 
     return x & 0xffff;
   }
-
-  //
-  // bench05 (Integer 32 bit)
-  // n over n/2 mod 65536 (Pascal's triangle)
-  //
-  /*
-  static int bench05(int n) {
-    int x = 0;
-    n = (n / 500);
-    int k = n >> 1; // div 2
-
-    if ((n - k) < k) {
-      k = n - k; // keep k minimal with  n over k  =  n over n-k
-    }
-
-    // allocate memory...
-    int[] line = new int[k + 1];
-    int[] lastLine = new int[k + 1];
-    line[0] = 1;
-    lastLine[0] = 1; // set first column
-
-    // initialize
-    for (int j = 1; j <= k; j++) {
-      line[j] = 0;
-      lastLine[j] = 0;
-    }
-
-    // compute
-    for (int i = 3; i <= n; i++) {
-      int min1 = (i - 1) / 2;
-      if (k < min1) {
-        min1 = k;
-      }
-      line[1] = i; // second column is i
-      for (int j = 2; j <= min1; j++) {
-        line[j] = (lastLine[j - 1] + lastLine[j]) & 0xffff; // we need mod here to avoid overflow
-      }
-      if ((min1 < k) && ((i & 1) == 0)) { // new element
-        line[min1 + 1] = 2 * lastLine[min1];
-      }
-      int[] tempLine = lastLine;
-      lastLine = line;
-      line = tempLine;
-    }
-    x += lastLine[k] & 0xffff;
-    return x;
-  }
-  */
 
 
   //
@@ -340,19 +289,23 @@ public class Bmbench {
 
 
   private static int bench03Check(int n) {
-    //n /= 2; // compute only up to n/2
+		int x;
 
-		int x = 0;
-    for (int j = 2; j <= n; j++) {
-      bool isPrime = true;
-      for (int i = 2; i * i <= j; i++) {
-        if (j % i == 0) {
-          isPrime = false;
-          break;
+    if (n == 500000) {
+	  	x = 41538;
+	  } else {
+		  x = 1; // 2 is prime
+      for (int j = 3; j <= n; j += 2) {
+        bool isPrime = true;
+        for (int i = 3; i * i <= j; i += 2) {
+          if (j % i == 0) {
+            isPrime = false;
+            break;
+          }
         }
-      }
-      if (isPrime) {
-        x++;
+        if (isPrime) {
+          x++;
+        }
       }
     }
 	  return x;
@@ -376,7 +329,7 @@ public class Bmbench {
         break;
 
       case 3:
-        check = (n == 500000) ? 41538 : bench03Check(n);
+        check = bench03Check(n);
         break;
 
       case 4:
@@ -488,14 +441,6 @@ public class Bmbench {
     return bits;
   }
 
-/*
-  private static string getdate1() {
-    // Creates and initializes a DateTimeFormatInfo associated with the en-US culture.
-    System.Globalization.DateTimeFormatInfo dtfi = new System.Globalization.CultureInfo("de-DE", false).DateTimeFormat;
-    return System.DateTime.Now.ToString(dtfi); // always German format
-  }
-*/
-
   private static string getruntime1() {
     string runtimeName = typeof(object).GetType().FullName;
     string runtimeVersion = System.Environment.Version.ToString();
@@ -536,8 +481,6 @@ public class Bmbench {
     string str = "BM Bench v" + g_prg_version + " (" + g_prg_language + ") -- (int:" + checkbits_int1() + " double:" + checkbits_double1() + " tsMs:" + g_tsPrecMs.ToString("", nfi) + " tsCnt:" + g_tsPrecCnt + ") " + cs_version + Environment.NewLine
       + "(c) Marco Vieth, 2006-2023" + Environment.NewLine
       + "Date: " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
-    //Console.WriteLine("(c) Marco Vieth, 2006-2023");
-    //Console.WriteLine(getdate1());
     return str;
   }
 
@@ -559,9 +502,9 @@ public class Bmbench {
 
 
   private static double measureBench(int bench, int n, int check) {
-    const int cali_ms = 1001;
     const int delta_ms = 100;
     const int max_ms = 10000;
+    int cali_ms = g_cali_ms;
     int loops = 1; // number of loops
     int x = 0;     // result from benchmark
     double tMeas = 0;   // measured time
@@ -587,8 +530,6 @@ public class Bmbench {
         Console.WriteLine("Benchmark {0} ({1}): Time already > {2} ms. No measurement possible.", bench, g_prg_language, max_ms);
         throughput = (loops_p_sec > 0) ? -loops_p_sec : -1; // cannot rely on measurement, so set to negative
       } else {
-        //int scale_fact = ((tMeas < cali_ms) && (tMeas > 0)) ? (int)((cali_ms + 100) / tMeas) + 1 : 2;
-        //double scale_fact = (tMeas == 0) ? 50 : (tMeas < cali_ms) ? ((cali_ms + 100) / tMeas) : 2;
         int scale_fact;
         if (tMeas == 0) {
 				  scale_fact = 50;
@@ -645,6 +586,9 @@ public class Bmbench {
       if (args.Length > 2) {
         n = int.Parse(args[2]);
       }
+      if (args.Length > 3) {
+        g_cali_ms = int.Parse(args[3]);
+      }
     }
 
     determineTsPrecision();
@@ -666,6 +610,8 @@ public class Bmbench {
 // https://rextester.com/l/csharp_online_compiler
 //
 // https://replit.com/languages/
+//
+// https://wandbox.org/
 
 /*
 namespace Rextester {

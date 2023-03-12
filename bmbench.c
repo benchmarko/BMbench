@@ -89,6 +89,7 @@ static struct bm_timeval g_start_ts = { 0, 0 };
 static double g_tsPrecMs = 0; /* measured time stamp precision */
 static int g_tsPrecCnt = 0; /* time stamp count (calls) per precision interval (until time change) */
 static int g_tsMeasCnt = 0; /* last measured count */
+static int g_cali_ms = 1001;
 
 
 /*
@@ -195,7 +196,7 @@ static int bench03(int n) {
   m = 3;
   x = 1; /* number of primes below n (2 is prime) */
 
-  while (m * m < n) {
+  while (m * m <= n) {
     if (!sieve[i]) {
       x++; /* m is prime */
       j = (m * m - 3) >> 1; /* div 2 */
@@ -358,20 +359,23 @@ static int run_bench(int bench, int loops, int n, int check) {
 
 
 static int bench03Check(int n) {
-  int x = 0, j, i, isPrime;
+  int x, j, i, isPrime;
 
-  /* n = (n / 2) | 0; // compute only up to n/2 */
-
-  for (j = 2; j <= n; j++) {
-    isPrime = 1;
-    for (i = 2; i * i <= j; i++) {
-      if (j % i == 0) {
-        isPrime = 0;
-        break;
+  if (n == 500000) {
+    x = 41538;
+  } else {
+    x = 1; // 2 is prime
+    for (j = 3; j <= n; j += 2) {
+      isPrime = 1;
+      for (i = 3; i * i <= j; i += 2) {
+        if (j % i == 0) {
+          isPrime = 0;
+          break;
+        }
       }
-    }
-    if (isPrime) {
-      x++;
+      if (isPrime) {
+        x++;
+      }
     }
   }
   return x;
@@ -400,7 +404,7 @@ static int getCheck(int bench, int n) {
     break;
 
     case 3:
-      check = (n == 500000) ? 41538 : bench03Check(n);
+      check = bench03Check(n);
     break;
 
     case 4:
@@ -657,7 +661,7 @@ static void print_results(int bench1, int bench2, double *bench_res1) {
   int i;
   int bench;
   printf("\nThroughput for all benchmarks (loops per sec):\n");
-  for (i = (int)strlen(PRG_LANGUAGE); i < sizeof(str); i++) {
+  for (i = (int)strlen(PRG_LANGUAGE); i < (int)sizeof(str); i++) {
     strcat(str, " ");
   }
   printf("BMR (%s)%s: ", PRG_LANGUAGE, str);
@@ -674,9 +678,9 @@ static void print_results(int bench1, int bench2, double *bench_res1) {
 
 
 static double measureBench(int bench, int n, int check) {
-  int cali_ms = 1001; /* const */
   int delta_ms = 100; /* const */
   int max_ms = 10000; /* const */
+  int cali_ms = g_cali_ms;
   
   int loops = 1;   /* number of loops */
   int x = 0;     /* result from benchmark */
@@ -774,6 +778,9 @@ int main(int argc, char **argv) {
   }
   if (argc > 3) {
     n = atoi(argv[3]);
+  }
+  if (argc > 4) {
+    g_cali_ms = atoi(argv[4]);
   }
   
   determineTsPrecision();

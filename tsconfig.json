@@ -34,7 +34,7 @@
       "outDir": "./dist",
       "outFile": "./dist/bmbenchts.js",
       //"declarationDir": "./dist/types",
-      "types": ["node"],
+      //"types": ["node"],
       "sourceRoot":"./"
     },
     "include": [
