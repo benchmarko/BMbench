@@ -1,7 +1,4 @@
-#!/bin/sh
-# the next line restarts using tclsh \
-exec tclsh "$0" "$@"
-
+#!/usr/local/bin/tclsh
 #
 # BM Bench - bmbench1.pl (Tcl) # TODO
 # (c) Marco Vieth, 2002-2006
@@ -36,6 +33,10 @@ exec tclsh "$0" "$@"
 #namespace path {::tcl::mathop ::tcl::mathfunc};
 #would allow: set sum [+ $sum $i];
 
+# Tcl global:
+# https://wiki.tcl-lang.org/page/global
+# https://wiki.tcl-lang.org/page/Can+you+run+this+benchmark+10+times+faster
+
 #
 # General description for benchmark test functions
 # benchxx - benchmark
@@ -54,10 +55,6 @@ set gState(tsType) "msec";
 set gState(tsPrecCnt) 0;
 set gState(tsMeasCnt) 0;
 set gState(caliMs) 1001;
-
-# do not use it any more:
-#set gState(fact) {0 0 0 20 0 0}; # benchmark simplification factors for n
-set gState(fact) {0 0 0 0 0 0}; # benchmark simplification factors for n
 
 #
 # bench00 (Integer 16 bit)
@@ -190,11 +187,7 @@ proc bench04 {n} {
   set r 2836;       # m mod a
   set x 1;          # last random value
   for {set i $n} {$i > 0} {incr i -1} {
-    #using additional variables xDivQ, xModQ and multiple expressions would be slower...
-    #set xDivQ [expr {$x / $q}]; # x div q
-		#set xModQ [expr {$x - $q * $xDivQ}];
-    #set x [expr {$a * $xModQ - $r * $xDivQ}];
-    set x [expr {$a * ($x % $q) - $r * ($x / $q)}]; # x div q
+    set x [expr {$a * ($x % $q) - $r * ($x / $q)}]; # x div q (using additional variables xDivQ, xModQ and multiple expressions would be slower)
     if {$x <= 0} {
       incr x $m; # x is new random number
     }
@@ -213,8 +206,6 @@ proc bench04 {n} {
 # (We use lset, which is probably as good as lappend, which is much faster than lreplace)
 #
 proc bench05 {n} {
-  #set n [expr {$n / 200}]; # compute only up to n/200
-
   # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
   set n [expr {$n / 2}];
 
@@ -323,37 +314,24 @@ proc bench03Check {n} {
 }
 
 proc getCheck {bench n} {
-  global gState PRG_LANGUAGE;
   set check 0;
 
-  set fact [lindex $gState(fact) $bench];
-  if {$fact} {
-    set n [expr {$n / $fact}];
-    puts "Note: $PRG_LANGUAGE is rather slow, so reduce n by factor $fact to $n.";
-  }
-
   if {$bench == 0} { # ($n / 2) * ($n + 1)
-    #set check 10528;
-    #set check [expr {(($n / 2) * ($n + 1)) & 0xffff}];
     set check [expr {((($n + ($n & 1)) >> 1) * ($n + 1 - ($n & 1))) & 0xffff}]; # 10528 for n=1000000
 
   } elseif {$bench == 1} {
-    #set check 10528;
     set check [expr {($n + 1) / 2}];
 
   } elseif {$bench == 2} {
     set check [expr {($n + 1) / 2}];
 
   } elseif {$bench == 3} {
-    #set check [expr $n == 500000 ? 41538 : [bench03Check $n]];
     set check [bench03Check $n];
 
   } elseif {$bench == 4} {
-    #set check 1227283347;
     set check [expr {$n == 1000000 ? 1227283347 : [bench04 $n]}]; # bench04 not a real check
 
   } elseif {$bench == 5} {
-    #set check 17376;
     set check [expr {$n == 5000 ? 17376 : [bench05 $n]}]; # bench05 not a real check
 
   } else {
@@ -467,13 +445,8 @@ proc get_info {} {
   global PRG_VERSION;
   global PRG_LANGUAGE;
   global gState;
-#  puts "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:[checkbits_int1] double:[checkbits_double1] tsType:$gState(tsType) tsMs:$gState(tsPrecMs) tsCnt:$gState(tsPrecCnt)) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
   set str "BM Bench v$PRG_VERSION ($PRG_LANGUAGE) -- (int:[checkbits_int1] double:[checkbits_double1] tsType:$gState(tsType) tsMs:$gState(tsPrecMs) tsCnt:$gState(tsPrecCnt)) Tcl [info tclversion] patchlevel [info patchlevel]; library: [info library]; hostname: [info hostname]";
   set str "$str\n(c) Marco Vieth, 2002-2023\nDate: [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]";
-#  puts "Date: [clock format [clock seconds]]";
-  #set str "$str\n(c) Marco Vieth, 2002-2023\nDate: [clock format [clock seconds]]";
-#  puts "t1: $tcl_precision";
-#  puts "on platform [$tcl_platform{2}]";
   return $str;
 }
 
@@ -483,8 +456,7 @@ proc print_results {bench_res} {
   set MAX_LANGUAGE_LEN1 10;
   puts "\nThroughput for all benchmarks (loops per sec):";
 
-  set str_len [expr { $MAX_LANGUAGE_LEN1 - [string length $PRG_LANGUAGE] }];
-  #set str [expr { [string repeat " " $str_len] }]; # works for Tcl 8.x
+  set str_len [expr { $MAX_LANGUAGE_LEN1 - [string length $PRG_LANGUAGE] }]; # possible for Tcl 8.x: string repeat " " $str_len
   set str "";
   for {set i 0} {$i < $str_len} {incr i} {
     set str "$str ";
@@ -512,12 +484,6 @@ proc measureBench {bench n check} {
   set tMeas 0;    # measured time
   set tEsti 0;    # estimated time
   set throughput 0;
-
-  set fact [lindex $gState(fact) $bench];
-  if {$fact} {
-    set n [expr {$n / $fact}];
-    puts "Note: $PRG_LANGUAGE is rather slow, so reduce n by factor $fact to $n.";
-  }
 
   puts "Calibrating benchmark $bench with n=$n, check=$check";
   while {!$throughput} {
@@ -553,12 +519,6 @@ proc measureBench {bench n check} {
       set loops [expr {$loops * $scaleFact}];
       set tEsti [expr {$tMeas * $scaleFact}];
     }
-  }
-
-  # correction factor (only useful for linear problems)
-  if {$throughput >= 0 && $fact} {
-    set throughput [expr {$throughput / $fact}];
-    puts "Note: Estimated runtime for benchmark $bench corrected by factor $fact: [format %10.3f $throughput]";
   }
 
   return $throughput;

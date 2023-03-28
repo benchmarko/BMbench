@@ -172,7 +172,6 @@ static int *benchMemPtr = NULL; /* reuse memory for bench03, bench05 */
  */
 static int bench03(int n) {
   typedef unsigned char sieve_t;
-  /* n /= 2; // compute only up to n/2 */
   int nHalf = n >> 1;
   int i, j, m, x;
   sieve_t *sieve;
@@ -265,7 +264,6 @@ static int bench04(int n) {
   typedef int line_t;
   int k, i, j, min1, prev, num, x;
   line_t *line;
-  /* n /= 200; // compute only up to n/200 */
 
   /* Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4 */
   n /= 2;

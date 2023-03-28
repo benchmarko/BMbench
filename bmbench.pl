@@ -56,7 +56,6 @@ sub bench00($) {
   my $n_div_65536 = ($n >> 16) & 0xffff;
   my $n_mod_65536 = $n & 0xffff;
 
-  #print "DEBUG: n=$n, sum1=$sum1, n_div_65536=$n_div_65536, n_mod_65536=$n_mod_65536\n";
   # simulate summation with 16 bit borders...
   for (my $i = $n_div_65536; $i > 0; $i--) {
     for (my $j = 65535; $j > 0; $j--) {
@@ -123,11 +122,8 @@ sub bench03($) {
   use integer; # it is possible to use integer arithmetic
   my($n) = @_;
   my $nHalf = $n >> 1; # div 2
-  my $x;
-  my $m;
-  my $i;
-  my $j;
   my @sieve = ();
+  my ($x, $m, $i, $j);
 
   # initialize sieve
   for ($i = 0; $i <= $nHalf; $i++) {
@@ -180,12 +176,7 @@ sub bench04($) {
   my($n) = @_;
   my $x = 1; # 1=Last random value
   for (my $i = 1; $i <= $n; $i++) {
-    # not so fast as direct...
-    #my ($x_div_q, $x_mod_q);
-    #$x_div_q = $x / BENCH04_Q();
-    #$x_mod_q = $x - BENCH04_Q() * $x_div_q;
-    #$x = BENCH04_A() * $x_mod_q - BENCH04_R() * $x_div_q;
-    $x = BENCH04_A() * ($x % BENCH04_Q()) - BENCH04_R() * (($x / BENCH04_Q()) | 0);
+    $x = BENCH04_A() * ($x % BENCH04_Q()) - BENCH04_R() * (($x / BENCH04_Q()) | 0); # faster with one expression
     if ($x <= 0) {
       $x += BENCH04_M();
     }
@@ -241,12 +232,10 @@ sub bench05($) {
     $prev = $line[1];
     for (my $j = 2; $j <= $min1; $j++) {
       $num = $line[$j];
-      #$line[$j] = ($line[$j] + $prev) & 0xffff;
       $line[$j] += $prev;
       $prev = $num;
     }
     $line[1] = $i; # second column is i
-    #print "DEBUG: ", $i, ": ", @line, "\n";
   }
 
   # compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
@@ -438,9 +427,6 @@ sub getPrecMs($) {
 	}
 	$g_tsMeasCnt = $measCount; # memorize last count
 
-	# if ($stopFlg) {
-	# 	$tMeas = correctTime(conv_ms($tMeas0), conv_ms($tMeas), $measCount);
-	# }
   my $tMeasD = (!$stopFlg) ? conv_ms($tMeas) : correctTime(conv_ms($tMeas0), conv_ms($tMeas), $measCount);
 	return $tMeasD;
 }
@@ -568,9 +554,6 @@ sub measureBench($$$) {
 
 sub start_bench($$$$) {
   my($bench1, $bench2, $n, $argStr) = @_;
-  #my $cali_ms = 1001; # const
-  #my $delta_ms = 100; # const
-  #my $max_ms = 10000; # const
 
   print_info();
   if ($argStr) {

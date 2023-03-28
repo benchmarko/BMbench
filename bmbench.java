@@ -65,7 +65,7 @@ class bmbench {
     short x = 0; // short is -32767..32768
     short n_div_65536 = (short)(n >> 16);
     short n_mod_65536 = (short)(n & 0xffff);
-    //System.out.println("DEBUG: sum1="+ sum1 +", ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
+    // System.out.println("DEBUG: ndiv="+ n_div_65536 +", nmod="+ n_mod_65536);
     for (int i = n_div_65536; i > 0; i--) {
       for (short j = 32767; j > 0; j--) {
         x += j;
@@ -73,6 +73,7 @@ class bmbench {
       for (short j = -32768; j < 0; j++) {
         x += j;
       }
+     // System.out.println("DEBUG: x="+ x);
     }
     for (short j = n_mod_65536; j > 0; j--) {
       x += j;
@@ -83,7 +84,7 @@ class bmbench {
 
   //
   // bench01 (Integer 16/32 bit)
-  // (arithmetic mean of 1..n) mod 65536
+  // (arithmetic mean of 1..n)
   //
   private static int bench01(int n) {
     int x = 0;
@@ -101,7 +102,7 @@ class bmbench {
 
   //
   // bench02 (Floating Point, normally 64 bit)
-  // (arithmetic mean of 1..n) mod 65536
+  // (arithmetic mean of 1..n)
   //
   private static int bench02(int n) {
     int x = 0;

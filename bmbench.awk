@@ -7,6 +7,7 @@
 # 10.08.2002 0.04  bench03; some errors corrected
 # 24.01.2003 0.05  output format changed
 # 30.04.2008 0.06  based on version 0.05
+# 15.03.2023 0.08  adapted for new version; bench05 optimized
 #
 #
 # Usage:
@@ -41,64 +42,50 @@
 #
 
 BEGIN {
-  PRG_VERSION = "0.06";
+  PRG_VERSION = "0.08";
   PRG_LANGUAGE = "awk";
-}
+
+  g_tsPrecMs = 0; # measured time stamp precision
+  g_tsPrecCnt = 0; # time stamp count (calls) per precision interval (until time change)
+  g_tsMeasCnt = 0; # last measured count
+  g_cali_ms = 1001;
+  }
 
 #
 # bench00 (Integer 16 bit) (awk computes always in floating point!)
 # (sum of 1..n) mod 65536
 #
-function bench00(loops, n,    x, sum1, n_div_65536, n_mod_65536, i, j) {
+function bench00(n,    x, n_div_65536, n_mod_65536, i, j) {
   x = 0;
-  sum1 = ((n / 2) * (n + 1)) % 65536; # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
   n_div_65536 = int(n / 65536.0);
   n_mod_65536 = (n % 65536.0);
-  while (loops-- > 0) {
-    for (i = n_div_65536; i > 0; i--) {
-      for (j = 65535; j > 0; j--) {
-        x += j;
-      }
-    }
-    for (j = n_mod_65536; j > 0; j--) {
+  for (i = n_div_65536; i > 0; i--) {
+    for (j = 65535; j > 0; j--) {
       x += j;
     }
-    x %= 65536;
-    #printf("DEBUG: x=%d, sum1=%d\n", x, sum1);
-    if (loops > 0) { # some more loops left?
-      x -= sum1;     # yes, set x back to 0 (assuming n even)
-      if (x != 0) {  # now x must be 0 again
-        x++;
-        break;       # error */
-      }
-    }
   }
-  return(x % 65536);
+  for (j = n_mod_65536; j > 0; j--) {
+    x += j;
+  }
+  #printf("DEBUG: x=%d\n", x);
+  return x % 65536;
 }
 
 
 #
 # bench01 (Integer 16/32 bit) (awk computes always in floating point!)
-# (sum of 1..n) mod 65536
+# (arithmetic mean of 1..n)
 #
-function bench01(loops, n,    x, sum1, i) {
+function bench01(n,    x, sum, i) {
   x = 0;
-  sum1 = ((n / 2) * (n + 1)); # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-  while (loops-- > 0) {
-    for (i = n; i > 0; i--) {
-      x += i;
-    }
-    if (loops > 0) { # some more loops left?
-      x -= sum1;     # yes, set x back to 0 (assuming n even)
-      if (x != 0) {  # now x must be 0 again
-        x++;
-        break;       # error */
-      }
+  for (i = 1; i <= n; i++) {
+    sum += i;
+    if (sum >= n) {
+      sum -= n;
+      x++;
     }
   }
-  return(x % 65536);
+  return x;
 }
 
 
@@ -106,24 +93,16 @@ function bench01(loops, n,    x, sum1, i) {
 # bench02 (Floating Point, normally 64 bit)
 # (sum of 1..n) mod 65536
 #
-function bench02(loops, n,    x, sum1, i) {
+function bench02(n,    x, sum, i) {
   x = 0.0;
-  sum1 = (n / 2.0) * (n + 1.0); # assuming n even!
-  # (sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-  while (loops-- > 0) {
-    for (i = n; i > 0; i--) {
-      x += i;
-    }
-    if (loops > 0) {    # some more loops left?
-      x -= sum1;        # yes, set x back to 0 (assuming n even)
-      if (x != 0.0) {   # now x must be 0 again
-        x++;
-        break;          # error
-      }
+  for (i = 1; i <= n; i++) {
+    sum += i;
+    if (sum >= n) {
+      sum -= n;
+      x++;
     }
   }
-  # fprintf(stderr, "DEBUG(bench%d): x=%f, x(int)=%d  %f\n", 2, x, (int)(x / 65536), (x - ((int)(x / 65536.0) * 65536.0)));
-  return (x - (int(x / 65536.0) * 65536.0)); # or use fmod()...
+  return x;
 }
 
 
@@ -132,41 +111,41 @@ function bench02(loops, n,    x, sum1, i) {
 # number of primes below n (Sieve of Eratosthenes)
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 # (No bit array, so we use a normal array...)
-function bench03(loops, n,    x, sieve1, i, j) {
-  n /= 2; # compute only up to n/2
+function bench03(n,    nHalf, m, x, sieve1, i, j) {
+  nHalf = n / 2;
 
-  x = 0; # number of primes below n
-  #sieve1 = new Array(n + 1); #
-  sieve1[0] = 0;
-  sieve1[1] = 0;
+  #sieve1 = new Array(nHalf + 1);
 
-  while (loops-- > 0) {
-    # initialize sieve
-    for (i = 2; i <= n; i++) {
-      sieve1[i] = 1;
-    }
-    # compute primes
-    for (i = 2; (i * i) <= n; i++) {
-      if (sieve1[i]) {
-        for (j = i * i; j <= n; j += i) {
-          sieve1[j] = 0;
-        }
+  # initialize sieve
+  for (i = 0; i <= nHalf; i++) {
+    sieve1[i] = 0;
+  }
+
+  # compute primes
+  i = 0;
+  m = 3;
+  x = 1; # number of primes below n (2 is prime)
+
+  while (m * m <= n) {
+    if (!sieve[i]) {
+      x++; # m is prime
+      j = int((m * m - 3) / 2); # div 2
+      while (j < nHalf) {
+        sieve[j] = 1;
+        j += m;
       }
     }
-    # count primes
-    for (i = 0; i <= n; i++) {
-      if (sieve1[i]) {
-        x++;
-      }
+    i++;
+    m += 2;
+  }
+
+  # count remaining primes
+  while (m <= n) {
+    if (!sieve[i]) {
+      x++; # m is prime
     }
-    # check prime count
-    if (loops > 0) {  # some more loops left?
-      x -= 41538;     # yes, set x back to 0 (number of primes below 1000000)
-      if (x != 0) {   # now x must be 0 again
-        x++;
-        break;        # Error
-      }
-    }
+    i++;
+    m += 2;
   }
   return x;
 }
@@ -180,28 +159,18 @@ function bench03(loops, n,    x, sieve1, i, j) {
 # It needs longs with at least 32 bit.
 # Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 #
-function bench04(loops, n,    x, i, M, A, Q, R, x_div_q, x_mod_q) {
+function bench04(n,    x, i, M, A, Q, R, x_div_q, x_mod_q) {
   x = 1;                # last random value
   M = 2147483647; # modulus, do not change!
   A = 16807;      # multiplier
   Q = 127773;     # m div a
   R = 2836;       # m mod a
-  while (loops-- > 0) {
-    for (i = 1; i <= n; i++) {
-      x_div_q = int(x / Q);
-      x_mod_q = x - Q * x_div_q;
-      x = A * x_mod_q - R * x_div_q;
-      if (x <= 0) {
-        x += M; # x is new random number
-      }
-    }
-    if (loops > 0) {
-      x -= 1227283347;
-      if (x != 0) {   # now x must be 0 again
-        x++;
-        break;        # Error
-      }
-      x++; # start with 1 again
+  for (i = 1; i <= n; i++) {
+    x_div_q = int(x / Q);
+    x_mod_q = x - Q * x_div_q;
+    x = A * x_mod_q - R * x_div_q;
+    if (x <= 0) {
+      x += M; # x is new random number
     }
   }
   # fprintf(stderr, "Test(bench%d): x=%ld\n", 4, (long)x);
@@ -214,98 +183,44 @@ function bench04(loops, n,    x, i, M, A, Q, R, x_div_q, x_mod_q) {
 # n over n/2 mod 65536 (Pascal's triangle)
 # (we just need to store the last 2 lines of computation)
 #
-function bench05(loops, n,    x, k, pas1, pas2, i, min1, j) {
-  x = 0;
-  n = int(n / 500);
+function bench05(n,    x, k, line, i, min1, prev, j, num) {
+  # Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
+  n = int(n / 2);
+
   k = int(n / 2);
-
-  if ((n - k) < k) {
-    k = n - k; # keep k minimal with  n over k  =  n over n-k
-  }
-  #pas1 = ();
-  #pas2 = ();
-  
-  while (loops-- > 0) {
-    pas1[0] = 1;
-    for (i = 2; i <= n; i++) {
-
-      # get last line to pas2 (pas2 = pas1) ...
-      #delete pas2; # don't need this because we just grow and delete pas1...
-      for (j in pas1) {
-        pas2[j] = pas1[j]; # copy elements from pas2 into pas1
-      }
-
-      # (We do not need to delete the array since we overwrite all elements...)
-      #split("", pas1); # portable way to 'delete pas1'
-
-      pas1[0] = 1; # and restart with new list
-      min1 = int((i - 1) / 2); # int(...)
-      if (k < min1) {
-        min1 = k;
-      }
-      pas1[1] = i; # second column is i
-      for (j = 2; j <= min1; j++) { # up to min((i-1)/2, k)
-        pas1[j] = (pas2[j - 1] + pas2[j]) % 65536; # modulus to avoid nan
-      }
-      if ((min1 < k) && ((i % 2) == 0)) { # new element
-        pas1[j] = 2 * pas2[min1];
-      }
-    }
-    x += pas1[k] % 65536;
-    if (loops > 0) {
-      x -= 27200;
-      if (x != 0) {   # now x must be 0 again
-        x++;
-        break;          # Error
-      }
-    }
-  }
-  return x;
-}
-
-
-#
-# bench05 (Integer 32 bit) (Array implementation)
-# n over n/2 mod 65536 (Pascal's triangle)
-# (we just need to store the last 2 lines of computation)
-#
-function bench05_array_ok1(loops, n,    x, k, pas1, i, i_mod_2, i_mod_2_1, min1, j) {
-  x = 0;
-  n = int(n / 500);
-  k = int(n / 2);
-
   if ((n - k) < k) {
     k = n - k; # keep k minimal with  n over k  =  n over n-k
   }
 
-  pas1[0, 0] = 1; pas1[1, 0] = 1; # set first column
+  #line[]=
+  line[0] = 1;
+  line[1] = 2; # for line 2, second column is 2
 
-  while (loops-- > 0) {
-    for (i = 2; i <= n; i++) {
-      i_mod_2 = i % 2;
-      i_mod_2_1 = (i + 1) % 2;
-      min1 = int((i - 1) / 2); # int(...)
-      if (k < min1) {
-        min1 = k;
-      }
-      pas1[i_mod_2, 1] = i; # second column is i
-      for (j = 2; j <= min1; j++) { # up to min((i-1)/2, k)
-        pas1[i_mod_2, j] = (pas1[i_mod_2_1, j - 1] + pas1[i_mod_2_1, j]) % 65536; # modulus to avoid nan
-      }
-      if ((min1 < k) && (i_mod_2 == 0)) { # new element
-        pas1[i_mod_2, min1 + 1] = 2 * pas1[i_mod_2_1, min1];
-      }
+  # compute lines of Pascal's triangle 
+  for (i = 3; i <= n; i++) {
+    min1 = int((i - 1) / 2);
+
+    if ((i % 2) == 0) { # even => new element?
+      line[min1 + 1] = 2 * line[min1];
     }
-    x += pas1[n % 2, k] % 65536;
-    if (loops > 0) {
-      x -= 27200;
-      if (x != 0) {   # now x must be 0 again
-        x++;
-        break;          # Error
-      }
+
+    prev = line[1];
+    for (j = 2; j <= min1; j++) {
+      num = line[j];
+      line[j] = (line[j] + prev) % 65536;
+      prev = num;
     }
+    line[1] = i; # second column is i
   }
-  return x;
+
+  # compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+  x = 0;
+  for (j = 0; j < k; j++) {
+    x = (x + 2 * line[j] * line[j]) % 65536; # add nCk and nC(n-k)
+	}
+	x += line[k] * line[k]; # we assume that k is even, so we need to take the middle element
+
+  return x % 65536;
 }
 
 
@@ -316,59 +231,160 @@ function bench05_array_ok1(loops, n,    x, k, pas1, i, i_mod_2, i_mod_2_1, min1,
 #         n = maximum number (used in some benchmarks to define size of workload)
 # out:    x = result
 #
-function run_bench(bench, loops, n,    x, check1) {
+function run_bench(bench, loops, n, check,    x) {
   x = 0;
-  check1 = 0;
-  if (bench == 0) {
-      x = bench00(loops, n); # special version optimized for 16 bit
-      check1 = 10528;
+  while (loops-- > 0 && x == 0) {
+    if (bench == 0) {
+        x = bench00(n); # special version optimized for 16 bit
 
-  } else if (bench == 1) {
-      x = bench01(loops, n);
-      check1 = 10528;
+    } else if (bench == 1) {
+        x = bench01(n);
 
-  } else if (bench == 2) {
-      x = bench02(loops, n);
-      check1 = 10528;
+    } else if (bench == 2) {
+        x = bench02(n);
+        
+    } else if (bench == 3) {
+        x = bench03(n);
 
-  } else if (bench == 3) {
-      x = bench03(loops, n);
-      check1 = 41538;
+    } else if (bench == 4) {
+        x = bench04(n);
 
-  } else if (bench == 4) {
-      x = bench04(loops, n);
-      check1 = 1227283347;
+    } else if (bench == 5) {
+        x = bench05(n);
 
-  } else if (bench == 5) {
-      x = bench05(loops, n);
-      check1 = 27200; # 58336; 43584;
-
-  } else {
-      printf("Error: Unknown benchmark: %d\n", bench);
-      check1 = x + 1; # force error
+    } else {
+        printf("Error: Unknown benchmark: %d\n", bench);
+        check = -1;
+    }
+    x -= check;
   }
-  if (check1 != x) {
+
+  x += check;
+  if (x != check) {
     printf("Error(bench%d): x=%d\n", bench, x);
-    x = -1; # exit
+    x = -1;
   }
   return(x);
 }
 
 
-#
-# get timestamp in milliseconds
-# out: x = time in ms
-#
-# systime() is gawk extension.
-#
-function get_ms() {
-  if (g_use_gawk) {
-    return(systime() * 1000); # for gawk we have systime()! (but still undefined on other systems...)
+function bench03Check(n,  x, j, i, isPrime) {
+  if (n == 500000) {
+    x = 41538;
   } else {
-    g_last_time += 5;
-    return(g_last_time * 1000);
+    x = 1; # 2 is prime
+    for (j = 3; j <= n; j += 2) {
+      isPrime = 1;
+      for (i = 3; i * i <= j; i += 2) {
+        if (j % i == 0) {
+          isPrime = 0;
+          break;
+        }
+      }
+      if (isPrime) {
+        x++;
+      }
+    }
+  }
+  return x;
+}
+
+
+function getCheck(bench, n,   check) {
+  check = 0;
+
+  if (bench == 0) {
+    check = (int((n + (n % 2)) / 2) * (n + 1 - (n % 2))) % 65536; # 10528 for n=1000000
+
+  } else if (bench == 1) {
+    check = (n + 1) / 2; # 10528
+
+  } else if (bench == 2) {
+    check = (n + 1) / 2;
+
+  } else if (bench == 3) {
+    check = bench03Check(n);
+
+  } else if (bench == 4) {
+    check = (n == 1000000) ? 1227283347 : bench04(n); # bench04 not a real check
+
+  } else if (bench == 5) {
+    check = (n == 5000) ? 17376 : bench05(n); # bench05 not a real check
+
+  } else {
+    printf("Error: Unknown benchmark: %d\n", bench);
+    check = -1;
+  }
+  return check;
+}
+
+# systime() is gawk extension
+function get_raw_ts() {
+  if (g_use_gawk) {
+    return(systime()); # for gawk we have systime()! (but still undefined on other systems...)
+  } else {
+    g_last_time += 500; # can only simulate time
+    return(g_last_time);
   }
 }
+
+# get timestamp since program start
+function get_ts() {
+  return (get_raw_ts() - g_startTs);
+}
+
+# convert timestamp to ms
+function conv_ms(ts) {
+    return ts * 1000;
+  }
+
+function correctTime(tMeas, tMeas2, measCount,   tsPrecCnt) {
+  tsPrecCnt = g_tsPrecCnt;
+
+  if (measCount < tsPrecCnt) {
+    tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / tsPrecCnt); # ts + correction
+    if (tMeas > tMeas2) {
+      tMeas = tMeas2; # cannot correct
+    }
+  }
+  return(tMeas);
+}
+
+function getPrecMs(stopFlg,    measCount, tMeas0, tMeas, tMeasD) {
+  measCount = 0;
+
+  tMeas0 = get_ts();
+  tMeas = tMeas0;
+  while (tMeas <= tMeas0) {
+    tMeas = get_ts();
+    measCount++;
+  }
+  g_tsMeasCnt = measCount; # memorize count
+  #Console.WriteLine("DEBUG: getPrecMs: measCount=" + measCount + " ts=" + tMeas);
+
+  # for stop: use first ts + correction
+  tMeasD = (!stopFlg) ? conv_ms(tMeas) : correctTime(conv_ms(tMeas0), conv_ms(tMeas), measCount);
+  return tMeasD;
+}
+
+# usually only needed if time precision is low, e.g. one second
+function determineTsPrecision(   tMeas0, tMeas1) {
+  g_startTs = get_raw_ts(); #/ memorize start time
+
+  tMeas0 = getPrecMs(0);
+  tMeas1 = getPrecMs(0);
+  g_tsPrecMs = tMeas1 - tMeas0;
+  g_tsPrecCnt = g_tsMeasCnt;
+
+  # do it again
+  tMeas0 = tMeas1;
+  tMeas1 = getPrecMs(0);
+  if (g_tsMeasCnt > g_tsPrecCnt) { # taker maximum count
+    g_tsPrecCnt = g_tsMeasCnt;
+    g_tsPrecMs = tMeas1 - tMeas0;
+  }
+}
+
 
 function getdate1() {
   if (g_use_gawk) {
@@ -379,7 +395,7 @@ function getdate1() {
 }
 
 
-/* Here we compute the number of "significant" bits for positive numbers (which means 53 for double) */
+# Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
 function checkbits_int1(    num, last_num, bits) {
   num = 1;
   last_num = 0;
@@ -408,8 +424,8 @@ function checkbits_double1(    num, last_num, bits) {
 
 
 function print_info() {
-  printf("BM Bench v%s (%s) -- (int:%d double:%d) %s\n", PRG_VERSION, PRG_LANGUAGE, checkbits_int1(), checkbits_double1(), g_awk_version);
-  print("(c) Marco Vieth, 2006"); # print appends \n!
+  printf("BM Bench v%s (%s) -- (int:%d double:%d tsMs:%f tsCnt:%d) %s\n", PRG_VERSION, PRG_LANGUAGE, checkbits_int1(), checkbits_double1(),  g_tsPrecMs, g_tsPrecCnt, g_awk_version);
+  print("(c) Marco Vieth, 2006-2023"); # print appends \n!
   print("Date:", getdate1());
 }
 
@@ -421,61 +437,77 @@ function print_results(bench1, bench2, bench_res1,    max_language_len1, bench) 
   printf("BMR (%s)%*s: ", PRG_LANGUAGE, max_language_len1 - length(PRG_LANGUAGE), "");
   # could also program a loop for formatting
   for (bench = bench1; bench <= bench2; bench++) {
-    printf("%9.2f ", bench_res1[bench]);
+    printf("%9.3f ", bench_res1[bench]);
   }
   print;
   print;
 }
 
 
-#function main(argc, argv,    start_t, bench1, bench2, n, min_ms, bench, bench_res1, loops, x, t1) {
-function start_bench(bench1, bench2, n,    cali_ms, delta_ms, max_ms, bench, loops, x, t1, t2, t_delta, loops_p_sec, scale_fact) {
-  cali_ms = 1001; # const
+function measureBench(bench, n, check,   delta_ms, max_ms, cali_ms, loops, x, t1, t2, throughput, t_delta, loops_p_sec, scale_fact) {
   delta_ms = 100; # const
   max_ms = 10000; # const
+  cali_ms = g_cali_ms;
 
+  loops = 1; # number of loops
+  x = 0;     # result from benchmark
+  t1 = 0;    # measured time
+  t2 = 0;    # estimated time
+  throughput = 0;
+
+  printf("Calibrating benchmark %d with n=%d, check=%d\n", bench, n, check);
+  while (throughput == 0) {
+    t1 = getPrecMs(0);
+    x = run_bench(bench, loops, n, check);
+    t1 = getPrecMs(1) - t1;
+
+    t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); # compute difference abs(measures-estimated)
+    loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
+    printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", loops_p_sec, t1, loops, t_delta, x);
+    if (x == -1) { # some error?
+      throughput = -1;
+    } else if ((t2 > 0) && (t_delta < delta_ms)) {
+      throughput = loops_p_sec;
+      printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", bench, PRG_LANGUAGE, loops_p_sec, t1, loops, t_delta);
+    } else if (t1 > max_ms) {
+      printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", bench, PRG_LANGUAGE, max_ms);
+      throughput = (loops_p_sec > 0) ? -loops_p_sec : -1; # cannot rely on measurement, so set to negative
+    } else {
+      if (t1 == 0) {
+        scale_fact = 50;
+      } else if (t1 < cali_ms) {
+        scale_fact = int((cali_ms + 100) / t1) + 1; # scale a bit up to 1100 ms (cali_ms+100)
+      } else {
+        scale_fact = 2;
+      }
+      loops *= scale_fact;
+      t2 = t1 * scale_fact;
+    }
+  }
+  return throughput;
+}
+
+function start_bench(bench1, bench2, n,  bench_res1, bench, n2, check, throughput) {
   print_info();
 
   #bench_res1[]=
+
   for (bench = bench1; bench <= bench2; bench++) {
-    loops = 1; # number of loops
-    x = 0;     # result from benchmark
-    t1 = 0;    # measured time
-    t2 = 0;    # estimated time
+    n2 = n;
 
-    printf("Calibrating benchmark %d with n=%d\n", bench, n);
-    while (1) {
-      t1 = get_ms();
-      x = run_bench(bench, loops, n);
-      t1 = get_ms() - t1;
-
-      t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); # compute difference abs(measures-estimated)
-      loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
-      printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", loops_p_sec, t1, loops, t_delta, x);
-      if (x == -1) { # some error?
-        bench_res1[bench] = -1;
-        break; # (check: can only exit while, if not in sub block?)
-      }
-      if (t2 > 0) { # do we have some estimated/expected time? 
-        if (t_delta < delta_ms) { # smaller than delta_ms=100? 
-          bench_res1[bench] = loops_p_sec; # set loops per sec
-          printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", bench, PRG_LANGUAGE, bench_res1[bench], t1, loops, t_delta);
-          break;
-        }
-      }
-
-      if (t1 > max_ms) {
-        printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", bench, PRG_LANGUAGE, max_ms);
-        bench_res1[bench] = -1;
-        break;
-      }
-      {
-        scale_fact = ((t1 < cali_ms) && (t1 > 0)) ? int(((cali_ms + 100) / t1) + 1) : 2;
-          # scale a bit up to 1100 ms (cali_ms+100)
-        loops *= scale_fact;
-        t2 = t1 * scale_fact;
-      }
+    if (bench == 3) {
+      n2 = n2 / 2;
+    } else if (bench == 5) {
+      n2 = n2 / 200;
     }
+
+    check = getCheck(bench, n2);
+    if (check > 0) {
+      throughput = measureBench(bench, n2, check);
+     } else {
+      throughput = -1;
+    }
+    bench_res1[bench] = throughput;
   }
 
   print_results(bench1, bench2, bench_res1);
@@ -484,8 +516,7 @@ function start_bench(bench1, bench2, n,    cali_ms, delta_ms, max_ms, bench, loo
 
 
 
-function main(argc, argv,    start_t, bench1, bench2, n, rc ) {
-  start_t = get_ms(); # memorize start time
+function main(argc, argv,    bench1, bench2, n, rc) {
   bench1 = 0;       # first benchmark to test
   bench2 = 5;       # last benchmark to test
   n = 1000000;      # maximum number
@@ -500,10 +531,14 @@ function main(argc, argv,    start_t, bench1, bench2, n, rc ) {
   if (argc > 3) {
     n = argv[3];
   }
+   if (argc > 4) {
+    g_cali_ms = argv[4];
+  }
 
+  determineTsPrecision();
   rc = start_bench(bench1, bench2, n);
 
-  printf("Total elapsed time: %d ms\n", (get_ms() - start_t));
+  printf("Total elapsed time: %d ms\n", conv_ms(get_ts()));
   return rc;
 }
 
