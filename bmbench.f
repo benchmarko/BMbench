@@ -8,12 +8,14 @@ C 14.05.2002 0.02  bench1 = (sum 1..n) mod 65536
 C 20.07.2002 0.04  extended version
 C 24.01.2003 0.05  output format changed
 C 05.05.2019 0.07  changed bench 01-03; time interval estimation
+C 28.03.2023 0.08  adapted for new version; bench05 optimized
 C
 C
 C
 C Usage (gfortran):
-C gfortran.exe -O2 -Wall -Wsurprising -Wunused -o bmbench_f bmbench.f
+C gfortran.exe -O2 -ffixed-form -Wall -Wsurprising -Wunused -o bmbench_f bmbench.f
 C bmbench [bench1] [bench2] [n]
+C [additional checks: -fimplicit-none -frange-check]
 C
 C Usage (g77):
 C g77 -O2 -Wall -Wsurprising -Wunused -fpedantic bmbench.f -o bmbench
@@ -86,44 +88,37 @@ C
 C bench00 (Integer 16 bit)
 C (sum of 1..n) mod 65536
 C
-      SUBROUTINE BENCH00(LOOPS, N, CHECK1, XRET)
-      INTEGER LOOPS, N, CHECK1, XRET
-      INTEGER L, I
+      SUBROUTINE BENCH00(N, XRET)
+      INTEGER N, XRET
+      INTEGER I
 C A short integer data type, INTEGER*2, holds a signed integer (not standard but f77).
       INTEGER*2 X, NDIV, NMOD, J
       X = 0
 C      PRINT *, 'DEBUG: bench00: X=', X, ' CHECK1=', CHECK1
 
 C      SUM1 = (N / 2) * (N + 1)
-      NDIV = (N / 65536)
+      NDIV = INT(N / 65536, KIND(NDIV))
 C      NMOD = (N .AND. X'ffff')
-      NMOD = MOD(N, 65536)
+      NMOD = INT(MOD(N, 65536), KIND(NMOD))
 C      PRINT *, 'DEBUG: SUM1=', SUM1, ' NDIV=', NDIV, ' NMOD=', NMOD
 
-      DO 20 L = 1, LOOPS
-        DO 15 I = 1, NDIV
-          DO 10 J = 32767, 1, -1
-            X = X + J
-   10     CONTINUE
-          DO 12 J = -32767, -1
-            X = X + J
-   12     CONTINUE
-C The compiler does not like -32768, so add it separately...
-          X = X + (-32768)
-   15   CONTINUE
-        DO 17 J = 1, NMOD
+      DO 15 I = 1, NDIV
+        DO 10 J = 32767, 1, -1
           X = X + J
-   17   CONTINUE
+   10   CONTINUE
+        DO 12 J = -32767, -1
+          X = X + J
+   12   CONTINUE
+C The compiler does not like -32768, so add it separately...
+C        X = INT(X + (-32768), KIND(X))
+        X = X + (-32768)
+   15 CONTINUE
 
-C     X = X .AND. X'ffff'
-      X = MOD(X, 65536)
-      X = X - CHECK1
-C      PRINT *, 'DEBUG: sum1_2: I=', I, ' L=', L, ' X=', X, ' CHECK1=', CHECK1
-      IF (X .NE. 0) THEN
-        GOTO 25
-      ENDIF
-   20 CONTINUE
-   25 XRET = MOD(X, 65536)
+      DO 17 J = 1, NMOD
+        X = X + J
+   17 CONTINUE
+
+      XRET = MOD(X, 65536)
 C      PRINT *, 'DEBUG: ret2: I=', I, ' L=', L, ' X=', X
       RETURN
       END
@@ -132,29 +127,18 @@ C
 C bench01 (Integer 16/32 bit)
 C (sum of 1..n) mod 65536
 C
-      SUBROUTINE BENCH01(LOOPS, N, CHECK1, X)
-      INTEGER LOOPS, N, CHECK1, X, SUM1
-      INTEGER L, I
-C      SUM1 = (N / 2) * (N + 1)
+      SUBROUTINE BENCH01(N, X)
+      INTEGER N, X, SUM1
+      INTEGER I
       X = 0
-
-      DO 20 L = 1, LOOPS
-        SUM1 = 0
-        DO 10 I = 1, N
-          SUM1 = SUM1 + I
-C          PRINT *, 'add: I=', I, ' L=', L, ' X=', X
-          IF (SUM1 .GE. N) THEN
-            SUM1 = SUM1 - N
-            X = X + 1
-          ENDIF
-   10   CONTINUE
-C      PRINT *, 'DEBUG: sum1: I=', I, ' L=', L, ' X=', X, ' sum1=', SUM1
-        X = X - CHECK1
-        IF (X .NE. 0) THEN
-          RETURN
+      SUM1 = 0
+      DO 10 I = 1, N
+        SUM1 = SUM1 + I
+        IF (SUM1 .GE. N) THEN
+          SUM1 = SUM1 - N
+          X = X + 1
         ENDIF
-   20 CONTINUE
-C      PRINT *, 'DEBUG: ret2: I=', I, ' L=', L, ' X=', X
+   10 CONTINUE
       RETURN
       END
 C
@@ -162,31 +146,20 @@ C
 C bench02 (Floating Point, normally 64 bit)
 C (sum of 1..n) mod 65536
 C
-      SUBROUTINE BENCH02(LOOPS, N, CHECK1, X)
+      SUBROUTINE BENCH02(N, X)
       DOUBLE PRECISION SUM1
-      INTEGER LOOPS, N, CHECK1, X
-      INTEGER L, I
-C      SUM1 = (N / 2.0) * (N + 1.0)
+      INTEGER N, X
+      INTEGER I
       X = 0
-      DO 40 L = 1, LOOPS
-        SUM1 = 0.0
-        DO 30 I = 1, N
-          SUM1 = SUM1 + I
-          IF (SUM1 .GE. N) THEN
-            SUM1 = SUM1 - N
-            X = X + 1
-          ENDIF
-C          PRINT *, 'DEBUG: add: I=', I, ' L=', L, ' X=', X
-   30   CONTINUE
-C      PRINT *, 'DEBUG: sum1: I=', I, ' L=', L, ' X=', X, ' sum1=', SUM1
-C     Some more loops left? -> set X back to 0
-      X = X - CHECK1
-      IF (X .NE. 0) THEN
-        GOTO 45
-      ENDIF
-   40 CONTINUE
-C      PRINT *, 'DEBUG: ret2: I=', I, ' L=', L, ' X=', X
-   45 RETURN
+      SUM1 = 0.0
+      DO 30 I = 1, N
+        SUM1 = SUM1 + I
+        IF (SUM1 .GE. N) THEN
+          SUM1 = SUM1 - N
+          X = X + 1
+        ENDIF
+   30 CONTINUE
+      RETURN
       END
 C
 
@@ -195,62 +168,56 @@ C bench03 (Integer)
 C number of primes below n (Sieve of Eratosthenes)
 C Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 C
-      SUBROUTINE BENCH03(LOOPS, N_P, CHECK1, X)
-      INTEGER LOOPS, N_P, CHECK1, X
+      SUBROUTINE BENCH03(N, X)
+      INTEGER N, X
       INTEGER MAX_HALFN
 C      PARAMETER (MAX_N = 500000)
       PARAMETER (MAX_HALFN = 250000)
-      INTEGER N, NHALF, L, I, M, J
+      INTEGER NHALF, I, M, J
 C array size must be known at compile time, so use a constant
       LOGICAL SIEVE1(0:MAX_HALFN)
-C Compute only up to n/2
-      N = N_P / 2
+
       NHALF = N / 2
-
-C x=Number of primes below n
-      X = 0
-
       IF (NHALF .GT. MAX_HALFN) THEN
         PRINT *, 'Error: n too large: ', N, ' > ', (MAX_HALFN * 2)
         X  = -1
         RETURN
       ENDIF
 
-      DO 40 L = 1, LOOPS
 C Initialize sieve...
-        DO 10 I = 0, NHALF
+      DO 10 I = 0, NHALF
         SIEVE1(I) = .FALSE.
-   10   CONTINUE
+   10 CONTINUE
 
 C Compute primes
-       I = 0
-       M = 3
-       DO 20 WHILE ((M * M) .LT. N)
-         IF (.NOT. SIEVE1(I)) THEN
-           X = X + 1
-           DO 15 J = (M * M - 3) / 2, NHALF - 1, M
-             SIEVE1(J) = .TRUE.
-   15      CONTINUE
-         ENDIF
-         I = I + 1
-         M = M + 2
-   20  CONTINUE
-
-C Count primes...
-        DO 30 I = I, NHALF
-          IF (.NOT. SIEVE1(I)) THEN
-            X = X + 1
-          ENDIF
-   30   CONTINUE
-
-C Check prime count
-        X = X - CHECK1
-        IF (X .NE. 0) THEN
-          GOTO 45
+      I = 0
+      M = 3
+C x=Number of primes below n
+      X = 1
+      DO 20 WHILE ((M * M) .LE. N)
+        IF (.NOT. SIEVE1(I)) THEN
+          X = X + 1
+C          PRINT *, 'DEBUG: D1: M=', M
+          DO 15 J = (M * M - 3) / 2, NHALF - 1, M
+            SIEVE1(J) = .TRUE.
+   15     CONTINUE
         ENDIF
-   40 CONTINUE
-C      PRINT *, 'DEBUG: ret2: I=', I, ' L=', L, ' X=', X, ' I_X=', I_X
-   45 RETURN
+        I = I + 1
+        M = M + 2
+   20 CONTINUE
+
+C Count remaining primes...
+      DO 30 WHILE (M .LE. N)
+        IF (.NOT. SIEVE1(I)) THEN
+          X = X + 1
+C          PRINT *, 'DEBUG: D2: M=', M
+        ENDIF
+        I = I + 1
+        M = M + 2
+   30 CONTINUE
+
+C     PRINT *, 'DEBUG: ret2: I=', I, ' X=', X, ' I_X=', I_X
+      RETURN
       END
 C
 C
@@ -262,32 +229,24 @@ C Raj Jain: The Art of Computer Systems Performance Analysis, John Wiley & Sons,
 C It needs longs with at least 32 bit.
 C Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 C
-      SUBROUTINE BENCH04(LOOPS, N, CHECK1, X)
-      INTEGER LOOPS, N, CHECK1, X
+      SUBROUTINE BENCH04(N, X)
+      INTEGER N, X
 C Define some constants...
       INTEGER M, A, Q, R
       PARAMETER (M = 2147483647, A = 16807, Q = 127773, R = 2836)
-      INTEGER L, I
+      INTEGER I
       INTEGER X_DIV_Q, X_MOD_Q
-      X = 0
-      DO 80 L = 1, LOOPS
-        X = X + 1
-        DO 70 I = 1, N
-          X_DIV_Q = X / Q
-          X_MOD_Q = X - Q * X_DIV_Q
-          X = A * X_MOD_Q - R * X_DIV_Q
+      X = 1
+      DO 70 I = 1, N
+        X_DIV_Q = X / Q
+        X_MOD_Q = X - Q * X_DIV_Q
+        X = A * X_MOD_Q - R * X_DIV_Q
 C not faster:  X = A * MOD(X, Q) - R * INT(X / Q)
-          IF (X .LE. 0) THEN
-            X = X + M
-          ENDIF
-   70   CONTINUE
-C      PRINT *, 'DEBUG: I=', I, ' L=', L, ' X=', X
-        X = X - CHECK1
-        IF (X .NE. 0) THEN
-          GOTO 85
-        ENDIF        
-   80 CONTINUE
-   85 RETURN
+        IF (X .LE. 0) THEN
+          X = X + M
+        ENDIF
+   70 CONTINUE
+      RETURN
       END
 C
 C
@@ -295,16 +254,15 @@ C
 C bench05 (Integer 32 bit)
 C n over n/2 mod 65536 (Pascal's triangle)
 C
-      SUBROUTINE BENCH05(LOOPS, N_P, CHECK1, X)
-      INTEGER LOOPS, N_P, CHECK1, X
+      SUBROUTINE BENCH05(N_P, X)
+      INTEGER N_P, X
       INTEGER MAX_N
-      PARAMETER (MAX_N = 1000000 / (500 * 2))
+      PARAMETER (MAX_N = 1000000 / (200 * 2))
       INTEGER N, K
-      INTEGER L, I, I_MOD_2, I1_MOD_2, MIN1, J
-      INTEGER PAS1(0:1,0:MAX_N)
+      INTEGER I, I_MOD_2, MIN1, J, PREV, NUM
+      INTEGER PAS1(0:MAX_N)
 
-      X = 0
-      N = N_P / 500
+      N = N_P / 2
       K = N / 2
 
 C keep k minimal with  n over k  =  n over n-k
@@ -319,44 +277,38 @@ C keep k minimal with  n over k  =  n over n-k
       ENDIF
 
 C Set first column
-      PAS1(0, 0) = 1
-      PAS1(1, 0) = 1
+      PAS1(0) = 1
+      PAS1(1) = 2
       
-C      PRINT *, 'DEBUG: LOOPS=', LOOPS, ', N=', N, ', K=', K
-      DO 80 L = 1, LOOPS
-        DO 70 I = 2, N
-          I_MOD_2 = MOD(I, 2)
-          I1_MOD_2 = MOD(I + 1, 2)
-          MIN1 = (I - 1) / 2
-          IF (K .LT. MIN1) THEN
-            MIN1 = K
-          ENDIF
-C Second column is i
-          PAS1(I_MOD_2, 1) = I
-C          PRINT *, 'DEBUG: L=', L, ', I=', I, ', MIN1=', MIN1,
-C     *  ', P1=', PAS1(I_MOD_2, 10)
-C up to min((i-1)/2, k)
-          DO 60 J = 2, MIN1
-            PAS1(I_MOD_2, J) = PAS1(I1_MOD_2, J - 1) + PAS1(I1_MOD_2, J)
-   60     CONTINUE
-C new element?
-          IF ((MIN1 .LE. K) .AND. (I_MOD_2 .EQ. 0)) THEN
-            PAS1(I_MOD_2, MIN1 + 1) = 2 * PAS1(I1_MOD_2, MIN1)
-C          PRINT *, 'DEBUG: PAS1(', I_MOD_2, ',', MIN1 + 1, ')=',
-C     * PAS1(I_MOD_2, MIN1 + 1)
-          ENDIF
-   70   CONTINUE
+C     PRINT *, 'DEBUG: LOOPS=', LOOPS, ', N=', N, ', K=', K
+      DO 70 I = 3, N
+        I_MOD_2 = MOD(I, 2)
+C        I1_MOD_2 = MOD(I + 1, 2)
+        MIN1 = (I - 1) / 2
+        IF (I_MOD_2 .EQ. 0) THEN
+          PAS1(MIN1 + 1) = 2 * PAS1(MIN1)
+        ENDIF
+
+        PREV = PAS1(1)
+        DO 60 J = 2, MIN1
+          NUM = PAS1(J)
+          PAS1(J) = PAS1(J) + PREV
+          PREV = NUM
+   60   CONTINUE
+        PAS1(1) = i
+   70 CONTINUE
 C      PRINT *, 'DEBUG: H=', PAS1(MOD(N, 2), K)
 
-C We expect (-531600832 % 65536) = 27200 and not -38336!
-      X = AND(X + PAS1(MOD(N, 2), K), X'ffff')
-
-        X = X - CHECK1
-        IF (X .NE. 0) THEN
-          GOTO 85
-        ENDIF
+      X = 0
+      DO 80 J = 0, k - 1
+        X = X + 2 * PAS1(J) * PAS1(J)
    80 CONTINUE
-   85 RETURN
+      X = X + PAS1(K) * PAS1(K)
+
+C We expect (-531600832 % 65536) = 27200 and not -38336!
+C      X = AND(X + PAS1(MOD(N, 2), K), 65535)
+      X = MOD(X, 65536)
+      RETURN
       END
 C
 C
@@ -367,39 +319,99 @@ C     loops = number of loops
 C         n = maximum number (used in some benchmarks to define size of workload)
 C out:    x = result
 C
-      SUBROUTINE RUN_BENCH(BENCH, LOOPS, N, X)
-      INTEGER BENCH, LOOPS, N, X
-      INTEGER CHECK1
+      SUBROUTINE RUN_BENCH(BENCH, LOOPS, N, CHECK1, X)
+      INTEGER BENCH, LOOPS, N, CHECK1, X
+      INTEGER L
       X = 0
-      CHECK1 = 0
-      IF (BENCH .EQ. 0) THEN
-        CHECK1 = MOD((N / 2) * (N + 1), 65536)
-        CALL BENCH00(LOOPS, N, CHECK1, X)
-      ELSE IF (BENCH .EQ. 1) THEN
-        CHECK1 = (N + 1) / 2
-        CALL BENCH01(LOOPS, N, CHECK1, X)
-C        PRINT *, 'ret3: I=', I, ' L=', L, ' X=', X
-      ELSE IF (BENCH .EQ. 2) THEN
-        CHECK1 = (N + 1) / 2
-        CALL BENCH02(LOOPS, N, CHECK1, X)
-      ELSE IF (BENCH .EQ. 3) THEN
-        CHECK1 = 41538
-        CALL BENCH03(LOOPS, N, CHECK1, X)
-      ELSE IF (BENCH .EQ. 4) THEN
-        CHECK1 = 1227283347
-        CALL BENCH04(LOOPS, N, CHECK1, X)
-      ELSE IF (BENCH .EQ. 5) THEN
-        CHECK1 = 27200
-        CALL BENCH05(LOOPS, N, CHECK1, X)
-      ELSE
-        PRINT *, 'Error: Unknown benchmark: ', BENCH
-        CHECK1 = -1
-      ENDIF
+      L = LOOPS
+      DO 20 WHILE ((L .GT. 0) .AND. (X .EQ. 0))
+        IF (BENCH .EQ. 0) THEN
+          CALL BENCH00(N, X)
+        ELSE IF (BENCH .EQ. 1) THEN
+          CALL BENCH01(N, X)
+C          PRINT *, 'ret3: I=', I, ' L=', L, ' X=', X
+        ELSE IF (BENCH .EQ. 2) THEN
+          CALL BENCH02(N, X)
+        ELSE IF (BENCH .EQ. 3) THEN
+          CALL BENCH03(N, X)
+        ELSE IF (BENCH .EQ. 4) THEN
+          CALL BENCH04(N, X)
+        ELSE IF (BENCH .EQ. 5) THEN
+          CALL BENCH05(N, X)
+        ELSE
+          PRINT *, 'Error: Unknown benchmark: ', BENCH
+          X = -1
+        ENDIF
+        X = X - CHECK1
+        L = L - 1
+   20 CONTINUE
       X = X + CHECK1
       IF (X .NE. CHECK1) THEN
         PRINT *, 'Error(bench', BENCH, '): x=', X
         X = -1
       ENDIF
+      RETURN
+      END
+
+
+      SUBROUTINE BENCH03_CHECK(N, X)
+      INTEGER N, X
+      INTEGER I, J
+      LOGICAL IS_PRIME
+      IF (N .EQ. 500000) THEN
+          X = 41538
+        ELSE
+          X = 1
+          DO 40 J = 3, N, 2
+            IS_PRIME = .TRUE.
+            I = 3
+            DO 20 WHILE (((I * I) .LE. J) .AND. IS_PRIME)
+              IF (MOD(j, i) .EQ. 0) THEN
+                IS_PRIME = .FALSE.
+              ENDIF
+              I = I + 2
+   20       CONTINUE
+            IF (IS_PRIME) THEN
+              X = X + 1
+C              PRINT *, 'DEBUG: D2: J=', J, ' I=', I
+            ENDIF
+   40     CONTINUE
+        ENDIF
+      RETURN
+      END
+C
+C
+C
+      INTEGER FUNCTION GET_CHECK(BENCH, N)
+      INTEGER BENCH, N
+      INTEGER CHECK1
+      CHECK1 = 0
+      IF (BENCH .EQ. 0) THEN
+        CHECK1 = MOD((N / 2) * (N + 1), 65536)
+      ELSE IF (BENCH .EQ. 1) THEN
+        CHECK1 = (N + 1) / 2
+C        PRINT *, 'ret3: I=', I, ' L=', L, ' X=', X
+      ELSE IF (BENCH .EQ. 2) THEN
+        CHECK1 = (N + 1) / 2
+      ELSE IF (BENCH .EQ. 3) THEN
+        CALL BENCH03_CHECK(N, CHECK1)
+      ELSE IF (BENCH .EQ. 4) THEN
+        IF (N .EQ. 1000000) THEN
+          CHECK1 = 1227283347
+        ELSE
+          CALL BENCH04(N, CHECK1)
+        ENDIF
+      ELSE IF (BENCH .EQ. 5) THEN
+        IF (N .EQ. 5000) THEN
+          CHECK1 = 17376
+        ELSE
+          CALL BENCH05(N, CHECK1)
+        ENDIF
+      ELSE
+        PRINT *, 'Error: Unknown benchmark: ', BENCH
+        CHECK1 = -1
+      ENDIF
+      GET_CHECK = CHECK1
       RETURN
       END
 C
@@ -440,6 +452,7 @@ C
 C
       REAL FUNCTION GET_TS()
       REAL G_START_TS
+      REAL GET_RAW_TS
       COMMON /G1/ G_START_TS
       GET_TS = GET_RAW_TS() - G_START_TS
       RETURN
@@ -457,21 +470,21 @@ C out: x = time in ms
 C
 C This function is intended for short measurements only
 C
-      REAL FUNCTION GET_MS_XXX()
+C     REAL FUNCTION GET_MS_XXX()
 C      FUNCTION GET_MS()
-      REAL R_MS
-      CALL CPU_TIME(R_MS)
-      GET_MS_XXX = R_MS * 1000.0
-      RETURN
-      END
+C     REAL R_MS
+C     CALL CPU_TIME(R_MS)
+C     GET_MS_XXX = R_MS * 1000.0
+C     RETURN
+C     END
 C
 C
       REAL FUNCTION CORRECT_TIME(TMEAS, TMEAS2, MEASCOUNT)
-      REAL TMEAS
-      INTEGER MEASCOUNT, TSPRECCNT
+      REAL TMEAS, TMEAS2
+      INTEGER MEASCOUNT
 
       REAL G_TSPRECMS
-      INTEGER G_TSPRECCNT, G_TSMEASCNT
+      INTEGER TSPRECCNT, G_TSPRECCNT, G_TSMEASCNT
       COMMON /GSTATE/ G_TSPRECMS, G_TSPRECCNT, G_TSMEASCNT
 
       TSPRECCNT = G_TSPRECCNT
@@ -491,6 +504,7 @@ C
       LOGICAL STOPFLG
       INTEGER MEASCOUNT
       REAL TMEAS0, TMEAS, TMEASD
+      REAL GET_TS, CONV_MS, CORRECT_TIME
 
       REAL G_TSPRECMS
       INTEGER G_TSPRECCNT, G_TSMEASCNT
@@ -523,6 +537,7 @@ C
       REAL G_START_TS
       COMMON /G1/ G_START_TS
       REAL G_TSPRECMS
+      REAL GET_RAW_TS, GETPRECMS
       INTEGER G_TSPRECCNT, G_TSMEASCNT
       COMMON /GSTATE/ G_TSPRECCNT, G_TSPRECMS, G_TSMEASCNT
       
@@ -553,8 +568,8 @@ C
       DO 150 WHILE ((((NUM - 1) / 2) .EQ. LAST_NUM) .AND.
      * (BITS .LT. 101))
         LAST_NUM = NUM
-        NUM = NUM * 2
-        NUM = NUM + 1
+        NUM = INT(NUM * 2, KIND(NUM))
+        NUM = INT(NUM + 1, KIND(NUM))
         BITS = BITS + 1
   150 CONTINUE
       RETURN
@@ -625,7 +640,7 @@ C
       CALL CHECKBITS_INT1(IBITS)
       CALL CHECKBITS_FLOAT1(FBITS)
       CALL CHECKBITS_DOUBLE1(DBITS)
-  10  FORMAT('BM Bench v0.7 (Fortran) -- (short:', I2, ' int:', I2,
+  10  FORMAT('BM Bench v0.8 (Fortran) -- (short:', I2, ' int:', I2,
      * ' float:', I2, ' double:', I2, ' tsMs:', F9.6,
      * ' tsCnt:', I6, ') version: ?')
       PRINT 10, SBITS, IBITS, FBITS, DBITS, G_TSPRECMS, G_TSPRECCNT
@@ -654,11 +669,12 @@ C        PRINT *, BENCH_RES1(BENCH), ' '
       END
 C
 C
-      REAL FUNCTION MEASURE_BENCH(BENCH, N)
-      INTEGER BENCH, N
+      REAL FUNCTION MEASURE_BENCH(BENCH, N, CHECK1)
+      INTEGER BENCH, N, CHECK1
 
-      INTEGER CALI_MS, DELTA_MS, MAX_MS, LOOPS, X
+      INTEGER CALI_MS, DELTA_MS, MAX_MS, LOOPS, X, SCALE_FACT
       REAL T1, T2, THROUGHPUT, T_DELTA, LOOPS_P_SEC
+      REAL GETPRECMS
       CHARACTER*7 PRG_LANGUAGE
       
       PRG_LANGUAGE = 'Fortran'
@@ -672,11 +688,12 @@ C
       T2 = 0
       THROUGHPUT = 0
 
-      PRINT *, 'Calibrating benchmark ', BENCH, ' with n=', N
+      PRINT *, 'Calibrating benchmark ', BENCH, ' with n=', N,
+     *   ', check=', CHECK1
       DO 220 WHILE (THROUGHPUT .eq. 0)
         T1 = GETPRECMS(.FALSE.)
-C        X = RUN_BENCH(BENCH, LOOPS, N)
-        CALL RUN_BENCH(BENCH, LOOPS, N, X)
+C        X = RUN_BENCH(BENCH, LOOPS, N, CHECK1)
+        CALL RUN_BENCH(BENCH, LOOPS, N, CHECK1, X)
         T1 = GETPRECMS(.TRUE.) - T1
   
         IF (T2 .GT. T1) THEN
@@ -734,11 +751,26 @@ C
       REAL THROUGHPUT
       REAL MEASURE_BENCH
       REAL BENCH_RES1(0:MAX_BENCH)
-      INTEGER BENCH
+      INTEGER N_SAVE, BENCH, CHECK1
+      INTEGER GET_CHECK
+
+      N_SAVE = N
 
       CALL PRINT_INFO()
       DO 70 BENCH = BENCH1, BENCH2
-        THROUGHPUT = MEASURE_BENCH(BENCH, N)
+        N = N_SAVE
+        IF (BENCH .EQ. 3) THEN
+          N = N / 2
+        ELSEIF (BENCH .EQ. 5) THEN
+          N = N / 200
+        ENDIF
+        
+        CHECK1 = GET_CHECK(BENCH, N)
+        IF (CHECK1 .GT. 0) THEN
+          THROUGHPUT = MEASURE_BENCH(BENCH, N, CHECK1)
+        ELSE
+          THROUGHPUT = -1
+        ENDIF
         BENCH_RES1(BENCH) = THROUGHPUT
   70  CONTINUE
       CALL PRINT_RESULTS(BENCH1, BENCH2, BENCH_RES1, MAX_BENCH)
@@ -753,7 +785,7 @@ C
       INTEGER BENCH1, BENCH2, N
 C declare functions...
       INTEGER GET_NUMARG
-      REAL GET_TS
+      REAL CONV_MS, GET_TS
 
       BENCH1 = 0
       BENCH2 = 5

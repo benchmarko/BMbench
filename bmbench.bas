@@ -22,7 +22,7 @@
 1210 REM - bwbasic would also support subroutines
 1220 REM
 1230 REM Notes (bwbasic problems)
-1240 REM - Precision is irrelavalt to bwbasic (all computations in double?)
+1240 REM - Precision is irrelevant to bwbasic (all computations in double?)
 1250 REM - FOR and NEXT statements must be on single lines?
 1260 REM - RETURN should also on single line
 1270 REM - No comments starting with apostrophe available

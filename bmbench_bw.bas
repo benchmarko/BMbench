@@ -1,98 +1,325 @@
-100 REM bmbench_bw.bas (bwbasic)
-110 REM (c) Benchmarko, 2002
-120 REM 06.05.2002  0.01
-122 REM 18.05.2002  0.02
-124 REM 26.05.2002  0.03
-130 REM
-131 REM Usage:
-132 REM bwbasic bmbench_bw.bas
-133 REM
-134 REM Documentation for bwbasic (Bywater BASIC Interpreter):
-135 REM /usr/share/doc/packages/bwbasic/bwbasic.doc
-136 REM
-137 REM Notes (bwbasic problems)
-138 REM - Precision is irrelavalt to bwbasic (all computations in double?)
-139 REM - FOR and NEXT statements must be on single lines?
-140 REM - RETURN should also on single line
-141 REM - No comments starting with ' available
-142 REM
-143 REM MODE 2
-144 DEFINT a-z: REM irrelevant to bwbasic
-145 tfac! = 1000: REM time conversion factor for ms (adapt?)
-150 GOTO 600: REM main
-180 REM
-190 REM bench01(loops, n)
-200 x = 0
-205 sum1 = (n / 2) * (n + 1)
-208 l = loops
-210 WHILE l > 0: l = l - 1
-212 FOR i = n TO 1 STEP -1
-213 x = x + i
-214 NEXT i
-215 REM (overflow for 32640+256?)
-216 IF l > 0 THEN x = x - sum1: IF x <> 0 THEN RETURN: REM Error
-218 WEND
-220 x = x MOD 65536
-230 RETURN
-231 REM returns x
-235 REM
-240 REM bench02(loops, n) (Floating Point)
-250 x! = 0
-255 sum1! = (n / 2) * (n + 1)
-258 l = loops
-260 WHILE l > 0: l = l - 1
-262 FOR i = n TO 1 STEP -1
-263 x! = x! + i
-264 NEXT i
-265 IF l > 0 THEN x! = x! - sum1!: IF x! <> 0 THEN x = x!: RETURN: REM Error
-268 WEND
-270 x = (x! - INT(x! / 65536) * 65536): REM x mod 65536
-275 RETURN
-276 REM returns x
-280 REM
-290 REM run_bench(bench, loops, n)
-300 x = 0: check1 = 0
-301 IF bench > 2 THEN GOTO 320
-302 ON bench GOSUB 200,250
-303 check1 = x + 1
-304 IF bench = 1 THEN check1 = 10528
-305 IF bench = 2 THEN check1 = 10528
-310 GOTO 330
-320 PRINT "Error: Unknown benchmark:"; bench
-330 IF x <> check1 THEN PRINT "Error(bench"; bench ;"): x=";x: STOP
-350 RETURN
-351 REM returns x
-380 REM
-390 REM get_ms
-400 t! = TIMER * tfac!
-410 RETURN
-580 REM
-590 REM main()
-600 GOSUB 400: startt1! = t!: REM get_ms()
-605 bench = 2: n = 1000000: minms = 10000
-610 PRINT "BM Bench v0.3 (bwBasic)"
-620 REM calibrate
-630 loops = 1: x = 0: t1! = 0
-640 WHILE t1! < 1000: REM we want at least 1 sec calibration time
-650 PRINT "Calibrating benchmark"; bench; " with loops ="; loops; "; n ="; n
-660 GOSUB 400: t1! = t!: REM get_ms()
-670 GOSUB 300: REM x = run_bench(bench, loops, n)
-680 GOSUB 400: t1! = t! - t1!: REM get_ms()
-690 PRINT "x ="; x; " (time="; t1!; " ms)"
-700 loops = loops * 2
-710 WEND
-720 loops = loops / 2
-730 loops = loops * INT(minms / t1!) + 1: REM integer division!
-740 PRINT "Calibration done. Starting measurement with"; loops; " loops to get >="; minms; " ms"
-750 REM measurement
-760 GOSUB 400: t1! = t!: REM get_ms()
-770 GOSUB 300: REM x = run_bench(bench, loops, n)
-780 GOSUB 400: t1! = t! - t1!: REM get_ms()
-790 PRINT "x ="; x; " (time="; t1!; " ms)"
-800 PRINT "Elapsed time for"; loops; " loops:"; t1!; " ms; estimation for 10 loops:"; INT(t1! * 10 / loops); " ms"
-810 GOSUB 400: t1! = t! - startt1!: REM get_ms()
-840 PRINT "Total elapsed time:"; t1!; " ms"
-850 SYSTEM
-851 REM system or quit exit bwbasic
-856 END
-860 REM end
+     REM BM Bench - bmbench.bas (BASIC)
+     REM (c) Marco Vieth, 2002-2023
+     REM http://www.benchmarko.de
+     REM
+     REM 06.05.2002  0.01
+     REM 18.05.2002  0.02
+     REM 24.01.2003  0.05  output format changed
+     REM 01.04.2023  0.08  adapted for new version
+     REM
+     REM Usage (bwbasic):
+     REM bwbasic bmbench_bw.bas
+     REM
+     REM Documentation for bwbasic (Bywater BASIC Interpreter):
+     REM https://github.com/nerun/bwbasic/blob/main/DOCS/BYWATER.txt
+     REM
+     REM Notes
+     REM - commands are not case sensitive, variables are
+     REM - bwbasic does not require line numbers but we use them here
+     REM - bwbasic would also support subroutines
+     REM
+     REM Notes (bwbasic problems)
+     REM - Precision is irrelevant to bwbasic (all computations in double?)
+     REM - FOR and NEXT statements must be on single lines?
+     REM - RETURN should also on single line
+     REM - No comments starting with apostrophe available
+     REM - Function definitions: DEF NF<name> cannot be redefined (so do it before Locomotive Basic)
+     REM - No comment in line with SYSTEM
+     REM - integer division with "\" does rounding
+     REM
+     REM
+     CLEAR
+     DEFINT a-z
+     prgLanguage$ = "Basic"
+     prgVersion$ = "0.08"
+     REM Settings for bwbasic
+     basicver$ = "bwbasic ?"
+     startTs = 0
+     DEF FNgetTs() = TIMER - startTs
+     startTs = FNgetTs()
+     DEF FNconvMs!(ts) = ts * 1000.0
+     GOTO 6000: REM main
+     REM
+     REM
+     REM bench00(n): x
+1570 x = 0
+     ndiv = INT(n / 65536)
+     nmod = (n - ndiv * 65536)
+     FOR i = ndiv TO 1 STEP -1
+       FOR j = 32767 TO 1 STEP -1
+         x = x + j
+       NEXT j
+       FOR j = -32768 TO -1
+         x = x + j
+       NEXT j
+     NEXT i
+     FOR j = nmod TO 1 STEP -1
+       x = x + j
+     NEXT j
+     x = x MOD 65536
+     RETURN
+     REM
+     REM
+     REM bench01(n): x
+1840 x = 0
+     sum = 0
+     FOR i = 1 TO n
+       sum = sum + i
+       IF sum >= n THEN sum = sum - n: x = x + 1
+     NEXT i
+     RETURN
+     REM
+     REM
+     REM bench02(n): x (Floating Point)
+2040 x = 0
+     sum! = 0
+     FOR i = 1 TO n
+       sum! = sum! + i
+       IF sum! >= n THEN sum! = sum! - n: x = x + 1
+     NEXT i
+     RETURN
+     REM
+     REM
+     REM bench03(n): x
+2060 nHalf = INT(n / 2)
+     REM initialize sieve
+     FOR i = 0 TO nHalf: sieve1(i) = 0: NEXT i
+     REM compute primes
+     i = 0
+     m = 3
+     x = 1
+     WHILE m * m <= n
+       IF sieve1(i) = 1 THEN 2070
+       x = x + 1
+       j = INT((m * m - 3) / 2)
+       WHILE j < nHalf
+         sieve1(j) = 1
+         j = j + m
+       WEND
+2100   i = i + 1
+       m = m + 2
+     WEND
+     REM count remaining primes
+     WHILE m <= n
+       IF sieve1(i) = 0 THEN x = x + 1
+       i = i + 1
+       m = m + 2
+     WEND
+     RETURN
+     REM
+     REM
+     REM bench04(n): x
+2150 m = 2147483647
+     a = 16807
+     q = 127773
+     r = 2836
+     x = 1
+     FOR i = n TO 1 STEP - 1
+       xDivQ = INT(x / q)
+       xModQ = x - q * xDivQ
+       x = a * xModQ - r * xDivQ
+       IF x <= 0 THEN x = x + m
+     NEXT i
+     RETURN
+     REM
+     REM
+     REM bench05(n): x
+2200 b05nSave = n
+     n = INT(n / 2)
+     k = INT(n / 2)
+     IF (n - k) < k THEN k = n - k
+     REM initialize (not needed)
+     FOR j = 0 TO k: line1(j) = 0: NEXT j
+     line1(0) = 1
+     line1(1) = 2
+     REM compute lines of Pascal's triangle
+     FOR i = 3 TO n
+       min1 = INT((i - 1) / 2)
+       IF (i AND 1) = 0 THEN line1(min1 + 1) = 2 * line1(min1)
+       prev1 = line1(1)
+       FOR j = 2 TO min1
+         num1 = line1(j)
+         line1(j) = (line1(j) + prev1) AND 65535
+         prev1 = num1
+       NEXT j
+       line1(1) = i
+     NEXT i
+     REM compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+     x = 0
+     FOR j = 0 TO k - 1
+       REM x = (x + 2 * line1(j) * line1(j)) MOD 65536
+       xHelp = line1(j)
+       xHelp = (2.0 * (xHelp * xHelp)) MOD 65536
+       x = (x + xHelp) AND 65535
+     NEXT j
+     REM x = (x + line1(k) * line1(k)) AND 65535
+     xHelp = line1(k)
+     xHelp = (xHelp * xHelp) MOD 65536
+     x = (x + xHelp) AND 65535
+     n = b05nSave
+     RETURN
+     REM
+     REM
+     REM
+     REM run_bench(bench, loops, n, check): x
+2250 x = 0
+     IF bench > 5 THEN PRINT "Error: Unknown benchmark:"; bench: RETURN
+     l = loops
+     WHILE l > 0 AND x = 0
+       ON bench + 1 GOSUB 1570, 1840, 2040, 2060, 2150, 2200
+       x = x - check
+       l = l - 1
+     WEND
+     x = x + check
+     IF x <> check THEN PRINT "Error(bench"; bench ;"): x=";x : x = -1
+     RETURN
+     REM
+     REM
+     REM bench03Check(n): x
+2270 x = 1
+     FOR j = 3 TO n STEP 2
+       isPrime = 1
+       i = 3
+       WHILE (i * i <= j) AND (isPrime = 1)
+         IF j MOD i = 0 THEN isPrime = 0
+         i = i + 2
+       WEND
+       if isPrime = 1 Then x = x + 1
+     Next j
+     RETURN
+     REM
+     REM
+     REM getCheck(bench, n): check
+2300 check = -1
+     IF bench = 0 THEN check = ((n / 2) * (n + 1)) MOD 65536
+     IF bench = 1 OR bench = 2 THEN check = (n + 1) / 2
+     IF bench = 3 THEN IF n = 500000 THEN check = 41538 ELSE GOSUB 2270: check = x
+     IF bench = 4 THEN IF n = 1000000 THEN check = 1227283347 ELSE GOSUB 2150: check = x
+     IF bench = 5 THEN IF n = 5000 THEN check = 17376 ELSE GOSUB 2200: check = x
+     IF check = -1 THEN PRINT "Error: Unknown benchmark:"; bench
+     RETURN
+     REM
+     REM
+     REM getPrecMs: t0, t1
+2320 gtsMeasCnt = 0
+     t1 = FNgetTs()
+     t0 = t1
+     WHILE t1 = t0
+       t1 = FNgetTs()
+       gtsMeasCnt = gtsMeasCnt + 1
+     WEND
+     RETURN
+     REM
+     REM
+     REM correctTime(t0, t1, gtsMeasCnt, gtsPrecCnt): t1Ms!
+2380 t1Ms! = FNconvMs!(t1)
+     IF gtsMeasCnt < gtsPrecCnt THEN t0MsTmp! = FNconvMs!(t0) + gtsPrecMs! * ((gtsPrecCnt - gtsMeasCnt) * 1.0 / gtsPrecCnt) : IF t0MsTmp! < t1Ms! THEN t1Ms! = t0MsTmp!
+     RETURN
+     REM
+     REM
+     REM determineTsPrecision(): {global gtsPrecCnt, gtsPrecMs!}
+2400 GOSUB 2320: REM getPrecMs
+     t0tmp = t1
+     GOSUB 2320: REM getPrecMs
+     t1tmp = t1
+     gtsPrecMs! = FNconvMs!(t1tmp) - FNconvMs!(t0tmp)
+     gtsPrecCnt = gtsMeasCnt
+     REM do it again
+     t0tmp = t1tmp
+     GOSUB 2320: REM getPrecMs
+     t1tmp = t1
+     IF gtsMeasCnt > gtsPrecCnt THEN gtsPrecCnt = gtsMeasCnt: gtsPrecMs! = FNconvMs!(t1tmp) - FNconvMs!(t0tmp)
+     RETURN
+     REM
+     REM
+     REM printInfo(): void
+3400 PRINT "BM Bench v"; prgVersion$; " ("; prgLanguage$; ") -- (tsMs:"; gtsPrecMs!; "tsCnt:"; gtsPrecCnt; ") -- "; basicver$
+     PRINT "(c) Marco Vieth, 2002-2023"
+     RETURN
+     REM
+     REM
+     REM printResult(): void
+3500 PRINT: PRINT "Throughput for all benchmarks (loops per sec):"
+     PRINT "BMR ("; prgLanguage$; ") :";
+     FOR bench = bench1 TO bench2
+       PRINT USING "#######.### "; benchres!(bench);
+     NEXT bench
+     PRINT
+     RETURN
+     REM
+     REM
+     REM printLine1(): void
+3800 PRINT "Benchmark"; bench; "("; prgLanguage$; "):";
+     PRINT ROUND(loopsPsec!, 3); : REM loops per sec
+     PRINT "/s (time="; ROUND(tMeas!, 3); "ms, loops="; loops;
+     PRINT ", delta="; ROUND(tDelta!, 3); "ms)"
+     RETURN
+     REM
+     REM
+     REM measureBench(bench1, bench2, n, check, caliMs): throughput!
+4000 deltaMs = 100
+     maxMs = 10000
+     loops = 1
+     tEsti! = 0
+     throughput! = 0
+     PRINT "Calibrating benchmark"; bench; "with loops ="; loops; ", n ="; n; ", check ="; check
+     WHILE throughput! = 0
+       GOSUB 2320: REM getPrecMs
+       t0m = t1
+       GOSUB 2250: REM run_bench
+       GOSUB 2320: REM getPrecMs
+       GOSUB 2380: REM correctTime
+       tMeas! = t1Ms! - FNconvMs!(t0m)
+       tDelta! = tEsti! - tMeas!
+       if tDelta! < 0 THEN tDelta! = -tDelta!
+       REM  xx IF tEsti! > tMeas! THEN tDelta! = tEsti! - tMeas! ELSE tDelta! = tMeas! - tEsti!
+       loopsPsec! = 0
+       IF tMeas! > 0 THEN loopsPsec! = (loops * 1000) / tMeas!
+       PRINT USING "######.###";loopsPsec!;
+       PRINT "/s (time="; USING "#####.###"; tMeas!;
+       PRINT " ms, loops="; USING "#######"; loops;
+       PRINT ", delta="; USING "#####.###"; tDelta!; " ms)"
+       IF x = -1 then throughput! = -1:goto 4100
+       IF tMeas! > maxMs THEN PRINT "Benchmark"; bench; "("; prgLanguage$; "): Time already >"; maxMs; " ms. No measurement possible.": throughput! = -loopsPsec!: IF throughput! = 0 THEN throughput! = -1: goto 4100 ELSE 4100
+       IF tEsti! > 0 AND tDelta! < deltaMs THEN throughput! = loopsPsec!: GOSUB 3800: GOTO 4100
+       IF tMeas! = 0 THEN scaleFact = 50 ELSE if tMeas! < caliMs THEN scaleFact = int((caliMs + 100) / tMeas!) + 1 ELSE scaleFact = 2
+       loops = loops * scaleFact
+       tEsti! = tMeas! * scaleFact
+4100 WEND
+     RETURN
+     REM
+     REM
+     REM startBench(bench1, bench2, n): void
+5480 GOSUB 2400: REM determineTsPrecision
+     GOSUB 3400: REM printInfo
+     DIM benchres!(5): REM benchmark timing results
+     nSave = n
+     FOR bench = bench1 TO bench2
+       n = nSave
+       IF bench = 3 THEN n = INT(n / 2): DIM sieve1(250001) ELSE IF bench = 5 THEN DIM line1(1251): n = INT(n / 200)
+       GOSUB 2300: REM getCheck
+       throughput! = -1
+       IF check > 0 THEN GOSUB 4000: REM measureBench
+       benchres!(bench) = throughput!
+     NEXT bench
+     GOSUB 3500: REM printResult
+     RETURN
+     REM
+     REM
+     REM main()
+6000 bench1 = 0: REM first benchmark to test
+     bench2 = 5: REM last benchmark to test
+     n = 1000000: REM maximum number
+     caliMs = 1001
+     IF COMMAND$(1) <> "" THEN bench1 = VAL(COMMAND$(1))
+     IF COMMAND$(2) <> "" THEN bench2 = VAL(COMMAND$(2))
+     IF COMMAND$(3) <> "" THEN n = VAL(COMMAND$(3))
+     IF COMMAND$(4) <> "" THEN caliMs = VAL(COMMAND$(4))
+     GOSUB 5480
+     tMeas! = FNconvMs!(FNgetTs())
+     PRINT "Total elapsed time:"; tMeas!; "ms"
+     REM VARS
+     SYSTEM
+     REM system or quit to exit bwbasic
+     END
+     REM end

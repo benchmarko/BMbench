@@ -11,10 +11,10 @@
 #
 #
 # Usage:
-# gawk -f bmbench1.awk [bench1] [bench2] [n]
+# gawk -f bmbench.awk [bench1] [bench2] [n]
 #
 # With check:
-# gawk -W lint --dump-variables -f bmbench1.awk
+# gawk -W lint --dump-variables -f bmbench.awk
 #
 
 # Compatibility:

@@ -383,7 +383,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
             END;
         ELSE
           WriteLn('Error: Unknown benchmark: ', bench);  (* StdErr is gpc extension, so don't use it *)
-          check := -1;
+          x := -1;
       END;
       loops := loops - 1;
 	    x := x - check;

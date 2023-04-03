@@ -288,7 +288,6 @@ Public Module Module1
 
 
     Function bench03Check(ByVal n As Integer) As Integer
-        Dim check As Integer = 0
         Dim x As Integer
 
         If n = 500000 Then
