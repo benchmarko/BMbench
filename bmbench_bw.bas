@@ -35,8 +35,8 @@
      REM Settings for bwbasic
      basicver$ = "bwbasic ?"
      startTs = 0
-     DEF FNgetTs() = TIMER - startTs
-     startTs = FNgetTs()
+     DEF FNgetTs = TIMER - startTs
+     startTs = FNgetTs
      DEF FNconvMs!(ts) = ts * 1000.0
      GOTO 6000: REM main
      REM
@@ -202,10 +202,10 @@
      REM
      REM getPrecMs: t0, t1
 2320 gtsMeasCnt = 0
-     t1 = FNgetTs()
+     t1 = FNgetTs
      t0 = t1
      WHILE t1 = t0
-       t1 = FNgetTs()
+       t1 = FNgetTs
        gtsMeasCnt = gtsMeasCnt + 1
      WEND
      RETURN
@@ -316,7 +316,7 @@
      IF COMMAND$(3) <> "" THEN n = VAL(COMMAND$(3))
      IF COMMAND$(4) <> "" THEN caliMs = VAL(COMMAND$(4))
      GOSUB 5480
-     tMeas! = FNconvMs!(FNgetTs())
+     tMeas! = FNconvMs!(FNgetTs)
      PRINT "Total elapsed time:"; tMeas!; "ms"
      REM VARS
      SYSTEM
