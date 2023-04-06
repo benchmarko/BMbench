@@ -255,7 +255,17 @@ proc bench05 {n} {
   return [expr {$x & 0xffff}];
 }
 
-set gState(bench) {bench00 bench01 bench02 bench03 bench04 bench05};
+proc bench06 {n} {
+  set sum 0.0; # force floating point
+  set flip 1.0;
+  for {set i 1} {$i <= $n} {incr i} {
+    set sum [expr { $sum + $flip / (2 * $i - 1)}];
+    set flip [expr { $flip * -1.0}];
+  }
+  return [expr {int(($sum * 4.0) * 100000000)}];
+}
+
+set gState(benchList) {bench00 bench01 bench02 bench03 bench04 bench05 bench06};
 
 #
 # run a benchmark
@@ -267,11 +277,11 @@ set gState(bench) {bench00 bench01 bench02 bench03 bench04 bench05};
 proc run_bench {bench loops n check} {
   global gState;
 
-  set bench_func [lindex $gState(bench) $bench];
-
-  if {$bench > 5} {
+  if {$bench >= [llength $gState(benchList)]} {
     puts "Error: Unknown benchmark: $bench";
   }
+
+  set bench_func [lindex $gState(benchList) $bench];
 
   set x 0;
   while {$loops > 0 && $x == 0} {
@@ -333,6 +343,9 @@ proc getCheck {bench n} {
 
   } elseif {$bench == 5} {
     set check [expr {$n == 5000 ? 17376 : [bench05 $n]}]; # bench05 not a real check
+
+  } elseif {$bench == 6} {
+    set check [expr {$n == 1000000 ? 314159165 : [bench06 $n]}]; # bench06 not a real check
 
   } else {
     puts "Error: Unknown benchmark: $bench";

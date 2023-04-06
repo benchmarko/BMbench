@@ -248,6 +248,20 @@ sub bench05($) {
   return $x & 0xffff;
 }
 
+sub bench06($) {
+  my($n) = @_;
+  my $sum = 0.0;
+  my $flip = -1.0;
+
+  for (my $i = 1; $i <= $n; $i++) {
+    $flip *= -1.0;
+    $sum += $flip / (2 * $i - 1);       
+  }
+  return int(($sum * 4.0) * 100000000);
+}
+
+
+my @benchList = (\&bench00, \&bench01, \&bench02, \&bench03, \&bench04, \&bench05, \&bench06);
 
 #
 # run a benchmark
@@ -258,29 +272,15 @@ sub bench05($) {
 #
 sub run_bench($$$$) {
   my($bench, $loops, $n, $check) = @_;
+
+  if ($bench > $#benchList) {
+    print STDERR "Error: Unknown benchmark ", $bench, "\n";
+  }
+  my $benchptr = $benchList[$bench];
+
   my $x = 0;
   while ($loops-- > 0 && $x == 0) {
-    if ($bench == 0) {
-      $x = bench00($n);
-
-    } elsif ($bench == 1) {
-      $x = bench01($n);
-
-    } elsif ($bench == 2) {
-      $x = bench02($n);
-
-    } elsif ($bench == 3) {
-      $x = bench03($n);
-
-    } elsif ($bench == 4) {
-      $x = bench04($n);
-
-    } elsif ($bench == 5) {
-      $x = bench05($n);
-    
-    } else {
-      print STDERR "Error: Unknown benchmark ", $bench, "\n";
-    }
+    $x = &$benchptr($n);
     $x -= $check;
   }
 
@@ -291,7 +291,6 @@ sub run_bench($$$$) {
   }
   return $x;
 }
-
 
 sub bench03Check($) {
   my($n) = @_;
@@ -339,6 +338,9 @@ sub getCheck($$) {
   } elsif ($bench == 5) {
     $check = ($n == 5000) ? 17376 : bench05($n); # bench05 not a real check
   
+  } elsif ($bench == 6) {
+    $check = ($n == 1000000) ? 314159165 : bench06($n); # bench06 not a real check
+
   } else {
     print STDERR "Error: Unknown benchmark ", $bench, "\n";
     $check = -1;

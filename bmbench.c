@@ -310,10 +310,22 @@ static int bench04(int n) {
   return x & 0xffff;
 }
 
+static int bench06(int n) {
+  double sum = 0.0;
+  double flip = -1.0;
+  for (int i = 1; i <= n; i++) {
+    flip *= -1.0;
+    sum += flip / (2*i - 1);
+  }
+  return (sum * 4.0) * 100000000;
+}
 
-static int (*benchList[5+1])(int) = {
-  bench00, bench01, bench02, bench03, bench04, bench05
+
+#define MAX_BENCH 6
+static int (*benchList[MAX_BENCH+1])(int) = {
+  bench00, bench01, bench02, bench03, bench04, bench05, bench06
 };
+
 
 /*
  * run a benchmark
@@ -326,7 +338,7 @@ static int run_bench(int bench, int loops, int n, int check) {
   int x = 0;
   int (*benchPtr)(int);
 
-  if (bench > 5) {
+  if (bench > MAX_BENCH) {
     fprintf(stderr, "Error: Unknown benchmark: %d\n", bench);
   }
   benchPtr = benchList[bench];
@@ -411,6 +423,10 @@ static int getCheck(int bench, int n) {
 
     case 5:
       check = (n == 5000) ? 17376 : bench05(n); /* bench05 not a real check */
+    break;
+
+    case 6:
+      check = (n == 1000000) ? 314159165 : bench06(n); /* bench06 not a real check */
     break;
 	
     default:

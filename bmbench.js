@@ -330,6 +330,30 @@ function bench05(n, state) {
 	return x;
 }
 
+// https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/toosimple.html
+// (Gregory series formula in slow convergence towards Pi) 
+function bench06(n) {
+	var sum = 0.0,
+		flip = 1.0,
+		i;
+
+	for (i = 1; i <= n; i++) {
+		sum += flip / (2 * i - 1);
+		flip *= -1.0;
+	}
+	return ((sum * 4.0) * 100000000) | 0;
+}
+
+gState.benchList = [
+	bench00,
+	bench01,
+	bench02,
+	bench03,
+	bench04,
+	bench05,
+	bench06
+];
+
 // checks
 
 function bench00Check(n) {
@@ -378,6 +402,19 @@ function bench05Check(n) {
 	return (n === 5000) ? 17376 : bench05(n, gState); // bench05 not a real check
 }
 
+function bench06Check(n) {
+	return (n === 1000000) ? 314159165 : bench06(n);
+}
+
+gState.checkList = [
+	bench00Check,
+	bench01Check,
+	bench02Check,
+	bench03Check,
+	bench04Check,
+	bench05Check,
+	bench06Check
+];
 
 //
 // run a benchmark
@@ -851,24 +888,6 @@ function startBench(oArgs, sArgStr) {
 			gState[sKey] = oArgs[sKey];
 		}
 	}
-
-	gState.benchList = [
-		bench00,
-		bench01,
-		bench02,
-		bench03,
-		bench04,
-		bench05
-	];
-
-	gState.checkList = [
-		bench00Check,
-		bench01Check,
-		bench02Check,
-		bench03Check,
-		bench04Check,
-		bench05Check
-	];
 
 	for (bench = 0; bench < gState.benchList.length; bench++) {
 		n = gState.n;

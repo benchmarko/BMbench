@@ -55,6 +55,7 @@ g_tsPrecMs = 0 # measured time stamp precision
 g_tsPrecCnt = 0 # time stamp count (calls) per precision interval (until time change)
 g_tsMeasCnt = 0 # last measured count
 g_cali_ms = 1001
+g_sieve1 = []
 
 #
 # General description for benchmark test functions
@@ -123,15 +124,21 @@ def bench02(n):
 # Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 # (Sieve of Eratosthenes, no multiples of 2's are stored)
 #
-# (It would be possible to put all in a long integer but this is extremely slow.)
+# (It would be possible to put all in a long integer but this is extremely slow)
 #
 def bench03(n):
+  global g_sieve1
   nHalf = n >> 1
-  sieve1 = [0 for i in range(nHalf + 1)]
+
+  if (len(g_sieve1) != nHalf + 1):
+    g_sieve1 = [0] * (nHalf + 1) #[0 for i in range(nHalf + 1)]
+    #g_sieve1 = np.zeros((nHalf + 1,), dtype=int)
+    #print('DEBUG:'+ str(nHalf + 1) + ', ' + str(type(g_sieve1)))
+  
+  sieve1 = g_sieve1
 
   # initialize sieve
   #sieve1.clear()
-  #print(len(sieve1))
   #sieve1 = [0 for i in range(nHalf + 1)]
   for i in range(0, nHalf + 1):
     sieve1[i] = 0
@@ -234,6 +241,16 @@ def bench05(n):
   x = (x + line[k] * line[k]) & 0xffff # we assume that k is even, so we need to take the middle element
   return x
 
+def bench06(n):
+  sum = 0.0
+  flip = -1.0
+  for i in range(1, n + 1):
+    flip *= -1.0
+    sum += flip / (2*i - 1)
+  return int((sum * 4.0) * 100000000)
+
+
+benchList = [bench00, bench01, bench02, bench03, bench04, bench05, bench06]
 
 #
 # run a benchmark
@@ -245,22 +262,11 @@ def bench05(n):
 def run_bench(bench, loops, n, check):
   x = 0
 
+  benchPtr = benchList[bench]
+
   while loops > 0 and x == 0:
-    loops = loops - 1
-    if bench == 0:
-      x = bench00(n)
-    elif bench == 1:
-      x = bench01(n)
-    elif bench == 2:
-      x = bench02(n)
-    elif bench == 3:
-      x = bench03(n)
-    elif bench == 4:
-      x = bench04(n)
-    elif bench == 5:
-      x = bench05(n)
-    else:
-      print('Error: Unknown benchmark: '+ str(bench))
+    x = benchPtr(n)
+    loops -= 1
     x -= check
 
   x += check
@@ -308,6 +314,11 @@ def getCheck(bench, n):
       check = 17376
     else:
       check = bench05(n); # bench05 not a real check
+  elif bench == 6:
+    if n == 1000000:
+      check = 314159165
+    else:
+      check = bench06(n); # bench06 not a real check
   else:
     print('Error: Unknown benchmark: '+ str(bench))
     check = -1 # force error

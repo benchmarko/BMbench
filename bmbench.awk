@@ -223,6 +223,16 @@ function bench05(n,    x, k, line, i, min1, prev, j, num) {
   return x % 65536;
 }
 
+function bench06(n,    sum, flip, i) {
+  sum = 0.0;
+	flip = 1.0;
+  for (i = 1; i <= n; i++) {
+    sum += flip / (2 * i - 1);
+		flip *= -1.0;
+  }
+  return int((sum * 4.0) * 100000000);
+}
+
 
 #
 # run a benchmark
@@ -251,6 +261,9 @@ function run_bench(bench, loops, n, check,    x) {
 
     } else if (bench == 5) {
         x = bench05(n);
+
+    } else if (bench == 6) {
+        x = bench06(n);
 
     } else {
         printf("Error: Unknown benchmark: %d\n", bench);
@@ -310,6 +323,9 @@ function getCheck(bench, n,   check) {
 
   } else if (bench == 5) {
     check = (n == 5000) ? 17376 : bench05(n); # bench05 not a real check
+
+  } else if (bench ==6) {
+    check = (n == 1000000) ? 314159165 : bench06(n); # bench06 not a real check
 
   } else {
     printf("Error: Unknown benchmark: %d\n", bench);
