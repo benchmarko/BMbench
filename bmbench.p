@@ -69,7 +69,7 @@ PROGRAM bmbench (Input, Output);
 
   CONST g_prg_version = '0.08';
   CONST g_prg_language = 'Pascal';
-  CONST MAX_BENCH = 5;
+  CONST MAX_BENCH = 6;
 
   VAR argc: INTEGER;
   VAR argv: POINTER;
@@ -318,7 +318,23 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     bench05 := x;
   END; (* bench05 *)
 
- 
+
+  FUNCTION bench06(n: LONGINT): INTEGER;
+  VAR sum : DOUBLE;
+      flip: DOUBLE;
+      i : LONGINT;
+
+  BEGIN
+	  sum := 0.0;
+    flip := -1.0;
+    FOR i := 1 TO n DO BEGIN
+      flip := flip * -1.0;
+      sum := sum + flip / (2*i - 1);
+    END;
+    bench06 := Trunc((sum * 4.0) * 100000000) MOD 65536;
+  END; (* bench06 *)
+
+
  (*
   * bench03Check
   * check function (used for n <> 1000000)
@@ -381,6 +397,9 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
         5:  BEGIN
               x := bench05(n);
             END;
+        6:  BEGIN
+              x := bench06(n);
+            END;
         ELSE
           WriteLn('Error: Unknown benchmark: ', bench);  (* StdErr is gpc extension, so don't use it *)
           x := -1;
@@ -432,6 +451,10 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
       5:  BEGIN
             IF n = 5000 THEN check := 17376
             ELSE check := bench05(n);
+          END;
+      6:  BEGIN
+            IF n = 1000000 THEN check := INTEGER(314159165 AND $ffff)
+            ELSE check := bench06(n);
           END;
       ELSE
         WriteLn('Error: Unknown benchmark: ', bench);  (* StdErr is gpc extension, so don't use it *)

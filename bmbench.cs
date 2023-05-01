@@ -36,6 +36,7 @@ public class Bmbench {
   private static int g_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
   private static int g_tsMeasCnt = 0; // last measured count
   private static int g_cali_ms = 1001; //
+  private static int maxBench = 6;
 
   //private static System.Globalization.NumberFormatInfo nfi = new System.Globalization.CultureInfo("en-US", false).NumberFormat;
   private static IFormatProvider nfi = System.Globalization.CultureInfo.InvariantCulture; //new System.Globalization.CultureInfo("en-US", false).NumberFormat;
@@ -231,6 +232,16 @@ public class Bmbench {
     return x & 0xffff;
   }
 
+  private static int bench06(int n) {
+    double sum = 0.0;
+    double flip = -1.0;
+    for (int i = 1; i <= n; i++) {
+      flip *= -1.0;
+      sum += flip / (2*i - 1);       
+    }
+    return (int)((sum * 4.0) * 100000000);
+  }
+
 
   //
   // run a benchmark
@@ -240,7 +251,7 @@ public class Bmbench {
   // out:    x = result
   //
   private static int run_bench(int bench, int loops, int n, int check) {
-    if (bench > 5) {
+    if (bench > maxBench) {
       Console.Error.WriteLine("Error: Unknown benchmark " + bench);
     }
 
@@ -269,6 +280,10 @@ public class Bmbench {
 
         case 5:
           x = bench05(n);
+          break;
+
+        case 6:
+          x = bench06(n);
           break;
 
         default:
@@ -339,6 +354,10 @@ public class Bmbench {
       case 5:
         check = (n == 5000) ? 17376 : bench05(n); // bench05 not a real check
         break;
+
+      case 6:
+        check = (n == 1000000) ? 314159165 : bench06(n); // bench06 not a real check
+      break;
 
       default:
         Console.Error.WriteLine("Error: Unknown benchmark " + bench);

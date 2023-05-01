@@ -31,11 +31,11 @@ class bmbench {
   static String prg_language = "Java";
 
   private static long gState_startTs = 0;
-  private static double gState_tsPrecMs = 0; // measured time stamp precision
+  private static double gState_tsPrecMs = 0.0; // measured time stamp precision
   private static int gState_tsPrecCnt = 0; // time stamp count (calls) per precision interval (until time change)
   private static int gState_tsMeasCnt = 0; // last measured count
   private static int g_cali_ms = 1001; //
-
+  private static int maxBench = 6;
   
   /*
   private static class gState {
@@ -255,6 +255,15 @@ class bmbench {
     return x & 0xffff;
   }
 
+  private static int bench06(int n) {
+    double sum = 0.0;
+    double flip = -1.0;
+    for (int i = 1; i <= n; i++) {
+      flip *= -1.0;
+      sum += flip / (2 * i - 1);
+    }
+    return (int)((sum * 4.0) * 100000000);
+  }
 
   //
   // run a benchmark
@@ -264,7 +273,7 @@ class bmbench {
   // out:    x = result
   //
   public static int run_bench(int bench, int loops, int n, int check) {
-    if (bench > 5) {
+    if (bench > maxBench) {
       System.out.println("Error: Unknown benchmark " + bench);
     }
 
@@ -293,6 +302,10 @@ class bmbench {
 
         case 5:
           x = bench05(n);
+          break;
+
+        case 6:
+          x = bench06(n);
           break;
 
         default:
@@ -361,6 +374,10 @@ class bmbench {
       case 5:
         check = (n == 5000) ? 17376 : bench05(n); // bench05 not a real check
         break;
+
+      case 6:
+        check = (n == 1000000) ? 314159165 : bench06(n); // bench06 not a real check
+      break;
 
       default:
         System.out.println("Error: Unknown benchmark " + bench);
@@ -586,9 +603,9 @@ class bmbench {
 
     int loops = 1; // number of loops
     int x;     // result from benchmark
-    double tMeas = 0;   // measured time
-    double tEsti = 0;   // estimated time
-    double throughput = 0;
+    double tMeas = 0.0;   // measured time
+    double tEsti = 0.0;   // estimated time
+    double throughput = 0.0;
 
     System.out.println("Calibrating benchmark " + bench + " with n=" + n + ", check=" + check);
     while (throughput == 0) {

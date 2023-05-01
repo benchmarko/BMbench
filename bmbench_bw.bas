@@ -38,6 +38,7 @@
      DEF FNgetTs = TIMER - startTs
      startTs = FNgetTs
      DEF FNconvMs!(ts) = ts * 1000.0
+     maxBench = 6
      GOTO 6000: REM main
      REM
      REM
@@ -161,12 +162,23 @@
      REM
      REM
      REM
+     REM bench06(n): x
+2240 sum! = 0.0
+     flip! = -1.0
+     FOR i = 1 TO n
+       flip! = flip! * -1.0
+       sum! = sum! + flip! / (2 * i - 1)
+     NEXT i
+     x = ((sum! * 4.0) * 100000000)
+     RETURN
+     REM
+     REM
      REM run_bench(bench, loops, n, check): x
-2250 x = 0
-     IF bench > 5 THEN PRINT "Error: Unknown benchmark:"; bench: RETURN
+2260 x = 0
+     IF bench > maxBench THEN PRINT "Error: Unknown benchmark:"; bench: RETURN
      l = loops
      WHILE l > 0 AND x = 0
-       ON bench + 1 GOSUB 1570, 1840, 2040, 2060, 2150, 2200
+       ON bench + 1 GOSUB 1570, 1840, 2040, 2060, 2150, 2200, 2240
        x = x - check
        l = l - 1
      WEND
@@ -176,7 +188,7 @@
      REM
      REM
      REM bench03Check(n): x
-2270 x = 1
+2280 x = 1
      FOR j = 3 TO n STEP 2
        isPrime = 1
        i = 3
@@ -193,9 +205,10 @@
 2300 check = -1
      IF bench = 0 THEN check = ((n / 2) * (n + 1)) MOD 65536
      IF bench = 1 OR bench = 2 THEN check = (n + 1) / 2
-     IF bench = 3 THEN IF n = 500000 THEN check = 41538 ELSE GOSUB 2270: check = x
+     IF bench = 3 THEN IF n = 500000 THEN check = 41538 ELSE GOSUB 2280: check = x
      IF bench = 4 THEN IF n = 1000000 THEN check = 1227283347 ELSE GOSUB 2150: check = x
      IF bench = 5 THEN IF n = 5000 THEN check = 17376 ELSE GOSUB 2200: check = x
+     IF bench = 6 THEN IF n = 1000000 THEN check = 314159165 ELSE GOSUB 2240: check = x
      IF check = -1 THEN PRINT "Error: Unknown benchmark:"; bench
      RETURN
      REM
@@ -266,7 +279,7 @@
      WHILE throughput! = 0
        GOSUB 2320: REM getPrecMs
        t0m = t1
-       GOSUB 2250: REM run_bench
+       GOSUB 2260: REM run_bench
        GOSUB 2320: REM getPrecMs
        GOSUB 2380: REM correctTime
        tMeas! = t1Ms! - FNconvMs!(t0m)
@@ -292,7 +305,7 @@
      REM startBench(bench1, bench2, n): void
 5480 GOSUB 2400: REM determineTsPrecision
      GOSUB 3400: REM printInfo
-     DIM benchres!(5): REM benchmark timing results
+     DIM benchres!(maxBench): REM benchmark timing results
      nSave = n
      FOR bench = bench1 TO bench2
        n = nSave

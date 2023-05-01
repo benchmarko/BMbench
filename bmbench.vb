@@ -49,6 +49,7 @@ Public Module Module1
     Dim g_tsPrecCnt As Integer = 0
     Dim g_tsMeasCnt As Integer = 0
     Dim g_cali_ms As Integer = 1001
+    Dim maxBanch As Integer = 6
 
    ' Dim nfi As System.Globalization.NumberFormatInfo = new System.Globalization.CultureInfo("en-US", false).NumberFormat
     Dim nfi As IFormatProvider = System.Globalization.CultureInfo.InvariantCulture
@@ -245,6 +246,15 @@ Public Module Module1
         Return x
     End Function
 
+    Function bench06(ByVal n As Integer) As Integer
+        Dim sum as Double = 0.0
+        Dim flip as Double = -1.0
+        For i As Integer = 1 To n
+            flip *= -1.0
+            sum += flip / (2*i - 1)
+        Next i
+        Return ((sum * 4.0) * 100000000)
+    End Function
 
     '
     ' run a benchmark
@@ -270,6 +280,8 @@ Public Module Module1
                     x = bench04(n)
                 Case 5
                     x = bench05(n)
+                Case 6
+                    x = bench06(n)
                 Case Else
                     System.Console.WriteLine("Error: Unknown benchmark: " & bench)
                     check = -1
@@ -336,6 +348,12 @@ Public Module Module1
                     check = 17376
                 Else
                     check = bench05(n)
+                End If
+            Case 6
+                If n = 1000000 Then
+                    check = 314159165
+                Else
+                    check = bench06(n)
                 End If
             Case Else
                 System.Console.WriteLine("Error: Unknown benchmark: " & bench)

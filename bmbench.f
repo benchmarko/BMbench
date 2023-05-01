@@ -311,6 +311,18 @@ C      X = AND(X + PAS1(MOD(N, 2), K), 65535)
       RETURN
       END
 C
+      SUBROUTINE BENCH06(N, X)
+      INTEGER N, X
+      DOUBLE PRECISION SUM1, FLIP1
+      INTEGER I
+      SUM1 = 0.0
+      FLIP1 = -1.0
+      DO 30 I = 1, N
+        FLIP1 = FLIP1 * (-1.0)
+        SUM1 = SUM1 + FLIP1 / (2*i - 1)
+   30 CONTINUE
+      X = (SUM1 * 4.0) * 100000000
+      END
 C
 C
 C run a benchmark
@@ -338,6 +350,8 @@ C          PRINT *, 'ret3: I=', I, ' L=', L, ' X=', X
           CALL BENCH04(N, X)
         ELSE IF (BENCH .EQ. 5) THEN
           CALL BENCH05(N, X)
+        ELSE IF (BENCH .EQ. 6) THEN
+          CALL BENCH06(N, X)
         ELSE
           PRINT *, 'Error: Unknown benchmark: ', BENCH
           X = -1
@@ -406,6 +420,12 @@ C        PRINT *, 'ret3: I=', I, ' L=', L, ' X=', X
           CHECK1 = 17376
         ELSE
           CALL BENCH05(N, CHECK1)
+        ENDIF
+      ELSE IF (BENCH .EQ. 6) THEN
+        IF (N .EQ. 1000000) THEN
+          CHECK1 = 314159165
+        ELSE
+          CALL BENCH06(N, CHECK1)
         ENDIF
       ELSE
         PRINT *, 'Error: Unknown benchmark: ', BENCH
@@ -781,7 +801,7 @@ C   main
 C
       SUBROUTINE MAIN()
       INTEGER MAX_BENCH
-      PARAMETER (MAX_BENCH = 5)
+      PARAMETER (MAX_BENCH = 6)
       INTEGER BENCH1, BENCH2, N
 C declare functions...
       INTEGER GET_NUMARG

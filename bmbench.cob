@@ -100,6 +100,7 @@
 
  01 bench1 USAGE BINARY PIC 9 value 0.
  01 bench2 USAGE BINARY PIC 9 value 5.
+ 01 max-bench USAGE BINARY PIC 9 value 6.
  01 bench USAGE BINARY PIC 9 value 0.
  01 n  USAGE BINARY PIC 9(9) value 1000000.
  01 max-ms USAGE BINARY PIC S9(9) value 10000.
@@ -129,7 +130,7 @@
  01 start-t USAGE BINARY PIC S9(9) value 0.
 
  01 bench-res1-array.
-   05 bench-res1 OCCURS 6 TIMES USAGE COMP-2.
+   05 bench-res1 OCCURS 7 TIMES USAGE COMP-2.
 
 
 *> data for bench00:
@@ -166,6 +167,8 @@
  01 bench05-min1 USAGE BINARY PIC S9(9) value 0.
  01 bench05-prev USAGE BINARY PIC S9(9) value 0.
  01 bench05-num USAGE BINARY PIC S9(9) value 0.
+ 
+ 01 bench06-flip1-d USAGE COMP-2 value 0.
  
 *> data for bench03Check:
  01 bench03Check-isPrime PIC X.
@@ -406,7 +409,22 @@ bench05.
   MOVE bench05-save-n TO n
   .
 
-
+*>
+*>
+*>
+bench06.
+  MOVE 0.0 TO sum1-d
+  MOVE -1.0 TO bench06-flip1-d
+  
+  MOVE 1 TO i-d
+*>  DISPLAY "DDD: " i-d
+  PERFORM n TIMES
+    COMPUTE bench06-flip1-d = bench06-flip1-d * (-1.0)
+    COMPUTE sum1-d = sum1-d + bench06-flip1-d / (2 * i-d - 1)
+    ADD 1 TO i-d
+  END-PERFORM
+  COMPUTE x = ((sum1-d * 4.0) * 100000000)
+  .
 
 *>
 *> run a benchmark
@@ -434,6 +452,8 @@ run-bench.
       PERFORM bench04
     WHEN 5
       PERFORM bench05
+    WHEN 6
+      PERFORM bench06
     WHEN OTHER
       DISPLAY "Error: Unknown benchmark: " bench
       MOVE -1 TO x
@@ -509,6 +529,13 @@ getCheck.
       MOVE 17376 TO check1
     ELSE
       PERFORM bench05
+      MOVE x TO check1
+    END-IF
+   WHEN 6
+    IF n = 1000000
+      MOVE 314159165 TO check1
+    ELSE
+      PERFORM bench06
       MOVE x TO check1
     END-IF
    WHEN OTHER
@@ -757,8 +784,8 @@ start-bench.
   PERFORM get-info
 
   MOVE n TO start-bench-n
-
   MOVE bench1 to bench
+
   PERFORM UNTIL bench > bench2
     MOVE start-bench-n TO n
     IF bench = 3
@@ -787,7 +814,7 @@ start-bench.
 *>
 *>
 main-form.
-  IF args-str <> SPACE AND args-str(1:1) >= "0" AND args-str(1:1) <= "5"
+  IF args-str <> SPACE AND args-str(1:1) >= "0" AND args-str(1:1) <= "6"
      UNSTRING args-str DELIMITED BY ' ' INTO args1 args2 args3 args4
   ELSE
     UNSTRING args-str DELIMITED BY ' ' INTO args0 args1 args2 args3 args4
