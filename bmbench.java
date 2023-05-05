@@ -614,7 +614,7 @@ class bmbench {
       tMeas = getPrecMs(true) - tMeas;
 
       double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
-      double loops_p_sec = (tMeas > 0) ? (loops * 1000.0 / tMeas) : 0;
+      double loops_p_sec = (tMeas > 0.0) ? (loops * 1000.0 / tMeas) : 0.0;
       System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms)");
 
       if (x == -1) { // some error?
@@ -624,7 +624,7 @@ class bmbench {
         System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + loops + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms)");
       } else if (tMeas > max_ms) {
         System.out.println("Benchmark " + bench + " (" + prg_language + "): Time already > " + max_ms + " ms. No measurement possible.");
-        throughput = (loops_p_sec > 0) ? -loops_p_sec : -1; // cannot rely on measurement, so set to negative
+        throughput = (loops_p_sec > 0) ? -loops_p_sec : -1.0; // cannot rely on measurement, so set to negative
       } else {
         int scale_fact;
         if (tMeas == 0) {
@@ -659,7 +659,7 @@ class bmbench {
         n2 = n2 / 200;
       }
       int check = getCheck(bench, n2);
-      double throughput = (check > 0) ? measureBench(bench, n2, check) : -1;
+      double throughput = (check > 0) ? measureBench(bench, n2, check) : -1.0;
       bench_res[bench] = throughput;
     }
 
