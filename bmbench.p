@@ -291,7 +291,9 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     END;
   
     linePtr^[0] := 1;
-    linePtr^[1] := 2; (* for line 2, second column is 2 *)
+    IF (k >= 1) THEN BEGIN
+      linePtr^[1] := 2; (* for line 2, second column is 2 *)
+    END;
 
     (* compute *)
     FOR i := 3 TO n DO BEGIN
@@ -371,7 +373,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
   *         n = maximum number (used in some benchmarks to define size of workload)
   * out:    x = result
   *)
-  FUNCTION run_bench(bench, loops: INTEGER; n: LONGINT; check: INTEGER) : INTEGER;
+  FUNCTION run_bench(bench: INTEGER; loops: LONGINT; n: LONGINT; check: INTEGER) : INTEGER;
   VAR x : INTEGER;
 
   BEGIN
@@ -759,14 +761,14 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
   VAR cali_ms : INTEGER;
       delta_ms : INTEGER;
       max_ms : INTEGER;
-      loops : INTEGER; (* number of loops *)
+      loops : LONGINT; (* number of loops *)
       x : INTEGER; (* result from benchmark *)
       tMeas : DOUBLE; (* measured time *)
       tEsti : DOUBLE; (* estimated time *)
       throughput : DOUBLE;
 	    t_delta : DOUBLE;
 	    loops_p_sec : DOUBLE;
-	    scale_fact : INTEGER;
+	    scale_fact : LONGINT;
 
   BEGIN
     cali_ms := g_cali_ms; (* 1001 *)

@@ -259,7 +259,9 @@ bench05() {
   fi;
 
   pas1[0]=1;
-  pas1[1]=2;
+  if [ $k -ge 1 ]; then
+    pas1[1]=2;
+  fi;
   for (( i = 3 ; i <= n ; i++ )); do
     ((min1 = ((i - 1) / 2))); # int(...)
     ((test1=(i % 2))); # new element?

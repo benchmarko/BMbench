@@ -361,7 +361,9 @@ bench05.
   END-PERFORM
 
   MOVE 1 TO bench05-pas1(0 + 1)
-  MOVE 2 TO bench05-pas1(1 + 1)
+  IF bench05-k >= 1
+    MOVE 2 TO bench05-pas1(1 + 1)
+  END-IF
 
 *> compute lines of Pascal's triangle
   MOVE 3 TO i

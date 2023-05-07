@@ -250,7 +250,9 @@ static int bench05(int n) {
   }
 
   line[0] = 1;
-  line[1] = 2; // for line 2, second column is 2
+  if (k >= 1) {
+    line[1] = 2; // for line 2, second column is 2
+  }
 
   // compute lines of Pascal's triangle
   for (int i = 3; i <= n; i++) {

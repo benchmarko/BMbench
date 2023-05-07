@@ -216,7 +216,8 @@ def bench05(n):
   #  line[j] = 0
 
   line[0] = 1
-  line[1] = 2 # for line 2, second column is 2
+  if (k >= 1):
+    line[1] = 2 # for line 2, second column is 2
 
   x = 0
   # compute lines of Pascal's triangle

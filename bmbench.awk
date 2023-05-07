@@ -21,6 +21,8 @@
 # - Uses 'function', 'return' which is not supported by old awk
 # - Uses split("", <array>) as a portable way (for delete <array>) to delete array
 # - Uses systime() (and optional strftime()) which is a gawk extension
+# - gawk >= 4.1: awk '@load "time"; BEGIN{printf "%.6f", gettimeofday()}'
+# - ( https://www.gnu.org/software/gawk/manual/html_node/Extension-Sample-Time.html )
 #
 
 #
@@ -41,7 +43,12 @@
 # loops may be increased to produce a longer runtime without changing the result.
 #
 
+# comment the following line if you do not use Gawk >= 4.1
+@load "time" # precise timing could be used for Gawk >= 4.1, cannot set dynamically
+
 BEGIN {
+  g_use_gettimeofday = 1 # 0 = off, 1= use gettimeofday from the "time" library of Gawk >= 4.1
+
   PRG_VERSION = "0.08";
   PRG_LANGUAGE = "awk";
 
@@ -49,7 +56,7 @@ BEGIN {
   g_tsPrecCnt = 0; # time stamp count (calls) per precision interval (until time change)
   g_tsMeasCnt = 0; # last measured count
   g_cali_ms = 1001;
-  }
+}
 
 #
 # bench00 (Integer 16 bit) (awk computes always in floating point!)
@@ -78,6 +85,7 @@ function bench00(n,    x, n_div_65536, n_mod_65536, i, j) {
 #
 function bench01(n,    x, sum, i) {
   x = 0;
+  sum = 0;
   for (i = 1; i <= n; i++) {
     sum += i;
     if (sum >= n) {
@@ -94,7 +102,8 @@ function bench01(n,    x, sum, i) {
 # (sum of 1..n) mod 65536
 #
 function bench02(n,    x, sum, i) {
-  x = 0.0;
+  x = 0;
+  sum = 0.0;
   for (i = 1; i <= n; i++) {
     sum += i;
     if (sum >= n) {
@@ -127,11 +136,11 @@ function bench03(n,    nHalf, m, x, sieve1, i, j) {
   x = 1; # number of primes below n (2 is prime)
 
   while (m * m <= n) {
-    if (!sieve[i]) {
+    if (!sieve1[i]) {
       x++; # m is prime
       j = int((m * m - 3) / 2); # div 2
       while (j < nHalf) {
-        sieve[j] = 1;
+        sieve1[j] = 1;
         j += m;
       }
     }
@@ -141,7 +150,7 @@ function bench03(n,    nHalf, m, x, sieve1, i, j) {
 
   # count remaining primes
   while (m <= n) {
-    if (!sieve[i]) {
+    if (!sieve1[i]) {
       x++; # m is prime
     }
     i++;
@@ -194,7 +203,9 @@ function bench05(n,    x, k, line, i, min1, prev, j, num) {
 
   #line[]=
   line[0] = 1;
-  line[1] = 2; # for line 2, second column is 2
+  if (k >= 1) {
+    line[1] = 2; # for line 2, second column is 2
+  }
 
   # compute lines of Pascal's triangle 
   for (i = 3; i <= n; i++) {
@@ -282,21 +293,17 @@ function run_bench(bench, loops, n, check,    x) {
 
 
 function bench03Check(n,  x, j, i, isPrime) {
-  if (n == 500000) {
-    x = 41538;
-  } else {
-    x = 1; # 2 is prime
-    for (j = 3; j <= n; j += 2) {
-      isPrime = 1;
-      for (i = 3; i * i <= j; i += 2) {
-        if (j % i == 0) {
-          isPrime = 0;
-          break;
-        }
+  x = 1; # 2 is prime
+  for (j = 3; j <= n; j += 2) {
+    isPrime = 1;
+    for (i = 3; i * i <= j; i += 2) {
+      if (j % i == 0) {
+        isPrime = 0;
+        break;
       }
-      if (isPrime) {
-        x++;
-      }
+    }
+    if (isPrime) {
+      x++;
     }
   }
   return x;
@@ -310,13 +317,13 @@ function getCheck(bench, n,   check) {
     check = (int((n + (n % 2)) / 2) * (n + 1 - (n % 2))) % 65536; # 10528 for n=1000000
 
   } else if (bench == 1) {
-    check = (n + 1) / 2; # 10528
+    check = int((n + 1) / 2); # 10528
 
   } else if (bench == 2) {
-    check = (n + 1) / 2;
+    check = int((n + 1) / 2);
 
   } else if (bench == 3) {
-    check = bench03Check(n);
+    check = (n == 500000) ? 41538 : bench03Check(n);
 
   } else if (bench == 4) {
     check = (n == 1000000) ? 1227283347 : bench04(n); # bench04 not a real check
@@ -324,7 +331,7 @@ function getCheck(bench, n,   check) {
   } else if (bench == 5) {
     check = (n == 5000) ? 17376 : bench05(n); # bench05 not a real check
 
-  } else if (bench ==6) {
+  } else if (bench == 6) {
     check = (n == 1000000) ? 314159165 : bench06(n); # bench06 not a real check
 
   } else {
@@ -334,12 +341,13 @@ function getCheck(bench, n,   check) {
   return check;
 }
 
-# systime() is gawk extension
 function get_raw_ts() {
-  if (g_use_gawk) {
+  if (g_use_gettimeofday) {
+    return(gettimeofday());
+  } else if (g_use_systime) {
     return(systime()); # for gawk we have systime()! (but still undefined on other systems...)
   } else {
-    g_last_time += 500; # can only simulate time
+    g_last_time += 0.5; # can only simulate time
     return(g_last_time);
   }
 }
@@ -402,15 +410,6 @@ function determineTsPrecision(   tMeas0, tMeas1) {
 }
 
 
-function getdate1() {
-  if (g_use_gawk) {
-    return strftime(); # gawk extension
-  } else {
-    return "";
-  }
-}
-
-
 # Here we compute the number of "significant" bits for positive numbers (which means 53 for double)
 function checkbits_int1(    num, last_num, bits) {
   num = 1;
@@ -438,10 +437,23 @@ function checkbits_double1(    num, last_num, bits) {
   return bits;
 }
 
+function getdate1() {
+  if (g_use_strftime) {
+    return strftime("%Y-%m-%d %H:%M:%S"); # gawk extension
+  } else {
+    return "";
+  }
+}
 
-function print_info() {
-  printf("BM Bench v%s (%s) -- (int:%d double:%d tsMs:%f tsCnt:%d) %s\n", PRG_VERSION, PRG_LANGUAGE, checkbits_int1(), checkbits_double1(),  g_tsPrecMs, g_tsPrecCnt, g_awk_version);
-  print("(c) Marco Vieth, 2006-2023"); # print appends \n!
+function print_info(   awk_info) {
+  if (g_awk_version) {
+    awk_info = "GNU Awk " g_awk_version " API: " PROCINFO["api_major"] "." PROCINFO["api_minor"] " (" PROCINFO["mpfr_version"] ", " PROCINFO["gmp_version"] ") " PROCINFO["platform"]
+  } else {
+    awk_info = "awk version ?";
+  }
+
+  printf("BM Bench v%s (%s) -- (int:%d double:%d tsMs:%f tsCnt:%d) %s\n", PRG_VERSION, PRG_LANGUAGE, checkbits_int1(), checkbits_double1(),  g_tsPrecMs, g_tsPrecCnt, awk_info);
+  print("(c) Marco Vieth, 2006-2023"); # print appends \n
   print("Date:", getdate1());
 }
 
@@ -455,8 +467,8 @@ function print_results(bench1, bench2, bench_res1,    max_language_len1, bench) 
   for (bench = bench1; bench <= bench2; bench++) {
     printf("%9.3f ", bench_res1[bench]);
   }
-  print;
-  print;
+  print "";
+  print "";
 }
 
 
@@ -467,8 +479,8 @@ function measureBench(bench, n, check,   delta_ms, max_ms, cali_ms, loops, x, t1
 
   loops = 1; # number of loops
   x = 0;     # result from benchmark
-  t1 = 0;    # measured time
-  t2 = 0;    # estimated time
+  t1 = 0.0;    # measured time
+  t2 = 0.0;    # estimated time
   throughput = 0;
 
   printf("Calibrating benchmark %d with n=%d, check=%d\n", bench, n, check);
@@ -479,12 +491,12 @@ function measureBench(bench, n, check,   delta_ms, max_ms, cali_ms, loops, x, t1
 
     t_delta = (t2 > t1) ? (t2 - t1) : (t1 - t2); # compute difference abs(measures-estimated)
     loops_p_sec = (t1 > 0) ? (loops * 1000.0 / t1) : 0;
-    printf("%10.3f/s (time=%5ld ms, loops=%7d, delta=%5d ms, x=%d)\n", loops_p_sec, t1, loops, t_delta, x);
+    printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms, x=%d)\n", loops_p_sec, t1, loops, t_delta, x);
     if (x == -1) { # some error?
       throughput = -1;
     } else if ((t2 > 0) && (t_delta < delta_ms)) {
       throughput = loops_p_sec;
-      printf("Benchmark %d (%s): %.3f/s (time=%ld ms, loops=%d, delta=%d ms)\n", bench, PRG_LANGUAGE, loops_p_sec, t1, loops, t_delta);
+      printf("Benchmark %d (%s): %.3f/s (time=%9.3f ms, loops=%d, delta=%.3f ms)\n", bench, PRG_LANGUAGE, loops_p_sec, t1, loops, t_delta);
     } else if (t1 > max_ms) {
       printf("Benchmark %d (%s): Time already > %d ms. No measurement possible.\n", bench, PRG_LANGUAGE, max_ms);
       throughput = (loops_p_sec > 0) ? -loops_p_sec : -1; # cannot rely on measurement, so set to negative
@@ -503,8 +515,11 @@ function measureBench(bench, n, check,   delta_ms, max_ms, cali_ms, loops, x, t1
   return throughput;
 }
 
-function start_bench(bench1, bench2, n,  bench_res1, bench, n2, check, throughput) {
+function start_bench(bench1, bench2, n, argStr,  bench_res1, bench, n2, check, throughput) {
   print_info();
+  if (argStr != "") {
+    print "Args:" argStr;
+  }
 
   #bench_res1[]=
 
@@ -551,23 +566,38 @@ function main(argc, argv,    bench1, bench2, n, rc) {
     g_cali_ms = argv[4];
   }
 
+  argStr = "";
+  for (i = 1; i < argc; i++) {
+    argStr = argStr " " argv[i];
+  }
+
   determineTsPrecision();
-  rc = start_bench(bench1, bench2, n);
+  rc = start_bench(bench1, bench2, n, argStr);
 
   printf("Total elapsed time: %d ms\n", conv_ms(get_ts()));
   return rc;
 }
 
-
 BEGIN {
-  if (TEXTDOMAIN) { # TEXTDOMAIN is defined for gawk!
-    g_use_gawk = 1;
-    # assume gawk and get first line with version info...
-    "gawk --version" | getline g_awk_version;
-    #g_awk_version = "gawk version ?";
+  if (!g_use_gettimeofday) { # not set to 1 on top?
+    g_use_gettimeofday = 0
+  }
+
+  if (PROCINFO["version"]) { # defined since Gawk 3.1.4
+    g_awk_version = PROCINFO["version"]
+    g_use_systime = 1 # can be used since gawk 2.1.3
+    g_use_strftime = 1
+
+    if (g_awk_version >= 4.1) {
+      #@load "time"; # cannot load here
+      #g_use_gettimeofday = 1
+    }
+    # alternative way to get version info from first line of "gawk --version":
+    # "gawk --version" | getline g_awk_info;
   } else {
-    g_use_gawk = 0;
-    g_awk_version = "awk version ?";
+    g_use_systime = 0;
+    g_use_strftime = 0;
+    g_awk_version = 0;
   }
   main(ARGC, ARGV);
   exit;

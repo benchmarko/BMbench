@@ -144,7 +144,7 @@ proc bench03 {n} {
   set i 0; 
   set m 3; 
   set x 1; # number of primes below n (2 is prime)
-  while {[expr {$i * $i}] <= $n} {
+  while {[expr {$m * $m}] <= $n} {
     if {![lindex $sieve1 $i]} {
       incr x; # m is prime
       set j [expr {($m * $m - 3) >> 1}];
@@ -159,7 +159,7 @@ proc bench03 {n} {
   }
 
   # count remaining primes
-  while {$m < $n} {
+  while {$m <= $n} {
     if {![lindex $sieve1 $i]} {
       incr x;
     }
@@ -221,7 +221,9 @@ proc bench05 {n} {
   
   set line {};
   lset line 0 1;
-  lset line 1 2;
+  if {$k >= 1} {
+    lset line 1 2;
+  }
 
   for {set i 3} {$i <= $n} {incr i} {
     set min1 [expr {($i - 1) / 2}];

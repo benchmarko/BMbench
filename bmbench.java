@@ -227,7 +227,9 @@ class bmbench {
     }
 
     line[0] = 1;
-    line[1] = 2; // for line 2, second column is 2
+    if (line.length > 1) {
+      line[1] = 2; // for line 2, second column is 2
+    }
 
     // compute lines of Pascal's triangle
     for (int i = 3; i <= n; i++) {
@@ -545,10 +547,15 @@ class bmbench {
     return (str.toString());
   }
 
-  private static String mynumformat1_d(double val, int digits, int prec) {
+  private static String mynumformat1_d(double val, int digits) {
+    final int prec = 3;
     StringBuffer str = new StringBuffer(); // buffer for one formatted value
-    double displ_prec_after = Math.pow(10, 3);  // display precision after decimal point
+    double displ_prec_after = Math.pow(10, prec);  // display precision after decimal point
     str.append(Math.round(val * displ_prec_after) / (displ_prec_after * 1.0));
+
+    if (str.indexOf("E") >= 0) { // exponential notation?
+      return str.toString(); // cannot format
+    }
 
     if (str.toString().indexOf('.') < 0) { // should not occur
       System.out.println("WARNING: str does not contain a dot: " + str);
@@ -590,7 +597,7 @@ class bmbench {
     }
     str += ": ";
     for (int bench = bench1; bench <= bench2; bench++) {
-      str += mynumformat1_d(bench_res1[bench], 9, 3) + ' ';
+      str += mynumformat1_d(bench_res1[bench], 9) + ' ';
     }
     System.out.println(str);
     System.out.println("");
@@ -615,13 +622,14 @@ class bmbench {
 
       double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
       double loops_p_sec = (tMeas > 0.0) ? (loops * 1000.0 / tMeas) : 0.0;
-      System.out.println(mynumformat1_d(loops_p_sec, 10, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms)");
+
+      System.out.println(mynumformat1_d(loops_p_sec, 10) + "/s (time=" + mynumformat1_d(tMeas, 9) + " ms, loops=" + mynumformat1_i(loops, 7) + ", delta=" + mynumformat1_d(t_delta, 9) + " ms)");
 
       if (x == -1) { // some error?
         throughput = -1;
       } else if ((tEsti > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
         throughput = loops_p_sec; // yeah, set measured loops per sec
-        System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0, 3) + "/s (time=" + mynumformat1_d(tMeas, 9, 3) + " ms, loops=" + loops + ", delta=" + mynumformat1_d(t_delta, 9, 3) + " ms)");
+        System.out.println("Benchmark " + bench + " (" + prg_language + "): " + mynumformat1_d(loops_p_sec, 0) + "/s (time=" + mynumformat1_d(tMeas, 9) + " ms, loops=" + loops + ", delta=" + mynumformat1_d(t_delta, 9) + " ms)");
       } else if (tMeas > max_ms) {
         System.out.println("Benchmark " + bench + " (" + prg_language + "): Time already > " + max_ms + " ms. No measurement possible.");
         throughput = (loops_p_sec > 0) ? -loops_p_sec : -1.0; // cannot rely on measurement, so set to negative

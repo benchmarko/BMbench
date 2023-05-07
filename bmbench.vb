@@ -210,7 +210,9 @@ Public Module Module1
         Next j
 
         line(0) = 1
-        line(1) = 2 'for line 2, second column is 2
+        If k >= 1 Then
+            line(1) = 2 'for line 2, second column is 2
+        End If
 
         'compute lines of Pascal's triangle
         For i As Integer = 3 To n

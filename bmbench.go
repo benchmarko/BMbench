@@ -183,7 +183,9 @@ func bench05(n int) int {
 		line[j] = 0
 	}
 	line[0] = 1
-	line[1] = 2
+	if (len(line) > 1) {
+	    line[1] = 2
+	}
 	for i := 3; i <= n; i++ {
 		min1 := (i - 1) / 2
 		if i&1 == 0 {

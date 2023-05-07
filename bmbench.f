@@ -278,7 +278,9 @@ C keep k minimal with  n over k  =  n over n-k
 
 C Set first column
       PAS1(0) = 1
-      PAS1(1) = 2
+      IF (K .GE. 1) THEN
+        PAS1(1) = 2
+      ENDIF
       
 C     PRINT *, 'DEBUG: LOOPS=', LOOPS, ', N=', N, ', K=', K
       DO 70 I = 3, N

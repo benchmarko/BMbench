@@ -132,7 +132,7 @@
      REM initialize (not needed)
      FOR j = 0 TO k: line1(j) = 0: NEXT j
      line1(0) = 1
-     line1(1) = 2
+     IF k >= 1 THEN line1(1) = 2
      REM compute lines of Pascal's triangle
      FOR i = 3 TO n
        min1 = INT((i - 1) / 2)
