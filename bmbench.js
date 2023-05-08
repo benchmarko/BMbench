@@ -334,7 +334,7 @@ function bench05(n, state) {
 }
 
 // https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/toosimple.html
-// (Gregory series formula in slow convergence towards Pi) 
+// (Gregory series formula in slow convergence towards Pi)
 function bench06(n) {
 	var sum = 0.0,
 		flip = 1.0,
