@@ -36,7 +36,7 @@ class bmbench {
   private static int gState_tsMeasCnt = 0; // last measured count
   private static int g_cali_ms = 1001; //
   private static int maxBench = 6;
-  
+
   /*
   private static class gState {
     int tsMeasCnt = 0;
@@ -168,7 +168,7 @@ class bmbench {
     return x;
   }
 
- 
+
   //
   // bench04 (Integer 32 bit)
   // nth random number number
@@ -237,7 +237,7 @@ class bmbench {
       if ((i & 1) == 0) { // new element?
         line[min1 + 1] = 2 * line[min1];
       }
-      
+
       int prev = line[1];
       for (int j = 2; j <= min1; j++) {
         int num =  line[j];
@@ -582,7 +582,7 @@ class bmbench {
       + ", os.version=" + System.getProperty("os.version") + "\n"
       + "(c) Marco Vieth, 2002-2022\n"
       + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(System.currentTimeMillis()));
-    
+
     //System.out.println("properties="+ System.getProperties());
     return str;
   }
@@ -708,7 +708,7 @@ class bmbench {
   }
 }
 
-public class Main {  
+public class Main {
     public static void main(String args[]) {
         bmbench.main(args);
     }
@@ -716,7 +716,7 @@ public class Main {
 
 /*
 // https://rextester.com/l/java_online_compiler
-class Rextester {  
+class Rextester {
     public static void main(String args[]) {
         bmbench.main(args);
     }

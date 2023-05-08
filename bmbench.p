@@ -289,7 +289,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     FOR j := 1 TO k DO BEGIN
       linePtr^[j] := 0;
     END;
-  
+
     linePtr^[0] := 1;
     IF (k >= 1) THEN BEGIN
       linePtr^[1] := 2; (* for line 2, second column is 2 *)
@@ -409,7 +409,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
       loops := loops - 1;
 	    x := x - check;
     END;
-	
+
 	  x := x + check;
     IF (x <> check) THEN BEGIN
       WriteLn('Error(bench', bench, '): x=', x);
@@ -421,7 +421,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
 
   FUNCTION get_check(bench, n: LONGINT) : INTEGER;
   VAR check : INTEGER;
-  
+
   BEGIN
     CASE bench OF
       0:  BEGIN
@@ -517,7 +517,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     (* Write(t.Day:2, ':', t.Month:2, ':', t.Year:4, ' ', t.Hour:2, ':', t.Minute:2, ':', t.Second:2); *)
     Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); (* not formatted right *)
   END;
-  
+
 {$endif}
 
 
@@ -526,7 +526,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
   BEGIN
     get_raw_ts := Now * SecsPerDay * 1000.0; (* Now: from sysutils; todayInMilliseconds; https://stackoverflow.com/questions/29790895/get-current-time-milliseconds *)
   END; (* get_raw_ts *)
-  
+
   PROCEDURE getdate1;
   BEGIN
     (* Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); * not formatted right *)
@@ -542,7 +542,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     (* get_raw_ts := Now * SecsPerDay * 1000.0; *) (* Now: from sysutils; todayInMilliseconds; https://stackoverflow.com/questions/29790895/get-current-time-milliseconds *)
 	get_raw_ts := 100 * 1000.0; (* TTT *)
   END; (* get_raw_ts *)
-  
+
   PROCEDURE getdate1;
   BEGIN
     (* Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); * not formatted right *)
@@ -558,7 +558,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
 	last_time := last_time + 20000; (* simulate 20 seconds more *)
 	get_raw_ts := last_time;
   END; (* get_raw_ts *)
-  
+
   PROCEDURE getdate1;
   BEGIN
     (* Write(t.Day, ':', t.Month, ':', t.Year, ' ', t.Hour, ':', t.Minute, ':', t.Second); * not formatted right *)
@@ -725,12 +725,12 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
   PROCEDURE print_info;
   BEGIN
     WriteLn('BM Bench v', g_prg_version, ' (', g_prg_language, ') -- (short:', checkbits_short1, ' int:', checkbits_int1,
-      ' longint:', checkbits_longint1, ' float:', checkbits_float1, ' double:', checkbits_double1, 
+      ' longint:', checkbits_longint1, ' float:', checkbits_float1, ' double:', checkbits_double1,
       ' tsMs:', g_tsPrecMs, ' tsCnt:', g_tsPrecCnt, ') version ', PASCAL_VERSION);
     WriteLn('(c) Marco Vieth, 2002-2023');
     Write('Date: '); getdate1; WriteLn;
   END;
-  
+
   PROCEDURE print_results(bench1, bench2: INTEGER; bench_res1: ARRAY OF DOUBLE);
   (* Dim max_language_len1 As Integer = 10 *)
   VAR bench : INTEGER;
@@ -778,13 +778,13 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     tMeas := 0;
     tEsti := 0;
     throughput := 0;
-	
+
 	  WriteLn('Calibrating benchmark ', bench, ' with n=', n, ', check=', check);
 	  WHILE (throughput = 0) DO BEGIN
 	    tMeas := getPrecMs(false);
       x := run_bench(bench, loops, n,check);
       tMeas := getPrecMs(true) - tMeas;
-	  
+
       IF (tEsti > tMeas) THEN BEGIN (* compute difference abs(measures-estimated) *)
         t_Delta := tEsti - tMeas;
       END ELSE BEGIN
@@ -796,9 +796,9 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
       END ELSE BEGIN
         loops_p_sec := 0;
       END;
-      
+
       WriteLn(loops_p_sec:10:3, '/s (time=', tMeas:9:3, ' ms, loops=', loops:7, ', delta=', t_delta:9:3, ' ms, x=', x);
-      
+
       If (x = -1) THEN BEGIN (* some error? *)
           throughput := -1;
         END ELSE IF (tEsti > 0) And (t_delta < delta_ms) THEN BEGIN (* do we have some estimated/expected time smaller than delta_ms=100? *)
@@ -817,7 +817,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
           END ELSE IF (tMeas < cali_ms) THEN BEGIN
             scale_fact := TRUNC(((cali_ms + 100) / tMeas) + 1); (* for Integer *)
               (* scale a bit up to 1100 ms (cali_ms+100) *)
-          END ELSE BEGIN 
+          END ELSE BEGIN
             scale_fact := 2;
         END;
         (* WriteLn('DEBUG: loops=', loops, ' scale_fact=', scale_fact); *)
@@ -868,7 +868,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     n := 1000000;
 
     g_cali_ms := 1001;
-	
+
 	  err_code := 0;
 	  IF (argc > 0) THEN BEGIN
       Val(ParamStr(1), bench1, err_code);  (* ReadStr(ParamStr(1), bench1); *)
@@ -883,7 +883,7 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
     IF (argc > 3) THEN BEGIN
       Val(ParamStr(4), g_cali_ms, err_code); (* ReadStr(ParamStr(4), n); *)
     END;
-	
+
 	  IF (err_code <> 0) THEN BEGIN
       WriteLn('Error: parameter parsing error: ', err_code);
     END;
@@ -892,12 +892,12 @@ FUNCTION bench05(n_p: LONGINT): INTEGER;
       WriteLn('Error: benchmark out of range!');
       HALT; (* error *)
     END;
-	
+
 	  determineTsPrecision();
     start_bench(bench1, bench2, n);
     WriteLn('Total elapsed time: ', TRUNC(conv_ms(get_ts())), ' ms');
-  END;	
-	
+  END;
+
 
 BEGIN (* program bmbench *)
   argc := ParamCount;

@@ -133,7 +133,7 @@ proc bench02 {n} {
 proc bench03 {n} {
   #set n [expr {$n / 2}]; # compute only up to n/2
 
-  set nHalf [expr {$n / 2}]; 
+  set nHalf [expr {$n / 2}];
 
   # initialize sieve
   set sieve1 {0 0}; # set first 2 elements
@@ -141,8 +141,8 @@ proc bench03 {n} {
     lappend sieve1 0;
   }
   # compute primes
-  set i 0; 
-  set m 3; 
+  set i 0;
+  set m 3;
   set x 1; # number of primes below n (2 is prime)
   while {[expr {$m * $m}] <= $n} {
     if {![lindex $sieve1 $i]} {
@@ -195,7 +195,7 @@ proc bench04 {n} {
   return $x;
 }
 
-#set gState(benchxxLine) {}; 
+#set gState(benchxxLine) {};
 
 # bench05 (Integer 32 bit)
 # (n choose n/2) mod 65536 (Central Binomial Coefficient mod 65536)
@@ -218,7 +218,7 @@ proc bench05 {n} {
   #for {set j 0} {$j < $k} {incr j} {
   #  lset line $j 0;
   #}
-  
+
   set line {};
   lset line 0 1;
   if {$k >= 1} {
@@ -248,11 +248,11 @@ proc bench05 {n} {
   set x 0;
   for {set j 0} {$j < $k} {incr j} {
     set num [lindex $line $j];
-    set x [expr {($x + 2 * $num * $num) & 0xffff}]; 
+    set x [expr {($x + 2 * $num * $num) & 0xffff}];
   }
 
   set num [lindex $line $k];
-  set x [expr {($x + $num * $num) & 0xffff}]; 
+  set x [expr {($x + $num * $num) & 0xffff}];
 
   return [expr {$x & 0xffff}];
 }
@@ -552,7 +552,7 @@ proc start_bench {bench1 bench2 n argStr} {
     if {$bench == 3} {
 		  set n2 [expr {$n / 2}];
 	  } elseif {$bench == 5} {
-		  set n2 [expr {$n / 200}]; 
+		  set n2 [expr {$n / 200}];
 	  }
 
     set check [getCheck $bench $n2];
@@ -564,7 +564,7 @@ proc start_bench {bench1 bench2 n argStr} {
     lappend bench_res $throughput;
   }
   print_results $bench_res;
-  return 0;  
+  return 0;
 }
 
 

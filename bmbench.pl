@@ -211,7 +211,7 @@ sub bench05($) {
   #}
   #my @line = @bench05Line;
   my @line = (0) x ($k + 1);
-  
+
   ## initialize (not needed)
   #for (my $j = 0; $j <= $k; $j++) {
   #  $line[$j] = 0;
@@ -226,7 +226,7 @@ sub bench05($) {
   my ($num, $prev);
   for (my $i = 3; $i <= $n; $i++) {
     my $min1 = ($i - 1) / 2; # int(...)
-    
+
     if (($i & 1) == 0) { # new element?
       $line[$min1 + 1] = 2 * $line[$min1];
     }
@@ -257,7 +257,7 @@ sub bench06($) {
 
   for (my $i = 1; $i <= $n; $i++) {
     $flip *= -1.0;
-    $sum += $flip / (2 * $i - 1);       
+    $sum += $flip / (2 * $i - 1);
   }
   return int(($sum * 4.0) * 100000000);
 }
@@ -339,7 +339,7 @@ sub getCheck($$) {
 
   } elsif ($bench == 5) {
     $check = ($n == 5000) ? 17376 : bench05($n); # bench05 not a real check
-  
+
   } elsif ($bench == 6) {
     $check = ($n == 1000000) ? 314159165 : bench06($n); # bench06 not a real check
 
@@ -491,14 +491,14 @@ sub print_info() {
   print("BM Bench v", $G_PRG_VERSION, " (", $G_PRG_LANGUAGE, ") -- (int:", checkbits_int1(), " double:", checkbits_double1(),  " tsType:", $g_tsType, " tsMs:", $g_tsPrecMs, " tsCnt:", $g_tsPrecCnt, ") $perl_version, osname: $^O\n");
   print("(c) Marco Vieth, 2002-2023\n");
   print("Date: ". localtime(time()) ."\n");
-  #system("uname -a");        
+  #system("uname -a");
 }
 
 
 sub print_results($$$) {
   my($bench1, $bench2, $bench_res1_r) = @_;
   my $max_language_len1 = 10;
-  
+
   print("\nThroughput for all benchmarks (loops per sec):\n");
   print "BMR (", $G_PRG_LANGUAGE .")". (' ' x ($max_language_len1 - length($G_PRG_LANGUAGE))), ": ";
   for (my $bench = $bench1; $bench <= $bench2; $bench++) {
@@ -514,7 +514,7 @@ sub measureBench($$$) {
   my $delta_ms = 100; # const
   my $max_ms = 10000; # const
   my $cali_ms = $g_cali_ms; # 1001
-  
+
   my $loops = 1; # number of loops
   my $x = 0;     # result from benchmark
   my $tMeas = 0;    # measured time
@@ -532,7 +532,7 @@ sub measureBench($$$) {
     printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)\n", $loops_p_sec, $tMeas, $loops, $t_delta);
     if ($x == -1) { # some error?
       $throughput = -1;
-    } elsif (($tEsti > 0) &&  ($t_delta < $delta_ms)) { # do we have some estimated/expected time smaller than delta_ms=100? 
+    } elsif (($tEsti > 0) &&  ($t_delta < $delta_ms)) { # do we have some estimated/expected time smaller than delta_ms=100?
       $throughput = $loops_p_sec; # yeah, set measured loops per sec
       printf("Benchmark %d (%s): %.3f/s (time=%9.3f ms, loops=%d, delta=%9.3f ms)\n", $bench, $G_PRG_LANGUAGE, $loops_p_sec, $tMeas, $loops, $t_delta);
     } elsif ($tMeas > $max_ms) {
@@ -604,11 +604,11 @@ sub main($) {
    if ($#ARGV > 2) {
     $g_cali_ms = $ARGV[3];
   }
-  
+
   determineTsPrecision();
   my $argStr = "@ARGV";
   my $rc = start_bench($bench1, $bench2, $n, $argStr);
-  
+
   printf("Total elapsed time: %d ms\n", conv_ms(get_ts()) | 0);
   return $rc;
 }

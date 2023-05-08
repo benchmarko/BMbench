@@ -66,7 +66,7 @@
 #else
 #ifdef _TURBOC /* need to be defined, if needed */
 #include <dos.h>
-#else 
+#else
 #include <sys/time.h> /* gettimeofday */
 #endif
 #endif
@@ -189,7 +189,7 @@ static int bench03(int n) {
   for (i = 0; i <= nHalf; i++) {
     sieve[i] = 0;
   }
-  
+
   /* compute primes */
   i = 0;
   m = 3;
@@ -430,7 +430,7 @@ static int getCheck(int bench, int n) {
     case 6:
       check = (n == 1000000) ? 314159165 : bench06(n); /* bench06 not a real check */
     break;
-	
+
     default:
       fprintf(stderr, "Error: Unknown benchmark: %d\n", bench);
       check = -1;
@@ -521,7 +521,7 @@ static double correctTime(double tMeas, double tMeas2, int measCount) {
     tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); /* ts + correction */
     if (tMeas > tMeas2) {
         tMeas = tMeas2; /* cannot correct */
-    }   
+    }
   }
   return tMeas;
 }
@@ -646,7 +646,7 @@ static void print_info(void) {
   char str[40];
   time_t t = time(NULL);
   struct tm *tm1;
-  
+
   printf("BM Bench v%s (%s) -- (short:%d int:%d float:%d double:%d tsMs:%lf tsCnt:%d) ", PRG_VERSION, PRG_LANGUAGE,
     checkbits_short1(), checkbits_int1(), checkbits_float1(), checkbits_double1(),
     g_tsPrecMs, g_tsPrecCnt);
@@ -697,7 +697,7 @@ static double measureBench(int bench, int n, int check) {
   int delta_ms = 100; /* const */
   int max_ms = 10000; /* const */
   int cali_ms = g_cali_ms;
-  
+
   int loops = 1;   /* number of loops */
   int x = 0;     /* result from benchmark */
   double tMeas = 0; /* measured time */
@@ -714,7 +714,7 @@ static double measureBench(int bench, int n, int check) {
     t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); /* compute difference abs(measures-estimated) */
     loops_p_sec = (tMeas > 0) ? ((loops * 1000.0) / tMeas) : 0;
     printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)\n", loops_p_sec, tMeas, loops, t_delta);
-  
+
     if (x == -1) { /* some error? */
       throughput = -1;
     } else if ((tEsti > 0) && (t_delta < delta_ms)) { /* do we have some estimated/expected time smaller than delta_ms=100? */
@@ -748,7 +748,7 @@ static int start_bench(int bench1, int bench2, int n) {
   int bench, n2, check;
   unsigned int bench_res_size;
   double throughput;
-  
+
   print_info();
 
   bench_res_size = ((unsigned)bench2 + 1) * sizeof(double);
@@ -798,10 +798,10 @@ int main(int argc, char **argv) {
   if (argc > 4) {
     g_cali_ms = atoi(argv[4]);
   }
-  
+
   determineTsPrecision();
   rc = start_bench(bench1, bench2, n);
-    
+
   printf("Total elapsed time: %d ms\n", (int)(conv_ms(get_ts())));
   return rc;
 }

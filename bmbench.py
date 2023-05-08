@@ -134,7 +134,7 @@ def bench03(n):
     g_sieve1 = [0] * (nHalf + 1) #[0 for i in range(nHalf + 1)]
     #g_sieve1 = np.zeros((nHalf + 1,), dtype=int)
     #print('DEBUG:'+ str(nHalf + 1) + ', ' + str(type(g_sieve1)))
-  
+
   sieve1 = g_sieve1
 
   # initialize sieve
@@ -382,7 +382,7 @@ def determineTsPrecision():
   global g_tsPrecCnt
   global g_startTs
   g_startTs = get_raw_ts() # memorize start time
-  
+
   tMeas0 = getPrecMs(False)
   tMeas1 = getPrecMs(False)
   g_tsPrecMs = tMeas1 - tMeas0

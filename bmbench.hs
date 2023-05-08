@@ -3,7 +3,7 @@
   * (c) Marco Vieth, 2005
   * http://www.benchmarko.de
   *
-  * 14.04.2005 0.01  first tests 
+  * 14.04.2005 0.01  first tests
   *
   *
   * Usage:
@@ -43,7 +43,7 @@ square n = n * n
     //if (isInt(x)) { System.stdout.writeln("Yes, it is integer!"); }
     return x % 65536;
   }
--} 
+-}
 
 main = do
        arg <- getArgs

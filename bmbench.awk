@@ -32,7 +32,7 @@
 # /usr/share/doc/packages/gawk-doc/gawk.ps.gz (GAWK: Effective AWK Programming) (sophisticated!)
 #
 
-# 
+#
 # General description for benchmark test functions
 # benchxx - benchmark
 # <description>
@@ -207,7 +207,7 @@ function bench05(n,    x, k, line, i, min1, prev, j, num) {
     line[1] = 2; # for line 2, second column is 2
   }
 
-  # compute lines of Pascal's triangle 
+  # compute lines of Pascal's triangle
   for (i = 3; i <= n; i++) {
     min1 = int((i - 1) / 2);
 
@@ -263,7 +263,7 @@ function run_bench(bench, loops, n, check,    x) {
 
     } else if (bench == 2) {
         x = bench02(n);
-        
+
     } else if (bench == 3) {
         x = bench03(n);
 

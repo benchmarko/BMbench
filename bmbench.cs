@@ -214,7 +214,7 @@ public class Bmbench {
       if ((i & 1) == 0) { // new element?
         line[min1 + 1] = 2 * line[min1];
       }
-      
+
       int prev = line[1];
       for (int j = 2; j <= min1; j++) {
         int num =  line[j];
@@ -239,7 +239,7 @@ public class Bmbench {
     double flip = -1.0;
     for (int i = 1; i <= n; i++) {
       flip *= -1.0;
-      sum += flip / (2*i - 1);       
+      sum += flip / (2*i - 1);
     }
     return (int)((sum * 4.0) * 100000000);
   }
@@ -588,7 +588,7 @@ public class Bmbench {
     return 0;
   }
 
-  
+
   public static int Main(string[] args) {
     int bench1 = 0;          // first benchmark to test
     int bench2 = 5;          // last benchmark to test
@@ -614,7 +614,7 @@ public class Bmbench {
 
     determineTsPrecision();
     int rc = start_bench(bench1, bench2, n);
-    
+
     Console.WriteLine("Total elapsed time: " + (int)(conv_ms(get_ts())) + " ms");
     //System.Console.ReadLine();
     return rc;

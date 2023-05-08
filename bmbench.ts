@@ -62,7 +62,7 @@ declare var System: any;
 declare var VM: any;
 declare var ARGS: any;
 
-// JScript (Windows Scripting Host) or DMDScript 
+// JScript (Windows Scripting Host) or DMDScript
 //declare var WScript: any;
 /*
 declare var ScriptEngine: () => string;

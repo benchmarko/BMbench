@@ -375,7 +375,7 @@ getCheck() {
   typeset -i check=0;
 
   local len;
-  
+
   len=${#gState_fact[@]};
 
   if [ "$bench" -lt "$len" ]; then   #-a "${gState_fact[$bench]}" ]; then

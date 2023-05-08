@@ -107,7 +107,7 @@
  01 cali-ms USAGE BINARY PIC S9(9) value 1001.
  01 delta-ms USAGE COMP-2 value 100.
  01 scale-fact USAGE BINARY PIC S9(9) value 0.
- 
+
  *> 01 measCount USAGE BINARY PIC S9(9) value 0.
  01 g-tsMeasCnt USAGE BINARY PIC 9(9) value 0.
  01 g-tsPrecCnt USAGE BINARY PIC 9(9) value 0.
@@ -126,7 +126,7 @@
  01 loops-p-sec USAGE COMP-2 value 0.
  01 throughput USAGE COMP-2 value 0.
  01 t-delta USAGE COMP-2 value 0.
- 
+
  01 start-t USAGE BINARY PIC S9(9) value 0.
 
  01 bench-res1-array.
@@ -167,9 +167,9 @@
  01 bench05-min1 USAGE BINARY PIC S9(9) value 0.
  01 bench05-prev USAGE BINARY PIC S9(9) value 0.
  01 bench05-num USAGE BINARY PIC S9(9) value 0.
- 
+
  01 bench06-flip1-d USAGE COMP-2 value 0.
- 
+
 *> data for bench03Check:
  01 bench03Check-isPrime PIC X.
 
@@ -266,7 +266,7 @@ bench01.
 bench02.
   MOVE 0 TO x
   MOVE 0 TO sum1-d
-  
+
   MOVE 1 TO i-d
   PERFORM n TIMES
     ADD i-d TO sum1-d
@@ -380,7 +380,7 @@ bench05.
       COMPUTE bench05-pas1(bench05-min1 + 1 + 1) =
         2 * bench05-pas1(bench05-min1 + 1)
     END-IF
-    
+
     MOVE bench05-pas1(1 + 1) TO bench05-prev
     MOVE 2 TO j
     COMPUTE bench05-n2 = bench05-min1 - 1
@@ -393,8 +393,8 @@ bench05.
     MOVE i TO bench05-pas1(1 + 1)
     ADD 1 TO i
   END-PERFORM
-  
-*> compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2  
+
+*> compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
   MOVE 0 TO x
   MOVE 0 TO j
   COMPUTE bench05-n2 = bench05-k
@@ -417,7 +417,7 @@ bench05.
 bench06.
   MOVE 0.0 TO sum1-d
   MOVE -1.0 TO bench06-flip1-d
-  
+
   MOVE 1 TO i-d
 *>  DISPLAY "DDD: " i-d
   PERFORM n TIMES
@@ -719,10 +719,10 @@ measureBench.
     PERFORM getPrecMs
     PERFORM correctTime
     COMPUTE tMeas = t1-d - measureBench-tMeas0
-  
+
     IF tEsti > tMeas
       COMPUTE t-delta = tEsti - tMeas
-    ELSE 
+    ELSE
       COMPUTE t-delta = tMeas - tEsti
     END-IF
 
@@ -731,7 +731,7 @@ measureBench.
     ELSE
       MOVE 0 TO loops-p-sec
     END-IF
-    
+
     MOVE loops-p-sec TO fmt10
     MOVE tMeas TO fmt09
     MOVE t-delta TO fmt09_2
@@ -805,7 +805,7 @@ start-bench.
       MOVE -1 TO throughput
     END-IF
     COMPUTE bench-res1(bench + 1) = throughput
-    
+
     ADD 1 TO bench
   END-PERFORM
   PERFORM print-results
@@ -841,7 +841,7 @@ main-form.
   END-IF
 
   PERFORM start-bench
-  
+
   PERFORM get-ts
   DISPLAY "Total elapsed time: " t1 " ms"
   .

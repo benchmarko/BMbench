@@ -7,6 +7,7 @@
 ;;
 ;; 24.01.2003 0.05  output format changed
 ;; 01.05.2008 0.06  based on version 0.05
+;; 06.05.2023 0.08  adapted for new version
 ;;
 ;; Usage:
 ;; clisp bmbench.lisp [bench1] [bench2] [n]
@@ -53,39 +54,33 @@
 ;
 
 
+; https://www.jdoodle.com/execute-clisp-online/
+
 (declaim (optimize (speed 3) (debug 0) (safety 0) (space 0) (compilation-speed 0)))
 
 
-(defconstant PRG_VERSION "0.06")
+(defconstant PRG_VERSION "0.08")
 (defconstant PRG_LANGUAGE "Lisp")
+
+(defvar gState_startTs 0)
+(defvar gState_tsPrecMs 0.0d0)
+(defvar gState_tsPrecCnt 0)
+(defvar gState_tsMeasCnt 0)
 
 ;;
 ;; bench00 (Integer 16/32 bit)
 ;; (sum of 1..n) mod 65536
 ;;
-(defun bench00 (loops n)
-  (declare (fixnum loops n))
+(defun bench00 (n)
+  (declare (fixnum n))
   (let (
       (x 0)
-      (sum1 (logand (* (/ n 2) (+ n 1)) 65535))
        )
        (declare (fixnum x) (fixnum n) (fixnum i) (fixnum sum1))
-    ;sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-    (dotimes (loop loops)
-      ;(format t "DEBUG: bench00: loop=~D, x=~D~%" loop x)
-      (dotimes (i (+ n 1)) ;we need n+1 because dotimes counts up to n-1
+      (dotimes (i (1+ n)) ;we need n+1 because dotimes counts up to n-1
         ;(incf x i)
         (setq x (logand (+ x i) 65535))
       )
-      (if (< loop (- loops 1)) ;some more loops left?
-        (progn (setq x (- x sum1)) ;yes, set x back to 0 (assuming n even)
-          (if (/= x 0)
-            (progn (incf x) ;force error
-              (return x))
-          )
-        )
-      )
-    )
     (logand x 65535)
   ))
 
@@ -94,33 +89,22 @@
 ;; bench01 (Integer 16/32 bit)
 ;; (sum of 1..n) mod 65536
 ;;
-(defun bench01 (loops n)
-  (declare (fixnum loops n))
+(defun bench01 (n)
+  (declare (fixnum n))
   (let (
       (x 0)
-      (sum1 (* (/ n 2) (+ n 1)))
+      (sum1 0)
        )
-       (declare (fixnum x) (fixnum n) (fixnum i))
-    ;sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-    (dotimes (loop loops)
-      ;(format t "DEBUG: bench01: loop=~D, x=~D~%" loop x)
-      (dotimes (i (+ n 1)) ;we need n+1 because dotimes counts up to n-1
-        (incf x i)
-        ;(setq x (+ x i))
-        ;(setq x (logand (+ x i) 65535))
-      )
-      (if (< loop (- loops 1)) ;some more loops left?
-        (progn (setq x (- x sum1)) ;yes, set x back to 0 (assuming n even)
-          (if (/= x 0)
-            (progn (incf x) ;force error
-              (return x))
-          )
+       (declare (fixnum x) (fixnum sum1) (fixnum n) (fixnum i))
+      (dotimes (i (1+ n))
+        (incf sum1 i)
+        (if (>= sum1 n)
+          (setq sum1 (- sum1 n))
+          (incf x)
         )
       )
-    )
-    ;(print (type-of x))
-
-    (logand x 65535)
+      (decf x) ;TTT
+    x
   ))
 
 ;;
@@ -128,35 +112,22 @@
 ;; bench02 (Floating Point, normally 64 bit)
 ;; (sum of 1..n) mod 65536
 ;;
-(defun bench02 (loops n)
-  (declare (fixnum loops n))
+(defun bench02 (n)
+  (declare (fixnum n))
   (let (
-      (x 0.0d0)
-      (sum1 (* (/ n 2.0d0) (+ n 1.0d0)))
+      (x 0)
+      (sum1 0.0d0)
        )
-       (declare (double-float x sum1))
-    ;sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)
-    ;(print (type-of x))
-    ;(print sum1)
-    (dotimes (loop loops)
-      (dotimes (i (+ n 1)) ;we need n+1 because dotimes counts up to n-1
-        ;(incf x i)
-        (setq x (+ x i))
-      )
-      ;(print (type-of x))
-      ;(print x)
-      (if (< loop (- loops 1)) ;some more loops left?
-        (progn (setq x (- x sum1)) ;yes, set x back to 0 (assuming n even)
-          (if (/= x 0.0d0)
-            (progn (incf x) ;force error
-              (floor (setq x (mod x 65536.0d0)))
-              (return x))
-          )
+       (declare (fixnum x) (double-float sum1))
+      (dotimes (i (1+ n))
+        (setq sum1 (+ sum1 i))
+        (if (>= sum1 n)
+          (setq sum1 (- sum1 n))
+          (incf x)
         )
       )
-    )
-    ;(print x)
-    (floor (mod x 65536.0d0))
+    (decf x) ;TTT
+    x
   ))
 
 ;;
@@ -164,53 +135,48 @@
 ;; number of primes below n (Sieve of Eratosthenes)
 ;; Example: n=500000 => x=41538 (expected), n=1000000 => x=78498
 ;;
-(defun bench03 (loops n)
-  (declare (fixnum loops n))
-  (setf n (/ n 2)) ;compute only up to n/2
+(defun bench03 (n)
+  (declare (fixnum n))
+  (setq nHalf (floor (/ n 2)))
   (let (
-      (x 0) ;number of primes below n
-      (sieve1 (make-array (+ n 1) :element-type 'fixnum :initial-element 1))
+      (x 1) ;number of primes below n (2 is prime)
+      (m 3)
+      (i0 0)
+      (sieve1 (make-array (1+ nHalf) :element-type 'fixnum :initial-element 1))
        )
-       (declare (fixnum x) (fixnum n) (fixnum i))
+       (declare (fixnum nHalf x m n i))
 
-    (setf (aref sieve1 0) 0)
-    (setf (aref sieve1 1) 0)
-    (dotimes (loop loops)
+    ;(setf (aref sieve1 0) 0)
+    ;(setf (aref sieve1 1) 0)
       ;initialize sieve
-      (loop for i fixnum from 2 to n do
-        (setf (aref sieve1 i) 1)
+      (loop for i fixnum from 0 to nHalf do
+        (setf (aref sieve1 i) 0)
       )
 
       ;compute primes
-      (do ((i 2 (1+ i)) ;general do loop: (<var> <initial> <increment>) (<end condition>) (<body>); 1+ is incf
+      (setq i0 (do ((i 0 (1+ i)) ;general do loop: (<var> <initial> <increment>) (<end condition>) (<body>); 1+ is incf
           )
-          ((> (* i i) n))
-          (unless (zerop (aref sieve1 i))
-            ;(print i)
-            (loop for j fixnum from (* i i) upto n by i do
-                  (setf (aref sieve1 j) 0))
+          ((> (* m m) n) i)
+          (if (zerop (aref sieve1 i))
+           (progn
+            (incf x) ;m is prime
+            (loop for j fixnum from (/ (- (* m m) 3) 2) upto nHalf by m do
+                  (setf (aref sieve1 j) 1))
+           )
           )
-       )
+          (incf m 2)
+          ;(setq i0 i)
+       ))
 
-      ;count primes
-      (loop for i fixnum from 0 to n do
-        (unless (zerop(aref sieve1 i))
+      ;count remaining primes
+      ;(print i0)
+      ;(setq i i0)
+      (loop for j fixnum from m to n by 2 do
+        (if (zerop (aref sieve1 i0))
           (incf x)
         )
+        (incf i0)
       )
-
-      ;(print x)
-
-      ;check prime count
-      (if (< loop (- loops 1)) ;some more loops left?
-        (progn (setq x (- x 41538)) ;yes, set x back to 0 (assuming n even)
-          (if (/= x 0)
-            (progn (incf x) ;force error
-              (return x))
-          )
-        )
-      )
-    )
     x
   ))
 
@@ -229,8 +195,8 @@
 ;; It needs longs with at least 32 bit.
 ;; Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 ;;
-(defun bench04 (loops n)
-  (declare (fixnum loops n))
+(defun bench04 (n)
+  (declare (fixnum n))
   (let (
       (x 1)          ;last random value
       ;(bench04_m 2147483647) ;modulus, do not change!
@@ -242,7 +208,6 @@
        )
     (declare (fixnum x n i d_div_q x_mod_q))
 
-    (dotimes (loop loops)
       (dotimes (i n)
         (setq x_div_q (floor x bench04_q)) ;seems to be slower: (setq x_div_q (truncate (/ x q)))
         ;(print x_div_q)
@@ -252,39 +217,26 @@
           (incf x  bench04_m) ;x is new random number
         )
       )
-      (if (< loop (- loops 1)) ;some more loops left?
-        (progn (setq x (- x 1227283347)) ;yes, set x back to 0 (assuming n even)
-          (if (/= x 0)
-            (progn (incf x) ;force error
-              (return x))
-          )
-          (incf x) ;start with 1 again
-        )
-      )
-    )
     x
   ))
 
-;; (maybe to improve...)
 ;; bench05 (Integer 32 bit)
 ;; n over n/2 mod 65536 (Pascal's triangle)
 ;; (we just need to store the last 2 lines of computation)
 ;;
-(defun bench05 (loops n)
-  (declare (fixnum loops n))
-  (setq n (floor (/ n 500)))
+(defun bench05 (n)
+  (declare (fixnum n))
+  (setq nHalf (floor (/ n 2))) ;Instead of nCk with k=n/2, we compute the product of (n/2)Ck with k=0..n/4
   (let (
       (x 0)
       (k 0)
-      ;(pas1 (make-array (+ n 1) :element-type 'fixnum :initial-element 1))
-      (pas1_a 0) ;array
-      (pas2_a 0)
-      (pas1 0)   ;array pointer
-      (pas2 0)
+      (line1 0) ;array
       (min1 0)
+      (prev1 0)
+      (num1 0)
       )
 
-    (declare (fixnum k min1 pas1 pas2))
+    (declare (fixnum k min1 prev1 num1))
 
     (setq k (floor (/ n 2)))
 
@@ -292,77 +244,54 @@
       (setq k (- n k)) ;keep k minimal with  n over k  =  n over n-k
     )
 
-    (setq pas1_a (make-array (+ k 1) :element-type 'fixnum :initial-element 0))
-    (setq pas2_a (make-array (+ k 1) :element-type 'fixnum :initial-element 0))
-    (setf (aref pas1_a 0) 1)
-    (setf (aref pas2_a 0) 1)
+    (setq line1 (make-array (1+ k) :element-type 'fixnum :initial-element 0))
 
-    ;(setq pas1 nil)
-    ;(setq pas2 nil)
+    (setf (aref line1 0) 1)
+    (setf (aref line1 1) 2) ;for line 2, second column is 2
 
-    ;(format t "DEBUG0: ~A ~A ~A ~A~%" n k pas1 (type-of pas1) )
-
-    (dotimes (loop loops)
-      ;(setq pas1 (list 1))
-      (loop for i fixnum from 2 to n do
-        ;(format t "DEBUG1: ~A ~A ~A ~A i=~A~%" n k pas1 pas2 i )
-        ;(setq pas2 pas1) ;get last line to pas2 (for array point to same array, do not use!
-
-        ;set array pointer...
-        (if (= (mod i 2) 0)
-          (progn
-            (setq pas1 pas1_a)
-            (setq pas2 pas2_a)
-          )
-          (progn
-            (setq pas1 pas2_a)
-            (setq pas2 pas1_a)
-          )
+      (loop for i fixnum from 3 to n do
+        (setq min1 (floor (/ (1- i) 2)))
+        (if (= (mod i 2) 0) ;new element
+          (setf (aref line1 (+ min1 1)) (* 2 (aref line1 min1)))
         )
 
-        ;(setq pas1 (list 1)) ;and restart with new list
-
-        (setq min1 (floor (/ (- i 1) 2)))
-        (if (< k min1)
-          (setq min1 k)
-        )
-
-        ;(push i pas1) ;second column is i
-        (setf (aref pas1 1) i)
-
-        ;(format t "DEBUGx: n=~A k=~A min1=~A pas1=~A pas2=~A~%" n k min1 pas1 pas2 )
-
+        (setq prev1 (aref line1 1))
         (loop for j fixnum from 2 to min1 do  ;up to min((i-1)/2, k)
-          ;(format t "DEBUG3: n=~A k=~A min1=~A pas1=~A pas2=~A j=~A~%" n k min1 pas1 pas2 j )
-          ;(push (+ (nth (- j 1) pas2) (nth j pas2)) pas1)
-          ;(setf (aref pas1 j) (+ (aref pas2 (- j 1)) (aref pas2 j)))
-          (setf (aref pas1 j) (logand (+ (aref pas2 (- j 1)) (aref pas2 j)) 65535)) ; use and to get small numbers
-          ;(format t "DEBUGy: n=~A k=~A min1=~A pas1=~A pas2=~A j=~A~%" n k min1 pas1 pas2 j )
+          (setq num1 (aref line1 j))
+          ;(setf (aref line1 (+ min1 1)))
+          (setf (aref line1 j) (logand (+ (aref line1 j) prev1) 65535)) ;use and to get small numbers
+          (setq prev1 num1)
         )
-
-        (if (and (< min1 k) (= (mod i 2) 0)) ;new element
-          ;(push (* 2 (nth min1 pas2)) pas1)
-          (setf (aref pas1 (+ min1 1)) (* 2 (aref pas2 min1)))
-          ;(format t "DEBUG4: n=~A k=~A min1=~A pas1=~A pas2=~A new~%" n k min1 pas1 pas2 )
-        )
+        (setf (aref line1 1) i)
       )
+
+      ;compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2
+      (loop for j fixnum from 0 to (1- k) do
+          (incf x (* (aref line1 j) (aref line1 j) 2)) ;add nCk and nC(n-k)
+      )
+      (incf x (* (aref line1 k) (aref line1 k)))
 
       ;(format t "DEBUG5: ~A ~A ~A ~A~%" n k pas1 pas2 )
-      ;(setq x (logand (+ x (nth k pas1)) 65535))
-      (setq x (logand (+ x (aref pas1 k)) 65535))
+      (setq x (logand x 65535))
 
-      (if (< loop (- loops 1)) ;some more loops left?
-        (progn (setq x (- x 27200)) ;yes, set x back to 0 (assuming n even)
-          (if (/= x 0)
-            (progn (incf x) ;force error
-              (return x))
-          )
-        )
-      )
-    )
     x
   ))
 
+
+(defun bench06 (n)
+  (declare (fixnum n))
+  (let (
+      (sum1 0.0d0)
+      (flip1 -1.0d0)
+      )
+    (declare (double-float sum1 flip1))
+    (loop for i fixnum from 1 to n do
+      (setq flip1 (* flip1 -1.0d0))
+      (incf sum1 (/ flip1 (- (* 2 i) 1)))
+    )
+    (setq x (floor (* sum1 4.0d0 100000000d0)))
+    x
+  ))
 
 ;;
 ;;
@@ -381,53 +310,202 @@
 ;;   n = maximum number (used in some benchmarks to define size of workload)
 ;; out:    x = result
 ;;
-(defun run_bench (bench loops n)
-  (declare (fixnum bench loops n))
+(defun run_bench (bench loops n check1)
+  (declare (fixnum bench loops n check1))
   (let ((x 0)
-    (check1 0))
+    )
 
-   (cond ((eql bench 0)
-       (setq x (bench00 loops n))
-       (setq check1 10528))
+   (dotimes (loop loops)
+       (cond ((eql bench 0)
+           (setq x (bench00 n)))
 
-     ((eql bench 1)
-       (setq x (bench01 loops n))
-       (setq check1 10528))
+         ((eql bench 1)
+           (setq x (bench01 n)))
 
-     ((eql bench 2)
-       (setq x (bench02 loops n))
-       (setq check1 10528))
+         ((eql bench 2)
+           (setq x (bench02 n)))
 
-     ((eql bench 3)
-       (setq x (bench03 loops n))
-       (setq check1 41538))
+         ((eql bench 3)
+           (setq x (bench03 n)))
 
-     ((eql bench 4)
-       (setq x (bench04 loops n))
-       (setq check1 1227283347))
+         ((eql bench 4)
+           (setq x (bench04 n)))
 
-     ((eql bench 5)
-       (setq x (bench05 loops n))
-       (setq check1 27200))
+         ((eql bench 5)
+           (setq x (bench05 n)))
 
-     (t (format t "Error: unknown benchmark: ~D~%" bench) (incf x)))
-   (if (/= x check1)
-     (progn
-       (format t "Error(bench~D): x=~D~%" bench x)
-       (setq x -1) ;force error
-     )
+         ((eql bench 6)
+           (setq x (bench06 n)))
+
+         (t (format t "Error: unknown benchmark: ~D~%" bench) (incf x)))
+
+       (if (/= x check1)
+         (progn
+           (format t "Error(bench~D): x=~D~%" bench x)
+           (setq x -1) ;force error
+           (return)
+         )
+       )
    )
   x
   ))
 
-  
+
 ;;
 ;;
-;;
-(defun get_ms ()
-  (let ((t1 (GET-INTERNAL-REAL-TIME)))
-  (setq t1 (floor t1 (/ INTERNAL-TIME-UNITS-PER-SECOND 1000))) ;convert to msec
+(defun bench03Check (n)
+  (declare (fixnum n))
+  (let (
+    (x 1)
+    (isPrime1 0)
+    ) ;2 is prime
+
+   (declare (fixnum x isPrime1))
+
+    (loop for j fixnum from 3 to n by 2 do
+      (setq isPrime1 1)
+      ;(loop for i fixnum from 3 to j by 2 do
+      (do ((i 3 (+ i 2)) ;general do loop: (<var> <initial> <increment>) (<end condition>) (<body>); 1+ is incf
+          )
+          ;((> (* i i) j))
+          ((or (> (* i i) j) (zerop isPrime1)))
+          (if (zerop (mod j i))
+            (setq isPrime1 0)
+            ;(return)
+          )
+      )
+      (unless (zerop isPrime1)
+        (incf x)
+      )
+    )
+
+   x
   ))
+
+
+;;
+;;
+(defun getCheck (bench n)
+  (declare (fixnum bench n))
+  (let (
+    (check1 0))
+
+   (cond ((eql bench 0)
+       (setq check1 (logand (* (/ n 2) (1+ n)) 65535)))
+
+     ((eql bench 1)
+       (setq check1 (floor (1+ n) 2)))
+
+     ((eql bench 2)
+       (setq check1 (floor (1+ n) 2)))
+
+     ((eql bench 3)
+       (setq check1 (if (= n 1000000) 41538 (bench03Check n))))
+
+     ((eql bench 4)
+       (setq check1 (if (= n 1000000) 1227283347 (bench04 n))))
+
+     ((eql bench 5)
+       (setq check1 (if (= n 5000) 27200 (bench05 n))))
+
+     ((eql bench 6)
+       (setq check1 (if (= n 1000000) 314159165 (bench06 n))))
+
+     (t (format t "Error: unknown benchmark: ~D~%" bench) (setq check1 -1)))
+  check1
+  ))
+
+;;
+;;
+;;
+(defun get_raw_ts ()
+  (GET-INTERNAL-REAL-TIME)
+  )
+
+;;
+(defun get_ts ()
+  (- (get_raw_ts) gState_startTs)
+  )
+
+(defun conv_ms (ts)
+  (/ ts (/ INTERNAL-TIME-UNITS-PER-SECOND 1000)) ;convert to msec
+  )
+
+(defun correctTime (tMeas tMeas2 measCount)
+  (declare (double-float tMeas tMeas2) (fixnum measCount))
+
+  (if (< measCount gState_tsPrecCnt)
+    (setq tMeas (* gState_tsPrecMs (/ (- tsPrecCnt measCount) gState_tsPrecCnt)))
+    (if (> tMeas tMeas2) ;cannot correct
+      (setq tMeas tMeas2)
+    )
+  )
+   tMeas
+  )
+
+
+(defun getPrecMs (stopFlg)
+  (declare (fixnum stopFlg))
+  (setq gState_tsMeasCnt 0)
+  (let ((tMeas0 0)
+      (tMeas 0)
+      (tMeasD 0.0d0))
+    (declare (fixnum tMeas0 tMeas) (double-float tMeasD))
+    (setq tMeas0 (get_ts))
+    (setq tMeas tMeas0)
+    (loop
+      (if (> tMeas tMeas0)
+        (return)
+      )
+      (setq tMeas (get_ts))
+      (incf gState_tsMeasCnt)
+    )
+
+   (setq tMeasD (if (= stopFlg 1)
+     (conv_ms tMeas)
+     (correctTime (conv_ms tMeas0) (conv_ms tMeas) gState_tsMeasCnt)
+   ))
+   ;(format t "TTT2: ~F ~F~%" tMeas tMeasD)
+   tMeasD
+  ))
+
+
+(defun determineTsPrecision ()
+  (setq gState_startTs (get_raw_ts))
+  (let ((tMeas0 0.0d0)
+      (tMeas1 0.0d0))
+    (declare (double-float tMeas0 tMeas1))
+
+    (setq tMeas0 (getPrecMs 0))
+    (setq tMeas1 (getPrecMs 0))
+    (setq gState_tsPrecMs (- tMeas1 tMeas0))
+    (setq gState_tsPrecCnt gState_tsMeasCnt)
+
+    ;do it again
+    (setq tMeas0 tMeas1)
+    (setq tMeas1 (getPrecMs 0))
+
+    ;(format t "DEBUG1: ~S~%" (type-of tMeas0) )
+    ;(format t "DEBUG2: ~S~%" (type-of gState_tsPrecMs) )
+
+    (if (> gState_tsMeasCnt gState_tsPrecCnt) ;// taker maximum count
+      (progn
+      (setq gState_tsPrecMs (- tMeas1 tMeas0))
+      (setq gState_tsPrecCnt gState_tsMeasCnt)
+      )
+    )
+  ))
+
+
+;;(defun get_ms ()
+;;  (let ((t1 (get_ts)))
+;;  (setq t1 (floor t1 (/ INTERNAL-TIME-UNITS-PER-SECOND 1000))) ;convert to msec
+;;  ))
+
+
+;;(defun get_ms ()
+;;  (conv_ms (get_ts))
+;;  )
 
 
 ;;
@@ -538,11 +616,10 @@
 ;;
 ;;
 (defun print_info ()
-  (format t "BM Bench v~A (~A) -- (short:~D int:~D float:~D double:~D) -- ~A~%" PRG_VERSION PRG_LANGUAGE (checkbits_short1)
-    (checkbits_int1) (checkbits_float1) (checkbits_double1) (lisp-implementation-version))
-  (princ "(c) Marco Vieth, 2006") (terpri)
+  (format t "BM Bench v~A (~A) -- (short:~D int:~D float:~D double:~D tsMs:~F tsCnt:~D) -- ~A~%" PRG_VERSION PRG_LANGUAGE (checkbits_short1)
+    (checkbits_int1) (checkbits_float1) (checkbits_double1) gState_tsPrecMs gState_tsPrecCnt (lisp-implementation-version))
+  (princ "(c) Marco Vieth, 2006-2023") (terpri)
   (format t "Date: ~A~%" (get_current_time))
-  ;(format t "Date: ~A~%" (current-time) ) ;TTT
   )
 
 
@@ -557,57 +634,50 @@
 
   (format t "BMR (~A)~VA: " PRG_LANGUAGE (- max_language_len1 (length PRG_LANGUAGE)) "")
   (loop for bench fixnum from bench1 to bench2 do
-    (format t "~9,2F" (aref bench_res1 bench)))
+    (format t "~9,3F" (aref bench_res1 bench)))
   (format t "~%")
   (format t "~%")
   ))
 
+
 ;;
 ;;
 ;;
-(defun start_bench (bench1 bench2 n)
-  (declare (fixnum bench1 bench2 n))
+(defun measureBench (bench n check1 cali_ms)
+  (declare (fixnum bench n check1 cali_ms))
   (let (
-    (cali_ms 1001)
     (delta_ms 100)
     (max_ms 10000)
-    (bench_res1))
+    (loops 1) ;number of loops
+    (x 0)         ;result from benchmark
+    (t1 0.0d0)        ;measured time
+    (t2 0.0d0)       ;estimated time
+    (throughput 0.0d0))
 
 ;    (declare (fixnum n)
 ;             (fixnum x)
 ;             (optimize (speed 3) (debug 0) (safety 0)))
 
-    (declare (fixnum cali_ms delta_ms max_ms x t1 t2 t_delta scale_fact))
+    (declare (fixnum delta_ms max_ms x scale_fact startN))
 
-    (print_info)
+    (format t "Calibrating benchmark ~D with n=~D, check=~D~%" bench n check1)
 
-    ;(setq bench_res1 (make-array (+ bench2 1) :element-type 'fixnum))
-    (setq bench_res1 (make-array (+ bench2 1) :element-type 'single-float))
-
-    (loop for bench fixnum from bench1 to bench2 do
-      (let ((loops 1) ;number of loops
-        (x 0)         ;result from benchmark
-        (t1 0)        ;measured time
-        (t2 0))       ;estimated time
-
-      (format t "Calibrating benchmark ~D with n=~D~%" bench n)
-
-      (loop
+     (setq throughput (loop
         (let (
-          (t_delta 0)
-          (loops_p_sec 0)
+          (t_delta 0.0d0)
+          (loops_p_sec 0.0d0)
           (scale_fact 0)
         )
 
         (progn
-          (setq t1 (get_ms))
-          (setq x (run_bench bench loops n))
-          (setq t1 (- (get_ms) t1))
+          (setq t1 (getPrecMs 0))
+          (setq x (run_bench bench loops n check1))
+          (setq t1 (- (getPrecMs 1) t1))
           ;(format t "DEBUG: x=~D (time: ~D ms)~%" x t1)
         )
 
         (progn
-          (setq t_delta 
+          (setq t_delta
             (if (> t2 t1)
               (- t2 t1)
               (- t1 t2)))
@@ -617,29 +687,24 @@
               (/ (* loops 1000.0) t1)
               0))
 
-          (format t "~10,3F/s (time=~5D ms, loops=~7D, delta=~5D ms, x=~D)~%" loops_p_sec t1 loops t_delta x)
+          (format t "~10,3F/s (time=~9,3F ms, loops=~7D, delta=~9,3F ms, x=~D)~%" loops_p_sec t1 loops t_delta x)
         )
 
         (if (= x -1)
-          (progn
-            (setf (aref bench_res1 bench) -1)
-            (return) ;last
-          )
+            (return -1) ;last
         )
 
         (if (> t2 0) ;do we have some estimated/expected time?
           (if (< t_delta delta_ms) (progn ;smaller than delta_ms=100?
-            (setf (aref bench_res1 bench) loops_p_sec)
-            (format t "Benchmark ~D (~A): ~,3F/s (time=~D ms, loops=~D, delta=~D ms)~%" bench PRG_LANGUAGE (aref bench_res1 bench) t1 loops t_delta)
-            (return) ;last
+            (format t "Benchmark ~D (~A): ~,3F/s (time=~,3F ms, loops=~D, delta=~,3F ms)~%" bench PRG_LANGUAGE loops_p_sec t1 loops t_delta)
+            (return loops_p_sec) ;last
           ))
         )
 
         (if (> t1 max_ms)
           (progn
             (format t "Benchmark ~D (~A): Time already > ~D ms. No measurement possible.~%" bench PRG_LANGUAGE max_ms)
-            (setf (aref bench_res1 bench) -1)
-            (return) ;last
+            (return -1) ;last
           )
         )
 
@@ -656,7 +721,50 @@
 
         )
 
+      ))
+    throughput
+  ))
+
+;;
+;;
+;;
+(defun start_bench (bench1 bench2 n cali_ms)
+  (declare (fixnum bench1 bench2 n cali_ms))
+  (let (
+    (startN n)
+    (bench_res1))
+
+    (declare (fixnum startN))
+
+    (determineTsPrecision)
+    (print_info)
+
+    (setq bench_res1 (make-array (+ bench2 1) :element-type 'double-float))
+
+    (loop for bench fixnum from bench1 to bench2 do
+      (let ((loops 1) ;number of loops
+        (x 0)         ;result from benchmark
+        (t1 0.0d0)        ;measured time
+        (t2 0.0d0)       ;estimated time
+        (check1 0))
+
+
+      (setq n startN)
+      (cond ((eql bench 3)
+        (setq n (/ n 2)))
+
+        ((eql bench 5)
+         (setq n (floor n 500)))
       )
+
+      (setq check1 (getCheck bench n))
+
+
+      (setf (aref bench_res1 bench) (if (> check1 0)
+        (measureBench bench n check1 cali_ms)
+        -1
+        ))
+
     ))
 
     (print_results bench1 bench2 bench_res1)
@@ -667,10 +775,10 @@
 ;;
 ;;
 (defun main (argc argv)
-  (let ((start_t (get_ms)) ;memorize start time
-    (bench1 0)      ;first benchmark to test
+    (let ((bench1 0)      ;first benchmark to test
     (bench2 5)      ;last benchmark to test
     (n 1000000)
+    (cali_ms 1001)
     (rc 0))    ;maximum number
 
     (if (> argc 0)
@@ -682,10 +790,13 @@
     (if (> argc 2)
       (setq n (parse-integer (nth 2 argv)))
     )
+    (if (> argc 3)
+      (setq cali_ms (parse-integer (nth 3 argv)))
+    )
 
-    (setq rc (start_bench bench1 bench2 n))
+    (setq rc (start_bench bench1 bench2 n cali_ms))
 
-    (format t "~&Total elapsed time: ~D ms~%" (- (get_ms) start_t))
+    (format t "~&Total elapsed time: ~D ms~%" (conv_ms (get_ts)))
     rc ;(return-from main rc)
   ))
 

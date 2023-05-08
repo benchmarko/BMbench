@@ -165,7 +165,7 @@ static int bench03(int n) {
   for (i = 0; i <= nHalf; i++) {
     sieve[i] = 0;
   }
-  
+
   // compute primes
   i = 0;
   int m = 3;
@@ -284,7 +284,7 @@ static int bench06(int n) {
   double flip = -1.0;
   for (int i = 1; i <= n; i++) {
     flip *= -1.0;
-    sum += flip / (2*i - 1);       
+    sum += flip / (2*i - 1);
   }
   return (sum * 4.0) * 100000000;
 }
@@ -396,7 +396,7 @@ static int getCheck(int bench, int n) {
     case 6:
       check = (n == 1000000) ? 314159165 : bench06(n); // bench06 not a real check
     break;
-	
+
     default:
       fprintf(stderr, "Error: Unknown benchmark: %d\n", bench);
       check = -1;
@@ -480,7 +480,7 @@ static double correctTime(double tMeas, double tMeas2, int measCount) {
     tMeas += g_tsPrecMs * ((tsPrecCnt - measCount) / (double)tsPrecCnt); // ts + correction
     if (tMeas > tMeas2) {
         tMeas = tMeas2; // cannot correct
-    }   
+    }
   }
   return tMeas;
 }
@@ -640,7 +640,7 @@ static double measureBench(int bench, int n, int check) {
   const int delta_ms = 100;
   const int max_ms = 10000;
   const int cali_ms = g_cali_ms;
-  
+
   int loops = 1;   // number of loops
   int x = 0;     // result from benchmark
   double tMeas = 0; // measured time
@@ -656,7 +656,7 @@ static double measureBench(int bench, int n, int check) {
     double t_delta = (tEsti > tMeas) ? (tEsti - tMeas) : (tMeas - tEsti); // compute difference abs(measures-estimated)
     double loops_p_sec = (tMeas > 0) ? ((loops * 1000.0) / tMeas) : 0;
     printf("%10.3f/s (time=%9.3f ms, loops=%7d, delta=%9.3f ms)\n", loops_p_sec, tMeas, loops, t_delta);
-  
+
     if (x == -1) { // some error?
       throughput = -1;
     } else if ((tEsti > 0) && (t_delta < delta_ms)) { // do we have some estimated/expected time smaller than delta_ms=100?
@@ -719,7 +719,7 @@ int main(int argc, char **argv) {
   int bench1 = 0;       // first benchmark to test
   int bench2 = 5;       // last benchmark to test
   int n = 1000000L;   // maximum number
-  
+
   if (argc > 1) {
     bench1 = atoi(argv[1]);
     bench2 = bench1; // set also last benchmark
@@ -733,10 +733,10 @@ int main(int argc, char **argv) {
   if (argc > 4) {
     g_cali_ms = atoi(argv[4]);
   }
-  
+
   determineTsPrecision();
   int rc = start_bench(bench1, bench2, n);
-    
+
   printf("Total elapsed time: %d ms\n", (int)(conv_ms(get_ts())));
   return rc;
 }

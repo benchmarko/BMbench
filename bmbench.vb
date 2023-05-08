@@ -53,7 +53,7 @@ Public Module Module1
 
    ' Dim nfi As System.Globalization.NumberFormatInfo = new System.Globalization.CultureInfo("en-US", false).NumberFormat
     Dim nfi As IFormatProvider = System.Globalization.CultureInfo.InvariantCulture
-  
+
 
     '
     ' bench00 (Integer 16 bit)
@@ -473,7 +473,7 @@ Public Module Module1
     Function getruntime1() As String
         'Dim type1 As Type = Type.GetType("Mono.Runtime")
         Dim runtimeName As String = GetType(object).FullName 'howto??
-        
+
         'Dim runtimeName As String = TypeName(object)
         'Dim runtimeName As String = (TypeOf object).FullName 'howto??
         'Dim runtimeName As String = type1.FullName 'howto??
@@ -504,11 +504,11 @@ Public Module Module1
           version1 = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version().ToString() & ", " & version1
         Catch ex As System.Security.SecurityException
         End Try
-        
+
         Dim str As String = "BM Bench v" & g_prg_version & " (" & g_prg_language & ") -- (int:" & checkbits_int1() & " double:" & checkbits_double1() & " tsMs:" & g_tsPrecMs & " tsCnt:" & g_tsPrecCnt & ") " & version1 & Environment.NewLine
         str += "(c) Marco Vieth, 2006-2023" & Environment.NewLine
         str += "Date: " & System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture)
-        
+
         return str
     End Function
 
@@ -519,7 +519,7 @@ Public Module Module1
         System.Console.WriteLine("Throughput for all benchmarks (loops per sec):")
         Dim str As String = "BMR (" + g_prg_language + ")"
         Dim i As Integer
-        For i = g_prg_language.Length To max_language_len1 
+        For i = g_prg_language.Length To max_language_len1
             str += " "
         Next i
 
@@ -561,7 +561,7 @@ Public Module Module1
             Else
                 loops_p_sec = 0
             End If
-           
+
             System.Console.WriteLine("{0,10}/s (time={1,9} ms, loops={2,7}, delta={3,9} ms, x={4})", loops_p_sec.ToString("F3", nfi), tMeas.ToString("F3", nfi), loops, t_delta.ToString("F3", nfi), x)
 
             If x = -1 Then 'some error?
@@ -584,7 +584,7 @@ Public Module Module1
                 Else If tMeas < cali_ms Then
                     scale_fact = ((cali_ms + 100) / tMeas) + 1 'for Integer
                     'scale a bit up to 1100 ms (cali_ms+100)
-                Else 
+                Else
                     scale_fact = 2
                 End If
                 'System.Console.WriteLine("DEBUG: scale_fact=" & scale_fact & ", tMeas=" & tMeas & ", cali_ms=" & cali_ms)

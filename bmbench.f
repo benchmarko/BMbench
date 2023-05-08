@@ -281,7 +281,7 @@ C Set first column
       IF (K .GE. 1) THEN
         PAS1(1) = 2
       ENDIF
-      
+
 C     PRINT *, 'DEBUG: LOOPS=', LOOPS, ', N=', N, ', K=', K
       DO 70 I = 3, N
         I_MOD_2 = MOD(I, 2)
@@ -445,7 +445,7 @@ C
       INTEGER IDX
 C      EXTERNAL ARGV
 C     For GNU fortran GETARG is intrinsic and not external
-      INTRINSIC GETARG 
+      INTRINSIC GETARG
       INTEGER NUM
       CHARACTER*25 CHBUF
 C call the parameter function "ARGV" which is normally GETARG...
@@ -562,7 +562,7 @@ C
       REAL GET_RAW_TS, GETPRECMS
       INTEGER G_TSPRECCNT, G_TSMEASCNT
       COMMON /GSTATE/ G_TSPRECCNT, G_TSPRECMS, G_TSMEASCNT
-      
+
       G_START_TS = GET_RAW_TS()
 
       TMEAS0 = GETPRECMS(.FALSE.)
@@ -698,7 +698,7 @@ C
       REAL T1, T2, THROUGHPUT, T_DELTA, LOOPS_P_SEC
       REAL GETPRECMS
       CHARACTER*7 PRG_LANGUAGE
-      
+
       PRG_LANGUAGE = 'Fortran'
 
       CALI_MS = 1001
@@ -717,12 +717,12 @@ C
 C        X = RUN_BENCH(BENCH, LOOPS, N, CHECK1)
         CALL RUN_BENCH(BENCH, LOOPS, N, CHECK1, X)
         T1 = GETPRECMS(.TRUE.) - T1
-  
+
         IF (T2 .GT. T1) THEN
           T_DELTA = T2 - T1
         ELSE
           T_DELTA = T1 - T2
-        ENDIF     
+        ENDIF
 
         IF (T1 .GT. 0) THEN
           LOOPS_P_SEC = LOOPS * 1000.0 / T1
@@ -786,7 +786,7 @@ C
         ELSEIF (BENCH .EQ. 5) THEN
           N = N / 200
         ENDIF
-        
+
         CHECK1 = GET_CHECK(BENCH, N)
         IF (CHECK1 .GT. 0) THEN
           THROUGHPUT = MEASURE_BENCH(BENCH, N, CHECK1)
