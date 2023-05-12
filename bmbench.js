@@ -929,6 +929,7 @@ function main(args) {
 			"bench2",
 			"n",
 			"caliMs",
+			"deltaMs",
 			"mode" // run mode
 		],
 		index = 0,
