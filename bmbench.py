@@ -55,6 +55,7 @@ g_tsPrecMs = 0 # measured time stamp precision
 g_tsPrecCnt = 0 # time stamp count (calls) per precision interval (until time change)
 g_tsMeasCnt = 0 # last measured count
 g_cali_ms = 1001
+g_delta_ms = 100
 g_sieve1 = []
 
 #
@@ -330,22 +331,11 @@ def get_raw_ts():
   return time.time()
 
 def get_ts():
-  #global g_startTs
   return get_raw_ts() - g_startTs
 
 def conv_ms(ts):
     return ts * 1000
 
-#
-# get timestamp in milliseconds
-# out: x = time in ms
-#
-#def get_ms_xxx():
-#  return time.time() * 1000
-
-
-#
-#
 
 def correctTime(tMeas, tMeas2,  measCount):
   tsPrecCnt = g_tsPrecCnt
@@ -378,9 +368,7 @@ def getPrecMs(stopFlg):
 
 
 def determineTsPrecision():
-  global g_tsPrecMs
-  global g_tsPrecCnt
-  global g_startTs
+  global g_tsPrecMs, g_tsPrecCnt, g_startTs
   g_startTs = get_raw_ts() # memorize start time
 
   tMeas0 = getPrecMs(False)
@@ -441,7 +429,6 @@ def checkbits_double1():
 
 
 def get_info():
-  global g_tsPrecMs
   python_version = sys.version.replace('\n', '')
   str1 = 'BM Bench v%s (%s) -- (short:%d int:%d double:%d' %(G_PRG_VERSION, G_PRG_LANGUAGE, checkbits_short1(), checkbits_int1(), checkbits_double1())
   str1 += ", tsMs:" + str(g_tsPrecMs) + ", tsCnt:" + str(g_tsPrecCnt) + ")"
@@ -465,9 +452,10 @@ def print_results(bench_res1):
 
 
 def measureBench(bench, n, check):
-  delta_ms = 100 # const
+  delta_ms = g_delta_ms
   max_ms = 10000 # const
   cali_ms = g_cali_ms
+  #print("DEBUG: g_delta_ms=%d delta_ms=%d g_cali_ms=%d cali_ms=%d" % (g_delta_ms, delta_ms, g_cali_ms, cali_ms))
 
   loops = 1  # number of loops
   x = 0      # result from benchmark
@@ -510,7 +498,6 @@ def measureBench(bench, n, check):
       if (tMeas == 0):
         scale_fact = 50
       elif (tMeas < cali_ms):
-        #scale_fact = ((cali_ms + 100) / tMeas) # scale a bit up to 1100 ms (cali_ms+100)
         scale_fact = int(((cali_ms + 100) / tMeas) + 1) # scale a bit up to 1100 ms (cali_ms+100) (stay with int)
       else:
         scale_fact = 2
@@ -548,6 +535,7 @@ def start_bench(bench1, bench2, n, argStr):
 
 
 def main(argv=[]):
+  global g_cali_ms, g_delta_ms
   bench1 = 0          # first benchmark to test
   bench2 = 5          # last benchmark to test
   n = 1000000         # maximum number
@@ -565,6 +553,10 @@ def main(argv=[]):
 
     if argv[4:]:
       g_cali_ms = int(argv[4]);
+    
+    if argv[5:]:
+      g_delta_ms = int(argv[5]);
+      print("DEBUG: g_delta_ms=%d" % (g_delta_ms));
 
   determineTsPrecision()
   argStr = " ".join(argv[1:])

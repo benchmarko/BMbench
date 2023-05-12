@@ -8,6 +8,7 @@ exec gst "$0" -aQ $@              # end  of     Smalltalk     comment"!
 |
 | 25.05.2002  0.01
 | 05.02.2003  0.05
+| 10.05.2023  0.08  adapted for new version
 |
 |
 | Usage:
@@ -74,169 +75,116 @@ exec gst "$0" -aQ $@              # end  of     Smalltalk     comment"!
 "
 
 
-"Benchmark  "
+"Benchmark"
 
+Smalltalk at: #gState_startTs put: 0.
+Smalltalk at: #gState_tsMeasCnt put: 0.
+Smalltalk at: #gState_tsLastMs put: 0.
+Smalltalk at: #gState_tsPrecMs put: 0.
+Smalltalk at: #gState_tsPrecCnt put: 0.
+Smalltalk at: #gState_bench03Sieve1 put: nil.
+Smalltalk at: #gState_bench05Line1 put: nil.
 
 !Integer methodsFor: 'bmbench_xx'!
 
-
-
-"bench00(int loops, num_t n)"
+"bench00(num_t n)"
 "same as bench01"
-bench00: n
-  | loops x sum1 |
+bench00
+  | n x |
 
-  loops := self.
+  n := self.
   x := 0.
-  sum1 := (n / 2) * (n + 1) bitAnd: 65535.  "assuming n even!"
-  "(sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)"
-  loops to: 1 by: -1 do: [:loop |
-    1 to: n do: [:i | x := x + i bitAnd: 65535 ].
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - sum1. "yes, set x back to 0 (assuming n even)"
-        (x = 0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^x bitAnd: 65535. "or: ^x rem: 65536."
-          ].
-      ].
-  ].
+  1 to: n do: [:i | x := x + i bitAnd: 65535 ].
+
   ^x bitAnd: 65535. "or: ^x rem: 65536."
 !
 
 
-"bench01(int loops, num_t n)"
+"bench01(num_t n)"
 "ShortInteger is MUCH faster than LongInteger but we use LongInteger here to show the difference..."
-bench01: n
-  | loops x sum1 |
+bench01
+  | n x sum1 |
 
-  loops := self.
+  n := self.
   x := 0.
-  sum1 := (n / 2) * (n + 1).  "assuming n even!"
+  sum1 := 0.
   "Transcript showCr: 'DEBUG:', (x inspect) printString."
   "(sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)"
   "Transcript showCr: 'DEBUG: bench01: loops=', loops printString, ', n=', n printString, ', sum1=', sum1 printString."
 
-  loops to: 1 by: -1 do: [:loop |
-    1 to: n do: [:i | x := x + i ].
+  1 to: n do: [:i |
+    sum1 := sum1 + i.
+    (sum1 >= n) ifTrue: [
+        sum1 := sum1 - n.
+        x := x + 1.
+      ].
+  ].
     "Transcript showCr: 'DEBUG: bench01: loop=', loop printString, ', x=', x printString."
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - sum1. "yes, set x back to 0 (assuming n even)"
-        (x = 0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^x bitAnd: 65535. "or: ^x rem: 65536."
-          ].
-      ].
-  ].
-  ^x bitAnd: 65535. "or: ^x rem: 65536."
+  ^x.
 !
 
 
-"bench02(int loops, num_t n)"
-bench02: n
-  | loops x sum1 |
+"bench02(num_t n)"
+bench02
+  | n x sum1 |
 
-  loops := self.
-  x := 0.0.
-  sum1 := (n / 2.0) * (n + 1.0). "assuming n even!"
+  n := self.
+  x := 0.
+  sum1 := 0.0.
+  "Transcript showCr: 'DEBUG:', (x inspect) printString."
   "(sum1..1000000 depends on type: 500000500000 (floating point), 1784293664 (32bit), 10528 (16 bit)"
+  "Transcript showCr: 'DEBUG: bench01: loops=', loops printString, ', n=', n printString, ', sum1=', sum1 printString."
 
-  loops to: 1 by: -1 do: [:loop |
-    1 to: n do: [:i | x := x + i ].
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - sum1. "yes, set x back to 0 (assuming n even)"
-        (x = 0.0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^(x rem: 65536) asInteger.
-          ].
+  1 to: n do: [:i |
+    sum1 := sum1 + i.
+    (sum1 >= n) ifTrue: [
+        sum1 := sum1 - n.
+        x := x + 1.
       ].
   ].
-  ^(x rem: 65536) asInteger.
+    "Transcript showCr: 'DEBUG: bench01: loop=', loop printString, ', x=', x printString."
+  ^x.
 !
 
-
-"bench03(int loops, num_t n)"
+"bench03(num_t n)"
 "number of primes below n (Sieve of Eratosthenes)"
 "Example: n=500000 => x=41538 (expected), n=1000000 => x=78498"
-bench03_hmm1: nP
-  | loops n x sieve1 i |
-  loops := self.
-  n := nP / 2. "compute only up to n/2"
-  x := 0. "number of primes below n"
-  sieve1 := Array new: n. "arrays starting from 1"
-  "We know that 0 is not a prime, so don't count it."
-  sieve1 at: 1 put: false. "1 is not a prime"
-  loops to: 1 by: -1 do: [:loop |
+bench03
+  | n nH sieve1 i m x j |
+  n := self.
+  nH := n // 2. "compute only up to n/2"
+  
+  (gState_bench03Sieve1 = nil) ifTrue: [ gState_bench03Sieve1 := ByteArray new: (nH + 1)]. "arrays starting from 1; we try ByteArray (alternative: Array withtrue, false)..."
+  sieve1 := gState_bench03Sieve1.
+   
     "initialize sieve"
-    2 to: n do: [:j | sieve1 at: j put: true ].
+    1 to: (nH + 1) do: [:j | sieve1 at: j put: 0 ].
+
     "compute primes"
-    i := 2.
-    [(i * i) <= n] whileTrue: [
-      (sieve1 at: i) ifTrue: [
-        (i * i) to: n by: i do: [:j | sieve1 at: j put: false ].
+    i := 0.
+    m := 3.
+    x := 1. "number of primes below n (2 is prime)"
+    [(m * m) <= n] whileTrue: [
+      ((sieve1 at: (i + 1)) = 0) ifTrue: [
+        x := x + 1. "m is prime"
+        "j := (m * m) quo: 2."
+        ((m * m - 3) quo: 2) to: (nH - 1) by: m do: [:j | sieve1 at: (j + 1) put: 1 ].
       ].
       i := i + 1.
+      m := m + 2.
     ].
-    "count primes"
-    1 to: n do: [:i | (sieve1 at: i) ifTrue: [ x := x + 1 ] ].
-    "check prime count"
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - 41538. "yes, set x back to 0 (number of primes below 1000000)"
-        (x = 0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^x.
-          ].
-      ].
-  ].
+
+    "count remaining primes"
+    m to: n by: 2 do: [:j | 
+      ((sieve1 at: (i + 1)) = 0) ifTrue: [ x := x + 1 ].
+      i := i + 1.
+    ].
+    "1 to: n do: [:i | ((sieve1 at: i) > 0) ifTrue: [ x := x + 1 ] ]."
   ^x.
 !
 
 
-bench03: nP
-  | loops n x sieve1 i |
-  loops := self.
-  n := nP / 2. "compute only up to n/2"
-  x := 0. "number of primes below n"
-  sieve1 := ByteArray new: n. "arrays starting from 1; we try ByteArray..."
-  "We know that 0 is not a prime, so don't count it."
-  sieve1 at: 1 put: 0. "1 is not a prime"
-  loops to: 1 by: -1 do: [:loop |
-    "initialize sieve"
-    2 to: n do: [:j | sieve1 at: j put: 1 ].
-    "compute primes"
-    i := 2.
-    [(i * i) <= n] whileTrue: [
-      ((sieve1 at: i) > 0) ifTrue: [
-        (i * i) to: n by: i do: [:j | sieve1 at: j put: 0 ].
-      ].
-      i := i + 1.
-    ].
-    "count primes"
-    1 to: n do: [:i | ((sieve1 at: i) > 0) ifTrue: [ x := x + 1 ] ].
-    "check prime count"
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - 41538. "yes, set x back to 0 (number of primes below 1000000)"
-        (x = 0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^x.
-          ].
-      ].
-  ].
-  ^x.
-!
-
-
-
-"bench04(int loops, num_t n)"
+"bench04(num_t n)"
 " nth random number number
 | Random number generator taken from
 | Raj Jain: The Art of Computer Systems Performance Analysis, John Wiley & Sons, 1991, page 442-444.
@@ -244,49 +192,35 @@ bench03: nP
 | Starting with x0=1, x10000 should be 1043618065, x1000000 = 1227283347.
 | Note: We have just 30 Bit SmallInteger and LongInteger is very slow, so use Float...
 "
-bench04: n
-  | loops m a q r x xDivq xModq |
-  loops := self.
-  m := 2147483647.0. "modulus, do not change!" "hey, this is Longinteger because we have only 30 bits!"
-  a := 16807.0. "multiplier"
-  q := 127773.0. "m div a"
-  r := 2836.0. "m mod a"
-  x := 1.0. "last random value"
+bench04
+  | n m a q r x xDivq xModq |
+  n := self.
+  m := 2147483647. "modulus, do not change!" "hey, this is Longinteger because we have only 30 bits!"
+  a := 16807. "multiplier"
+  q := 127773. "m div a"
+  r := 2836. "m mod a"
+  x := 1. "last random value"
   "Transcript showCr: 'DEBUG bench04: x=', x printString."
-  loops to: 1 by: -1 do: [:loop |
-    n timesRepeat: [
-      xDivq := x quo: q.
-      "Transcript showCr: 'DEBUG: xDivq=', xDivq printString."
-      xModq := x - (q * xDivq).
-      x := (a * xModq) - (r * xDivq).
-      "Transcript showCr: 'DEBUG: m=', (m inspect) printString."
-      (x <= 0.0) ifTrue: [ x := x + m ].  "x is new random number"
-      "Transcript showCr: 'DEBUG: x=', (x inspect) printString."
-      "(tmp1 > 24501) ifTrue: [ Transcript showCr: 'DEBUG: tmp1=', tmp1 printString.]."
-    ].
-    "Transcript showCr: 'DEBUG bench04: x2=', x printString."
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - 1227283347. "yes, set x back to 0"
-        (x = 0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^(x asInteger).
-          ].
-        x := x + 1. "start with 1 again"
-      ].
+  n timesRepeat: [
+    xDivq := x quo: q.
+    "Transcript showCr: 'DEBUG: xDivq=', xDivq printString."
+    xModq := x - (q * xDivq).
+    x := (a * xModq) - (r * xDivq).
+    "Transcript showCr: 'DEBUG: m=', (m inspect) printString."
+    (x <= 0) ifTrue: [ x := x + m ].  "x is new random number"
+    "Transcript showCr: 'DEBUG: x=', (x inspect) printString."
+    "(tmp1 > 24501) ifTrue: [ Transcript showCr: 'DEBUG: tmp1=', tmp1 printString.]."
   ].
   ^(x asInteger).
 !
 
 
-"bench05(int loops, num_t n)"
-bench05: nP
-  | loops x n k pas1 iMod2 i1Mod2 min1 |
-  loops := self.
+"bench05(num_t n)"
+bench05
+  | nP x n k line1 min1 prev1 num1 |
+  nP := self.
 
-  x := 0.
-  n := nP quo: 500.
+  n := nP quo: 2.
   k := n bitShift: -1. "div 2"
   "Transcript showCr: 'DEBUG: n=', (n inspect) printString, ', k=', (k inspect) printString."
   "Transcript showCr: 'DEBUG: n=', n printString, ', k=', k printString."
@@ -296,61 +230,67 @@ bench05: nP
   ].
 
   "allocate memory..."
-  pas1 := Array new: 2.
-  pas1 at: 1 put: (Array new: (k + 1)).
-  pas1 at: 2 put: (Array new: (k + 1)).
-  (pas1 at: 1) at: 1 put: 1.  (pas1 at: 2) at: 1 put: 1.  "set first column"
+  (gState_bench05Line1 = nil) ifTrue: [ gState_bench05Line1 := Array new: (k + 1)]. "arrays starting from 1"
+  line1 := gState_bench05Line1.
+  
+  "initialize sieve (not needed)"
+  1 to: (k + 1) do: [:j | line1 at: j put: 0 ].
+  
+  line1 at: 0 + 1 put: 1.
+  (k >= 1) ifTrue: [ line1 at: 1 + 1 put: 2 ].
 
-  loops to: 1 by: -1 do: [:loop |
     3 to: n do: [:i |
-      iMod2 := i bitAnd: 1.
-      i1Mod2 := iMod2 bitXor: 1.
-      min1 := (i - 1) quo: 2.
-      (k < min1) ifTrue: [ min1 := k ].
-      (pas1 at: (iMod2+1)) at: (1+1) put: i. "second column is i"
+      min1 := (i - 1) bitShift: -1. "min1 := (i - 1) quo: 2."
+      "Transcript showCr: 'DEBUG: in=', i printString, ', min1=', min1 printString."
+      ((i bitAnd: 1) = 0) ifTrue: [ "new element"
+        line1 at: (min1 + 1 + 1) put: ((line1 at: (min1 + 1)) * 2).
+        "Transcript showCr: 'DEBUG: l1x=', line1 at: (min1 + 1 + 1) printString."
+      ].
+
+      prev1 := line1 at: (1 + 1).
       2 to: min1 do: [:j |  "up to min((i-1)/2, k)"
-        "Transcript showCr: 'DEBUG: iMod2=', iMod2 printString, ', i1Mod2=', i1Mod2 printString, ', i=', i printString, ', min1=', min1 printString, ', j=', j printString."
-        (pas1 at: (iMod2+1)) at: (j+1) put: (((pas1 at: (i1Mod2 + 1)) at: (j - 1 + 1)) + ((pas1 at: (i1Mod2 + 1)) at: (j+1)) bitAnd: 65535).
-        "we need mod here to avoid overflow"
+        num1 := line1 at: (j + 1).
+        line1 at: (j + 1) put: ((num1 + prev1) bitAnd: 65535). "avoid overflow"
+        prev1 := num1.
+        "Transcript showCr: 'DEBUG: l2x=', line1 at: (j + 1) printString."
       ].
-      ((min1 < k) and: [iMod2 = 0]) ifTrue: [   "new element"
-        (pas1 at: (iMod2+1)) at: (min1+1+1) put: ((pas1 at: (i1Mod2+1)) at: (min1+1)) * 2.
-      ].
+      line1 at: (1 + 1) put: i. "second column is i"
+      "Transcript showCr: 'DEBUG: l3x=', line1 at: (1 + 1) printString."
     ].
-    x := x + ((pas1 at: ((n bitAnd: 1) + 1)) at: (k+1)) bitAnd: 65535.
+    
+    "compute sum of ((n/2)Ck)^2 mod 65536 for k=0..n/2"
+    x := 0.
+    1 to: k do: [:j |
+      x := (x + ((line1 at: j) * (line1 at: j) * 2)) bitAnd: 65535.
+      "Transcript showCr: 'DEBUG: x=', x printString."
+    ].
+    x := (x + ((line1 at: (k + 1)) * (line1 at: (k + 1)))) bitAnd: 65535.
+    "Transcript showCr: 'DEBUG: k=', k printString, ', x2=', x printString."
+    "x := x + ((line1 at: ((n bitAnd: 1) + 1)) at: (k+1)) bitAnd: 65535."
 
-    (loop > 1)  "Some more loops left?"
-      ifTrue: [
-        x := x - 27200. "yes, set x back to 0"
-        (x = 0)  "now x must be 0 again"
-          ifFalse: [
-            x := x + 1. "error"
-            ^x.
-          ].
-      ].
-
-  ].
-  ^x.
+  ^x bitAnd: 65535.
 !
 
 
-"run_bench(int bench, int loops, num_t n)"
-runBench: loops num1: n
-  | bench x check1 |
+"run_bench(int bench, int loops, num_t n, int check1)"
+runBench: loops num1: n check1: check1
+  | bench x |
   bench := self.
   "Transcript showCr: 'DEBUG: runBench: bench=', bench printString, ', loops=', loops printString, ', n=', n printString."
 
   "Smalltalk compact."  "TEST..."
   x := 0.
-  check1 := 0.
-  (bench = 0) ifTrue: [ x := loops bench00: n. check1 := 10528 ].
-  (bench = 1) ifTrue: [ x := loops bench01: n. check1 := 10528 ].
-  (bench = 2) ifTrue: [ x := loops bench02: n. check1 := 10528 ].
-  (bench = 3) ifTrue: [ x := loops bench03: n. check1 := 41538 ].
-  (bench = 4) ifTrue: [ x := loops bench04: n. check1 := 1227283347 ].
-  (bench = 5) ifTrue: [ x := loops bench05: n. check1 := 27200 ].
-  "TO DO: 'Error: Unknown benchmark: %d\n', bench); check1 = x + 1; /* force error */"
-
+  
+  loops timesRepeat: [
+    (bench = 0) ifTrue: [ x := n bench00. ].
+    (bench = 1) ifTrue: [ x := n bench01. ].
+    (bench = 2) ifTrue: [ x := n bench02. ].
+    (bench = 3) ifTrue: [ x := n bench03. ].
+    (bench = 4) ifTrue: [ x := n bench04. ].
+    (bench = 5) ifTrue: [ x := n bench05. ].
+    x := x - check1.
+  ].
+  x := x + check1.
   (check1 = x) ifFalse: [
      Transcript showCr: 'Error(bench', bench printString, '): x=', x printString.
      x := -1.
@@ -360,8 +300,96 @@ runBench: loops num1: n
 !
 
 
+"getCheck(int bench, num_t n)"
+getCheck: n
+  | bench check1 |
+  bench := self.
+  "Transcript showCr: 'DEBUG: getCheck: bench=', bench printString, ', n=', n printString."
+
+  "Smalltalk compact."  "TEST..."
+  check1 := 0.
+  (bench = 0) ifTrue: [ check1 := 10528 ].
+  (bench = 1) ifTrue: [ check1 := (n + 1) quo: 2 ].
+  (bench = 2) ifTrue: [ check1 := (n + 1) quo: 2 ].
+  (bench = 3) ifTrue: [ check1 := 41538 ].
+  (bench = 4) ifTrue: [ check1 := 1227283347 ].
+  (bench = 5) ifTrue: [ check1 := 17376 ].
+
+  (check1 = 0) ifTrue: [
+     Transcript showCr: 'Error: Unknown benchmark ', bench printString.
+     Transcript cr.
+     check1 := -1.
+  ].
+
+  ^check1.
+!
+
+getTs
+  ^Time millisecondClock - gState_startTs.
+!
+
+"correctTime(double tMeas, double tMeas2, int measCount)"
+correctTime: tMeas2
+  | tMeas |
+  tMeas := self.
+
+  "Transcript showCr: 'DEBUG: tMeas=', tMeas printString, ', tMeas2=', tMeas2 printString."
+  (gState_tsMeasCnt < gState_tsPrecCnt) ifTrue: [
+    "Transcript showCr: 'DEBUG: tMeas=', tMeas printString, ', tMeasCorr=', ((((gState_tsPrecMs * (gState_tsPrecCnt - gState_tsMeasCnt)) / gState_tsPrecCnt) + tMeas) * 1000.0) truncated printString."
+    tMeas := tMeas + ((gState_tsPrecMs * (gState_tsPrecCnt - gState_tsMeasCnt)) // gState_tsPrecCnt).
+    "Cannot set a fraction with '/' here because we cannot print float"
+    "Transcript showCr: 'DEBUG: tMeas=', tMeas printString."
+    "Transcript showCr: 'DEBUG: tMeas=', (tMeas * 1000.0) truncated printString."
+    (tMeas > tMeas2) ifTrue: [
+      tMeas := tMeas2. "cannot correct"
+    ].
+  ].
+  ^tMeas.
+!
+
+
+getPrecMs
+  | tMeas0 tMeas measCount |
+  
+  measCount := 0.
+  tMeas0 := 0 getTs.
+  tMeas := tMeas0.
+  [tMeas <= tMeas0] whileTrue: [
+    tMeas := 0 getTs.
+    measCount := measCount + 1.
+  ].
+  "Transcript showCr: 'DEBUG: tMeas=', tMeas printString."
+  gState_tsMeasCnt := measCount.
+  gState_tsLastMs := tMeas0.
+  "Transcript showCr: 'DEBUG: getPrecMs: tMeas0=', tMeas0 printString, ', tMeas=', tMeas printString."
+  ^tMeas.
+!
+
+
+"
 getMs
   ^Time millisecondClock
+!
+"
+
+determineTsPrecision
+  | tMeas0 tMeas1 |
+  gState_startTs := 0.
+  gState_startTs := 0 getTs.
+  
+  tMeas0 := 0 getPrecMs.
+  tMeas1 := 0 getPrecMs.
+  gState_tsPrecMs := tMeas1 - tMeas0.
+  gState_tsPrecCnt := gState_tsMeasCnt.
+
+  "do it again"
+  tMeas0 := tMeas1.
+  tMeas1 := 0 getPrecMs.
+  (gState_tsMeasCnt > gState_tsPrecCnt) ifTrue: [ "take maximum count"
+      gState_tsPrecCnt := gState_tsMeasCnt.
+      gState_tsPrecMs := tMeas1 - tMeas0.
+  ].
+  ^0.
 !
 
 
@@ -419,72 +447,156 @@ checkbitsDouble1
   ^bits.
 !
 
-
-main: argc args: argv
-  | startT bench1 bench2 n minMs benchRes loops x t1 bench |
-  startT := 0 getMs. "memorize start time"
-  bench1 := 0.    "first benchmark to test"
-  bench2 := 5.    "last benchmark to test"
-  n := 1000000.   "maximum number"
-  minMs := 10000. "minimum runtime for measurement in ms"
-  benchRes := Array new: bench2 + 1.  "benchmark results"
-
-  "Smalltalk arguments."
-  (argc >= 1) ifTrue: [ bench1 := (argv at: 1) asInteger ].
-  (argc >= 2) ifTrue: [ bench2 := (argv at: 2) asInteger ].
-  (argc >= 3) ifTrue: [ n := (argv at: 3) asInteger ].
-
-  Transcript showCr: 'BM Bench v0.5 (Smalltalk) -- (short:', (0 checkbitsSmall1) printString,
-    ', int:', (0 checkbitsInt1) printString,
-    ', double:', (0 checkbitsDouble1) printString,') ', (Smalltalk version);
-    showCr: '(c) Marco Vieth, 2002';
+"print_info()"
+print_info
+  |  |
+  Transcript showCr: 'BM Bench v0.8 (Smalltalk) -- (short:', (0 checkbitsSmall1) printString,
+    ' int:', (0 checkbitsInt1) printString,
+    ' double:', (0 checkbitsDouble1) printString,
+    ' tsMs:', gState_tsPrecMs printString,
+    ' tsCnt:', gState_tsPrecCnt printString,
+    ') ', (Smalltalk version);
+    showCr: '(c) Marco Vieth, 2002-2023';
     showCr: (DateTime now) printString.
+  ^1.
+!
 
-  bench1 to: bench2 do: [:bench |
-    loops := 1. "number of loops"
-    x := 0. "result from benchmark"
-    t1 := 0. "timestamp"
 
-    [t1 < 1001 and: [(x = -1) not]] whileTrue: [
-      Transcript showCr: 'Calibrating benchmark ', bench printString, ' with loops=', loops printString, ', n=', n printString.
-      t1 := 0 getMs.
-      x := bench runBench: loops num1: n.
-      t1 := 0 getMs - t1.
-      Transcript showCr: 'x=', x printString, ' (time: ', t1 printString, ' ms)'.
-      loops := loops * 2.
-    ].
+"measureBench(int bench, int n, int check)"
+measureBench: n check1: check1
+  | bench delta_ms max_ms cali_ms loops tMeas0 tMeas tEsti throughput x t_delta loops_p_sec scale_fact prg_language |
+  bench := self.
+  delta_ms := 100.
+  max_ms := 10000.
+  cali_ms := 101. "g_cali_ms"
+  prg_language := Smalltalk.
+  
+  loops := 1.
+  tMeas := 0.
+  tEsti := 0.
+  throughput := 0.
+  
+  Transcript showCr: 'Calibrating benchmark ', bench printString, ' with loops=', loops printString, ', n=', n printString, ', check=', check1 printString.
 
-    (x = -1)
-    ifFalse: [
-      loops := loops / 2.
-      loops := ((loops * minMs) quo: t1) + 1.
+  [throughput = 0] whileTrue: [
+      tMeas0 := 0 getPrecMs.
+      x := bench runBench: loops num1: n check1: check1.
+      tMeas := 0 getPrecMs.
+      tMeas := gState_tsLastMs correctTime: tMeas.
+      tMeas := tMeas - tMeas0.
 
-      Transcript showCr: 'Calibration done. Starting measurement with ', loops printString, ' loops to get ', minMs printString, ' ms'.
+      t_delta := (tEsti > tMeas) ifTrue: [tEsti - tMeas] ifFalse: [tMeas - tEsti].
+      "Transcript showCr: 'DEBUG: measureBench: tMeas=', tMeas printString, ', t_delta=', t_delta printString; cr."
+      loops_p_sec := (tMeas > 0) ifTrue: [loops * 1000 quo: tMeas] ifFalse: [0].
+      
+      "Transcript showCr: 'DEBUG: measureBench: loops_p_sec=', loops_p_sec printString; cr."
+      
+      Transcript showCr: loops_p_sec printString, '/s (time=', tMeas printString, ' ms, loops=', 
+        loops printString, ', delta=', t_delta printString, ' ms)'.
 
-      t1 := 0 getMs.
-      "Transcript showCr: 'DEBUG: bench=', bench printString, ', loops=', loops printString, ', n=', n printString."
-      x := bench runBench: loops num1: n.
-      t1 := 0 getMs - t1.
-      benchRes at: (bench + 1) put: (t1 * 10 quo: loops).
-      Transcript showCr: 'x=', x printString, ' (time: ', t1 printString, ' ms)';
-        showCr: 'Elapsed time for ', loops printString, ' loops: ', t1 printString,
-        ' ms; estimation for 10 loops: ', (benchRes at: (bench + 1)) printString, ' ms'.
-    ]
-    ifTrue: [
-      benchRes at: (bench + 1) put: -1.
-    ].
+      (x = -1)
+      ifTrue: [
+        throughput := -1.
+      ]
+      ifFalse: [
+        ((tEsti > 0) and: [t_delta < delta_ms])
+        ifTrue: [
+          throughput := loops_p_sec.
+          Transcript showCr: 'Benchmark ', bench printString, ' (', prg_language printString, '): ',
+            loops_p_sec printString, '/s (time=', tMeas printString, ' ms, loops=', 
+            loops printString, ', delta=', t_delta printString, ' ms)'.
+        ]
+        ifFalse: [
+            (tMeas > max_ms)
+            ifTrue: [
+                Transcript showCr: 'Benchmark ', bench printString, ' (', prg_language printString, '): ',
+                  'Time already > ', max_ms printString, ' ms. No measurement possible.'.
+                throughput := (loops_p_sec > 0) ifTrue: [ 0 - loops_p_sec ] ifFalse: [ -1.0 ].
+            ].
+        ].
+      ].
+
+      (throughput = 0)
+      ifTrue: [
+          (tMeas = 0)
+          ifTrue: [
+              scale_fact := 50.
+          ]
+          ifFalse: [ 
+              (tMeas < cali_ms)
+              ifTrue: [
+                  scale_fact := ((cali_ms + 100) quo: tMeas) + 1.
+              ]
+              ifFalse: [
+                  scale_fact := 2.
+              ].
+          ].
+          "Transcript showCr: 'DEBUG: measureBench: scale_fact=', scale_fact printString."
+          loops := loops * scale_fact.
+          tEsti := tMeas * scale_fact.
+      ].
+
+      "throughput := 10."
   ].
+  ^throughput.
+!
 
-  Transcript showCr: 'Times for all benchmarks (10 loops, ms):';
+
+"print_results(int bench1, int bench2, double bench_res1[])"
+print_results: bench2 benchRes: benchRes
+ | bench1 |
+ bench1 := self.
+  Transcript cr.
+  Transcript showCr: 'Times for all benchmarks (loops per sec):';
     show: 'BM Results (Smalltalk)   : '.
 
   bench1 to: bench2 do: [:bench |
     Transcript show: (benchRes at: (bench + 1)) printString, ' '.
   ].
+  Transcript cr.
+  ^1.
+!
 
-  Transcript cr; showCr: 'Total elapsed time: ', (0 getMs - startT) printString, ' ms'.
+"start_bench(int bench1, int bench2, int n, String argStr)"  "argStr: argStr"
+start_bench: bench2 num1: n
+  | bench1 bench n2 benchRes check1 throughput |
+  bench1 := self.
+  0 determineTsPrecision.
+  0 print_info.
+  
+  benchRes := Array new: bench2 + 1.  "benchmark results"
+  "Transcript showCr: 'DEBUG: start_bench: bench1=', bench1 printString."
+    
+  bench1 to: bench2 do: [:bench |
+    n2 := n.
+    (bench = 3) ifTrue: [ n2 := n2 quo: 2 ].
+    (bench = 5) ifTrue: [ n2 := n2 quo: 200 ].
+    check1 := bench getCheck: n2.
+    throughput := (check1 > 0) ifTrue: [ bench measureBench: n2 check1: check1 ] ifFalse: [ -1 ].
+    "Transcript showCr: 'DDD: check1=', check1 printString, ' tput=', throughput printString."
+    benchRes at: (bench + 1) put: throughput.
+  ].
+  bench1 print_results: bench2 benchRes: benchRes.
 
+  Transcript cr.
   ^0.
+!
+
+main: argc args: argv
+  | startT bench1 bench2 n rc |
+  bench1 := 0.    "first benchmark to test"
+  bench2 := 5.    "last benchmark to test"
+  n := 1000000.   "maximum number"
+
+  "Smalltalk arguments."
+  (argc >= 1) ifTrue: [ bench1 := (argv at: 1) asInteger ].
+  (argc >= 2) ifTrue: [ bench2 := (argv at: 2) asInteger ].
+  (argc >= 3) ifTrue: [ n := (argv at: 3) asInteger ].
+  
+  rc := bench1 start_bench: bench2 num1: n.
+  
+  Transcript showCr: 'Total elapsed time: ', (0 getTs) printString, ' ms'.
+  ^rc.
 ! !
 
 "start main..."
@@ -497,5 +609,7 @@ main: argc args: argv
 "Transcript show: 'DEBUG: The arguments were ', (Smalltalk arguments) printString; cr."
 
 "Transcript showCr: (0 main)."
+"Smalltalk at: #gState_startTs put: 0."
+"Transcript show: 'DEBUG: The arguments were ', (Smalltalk at: #gState_startTs) printString; cr."
 0 main: (Smalltalk arguments size) args: (Smalltalk arguments).
 !

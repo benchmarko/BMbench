@@ -31,6 +31,7 @@ my $g_tsPrecMs = 0; # measured time stamp precision
 my $g_tsPrecCnt = 0; # time stamp count (calls) per precision interval (until time change)
 my $g_tsMeasCnt = 0; # last measured count
 my $g_cali_ms = 1001;
+my $g_delta_ms = 100;
 
 #
 # General description for benchmark test functions
@@ -511,9 +512,9 @@ sub print_results($$$) {
 
 sub measureBench($$$) {
   my($bench, $n, $check) = @_;
-  my $delta_ms = 100; # const
   my $max_ms = 10000; # const
   my $cali_ms = $g_cali_ms; # 1001
+  my $delta_ms = $g_delta_ms;
 
   my $loops = 1; # number of loops
   my $x = 0;     # result from benchmark
@@ -603,6 +604,9 @@ sub main($) {
   }
    if ($#ARGV > 2) {
     $g_cali_ms = $ARGV[3];
+  }
+  if ($#ARGV > 3) {
+    $g_delta_ms = $ARGV[4];
   }
 
   determineTsPrecision();
