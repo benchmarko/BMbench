@@ -31,6 +31,7 @@ exec gst "$0" -aQ $@              # end  of     Smalltalk     comment"!
 |
 | - Print comment of (information about) class Integer:  '(Integer comment) printNl !'
 | - Inspecting objects: 'inspect' message: 'Integer inspect !'
+| - Transcript using Float number prodces divide by zero error (?)
 |
 | - Defining method 'new' for class <classname>:
 |   !<classname> class methodsFor: 'instance creation'!
@@ -58,6 +59,8 @@ exec gst "$0" -aQ $@              # end  of     Smalltalk     comment"!
 |  - anArray inject: 0 into: [:sum :item | sum + item ].
 |  - There was a segmentation fault when running bench03 (with normal Array), bench04...
 |
+|  - https://www.tutorialspoint.com/execute_smalltalk_online.php
+|    Arguments: -a 6 6
 |
 ======================================================================"
 
@@ -76,6 +79,10 @@ exec gst "$0" -aQ $@              # end  of     Smalltalk     comment"!
 
 
 "Benchmark"
+
+
+Smalltalk at: #gState_cali_ms put: 1001.
+Smalltalk at: #gState_delta_ms put: 100.
 
 Smalltalk at: #gState_startTs put: 0.
 Smalltalk at: #gState_tsMeasCnt put: 0.
@@ -272,6 +279,20 @@ bench05
 !
 
 
+"bench06(int n)"
+bench06
+  | n sum1 flip1 |
+  n := self.
+  sum1 := 0.0.
+  flip1 := -1.0.
+  1 to: n do: [:i |
+    flip1 := flip1 * -1.0.
+    sum1 := sum1 + (flip1 / (2 * i - 1)).
+  ].
+  ^((sum1 * 4.0) * 100000000.0) truncated.
+!
+
+
 "run_bench(int bench, int loops, num_t n, int check1)"
 runBench: loops num1: n check1: check1
   | bench x |
@@ -288,6 +309,7 @@ runBench: loops num1: n check1: check1
     (bench = 3) ifTrue: [ x := n bench03. ].
     (bench = 4) ifTrue: [ x := n bench04. ].
     (bench = 5) ifTrue: [ x := n bench05. ].
+    (bench = 6) ifTrue: [ x := n bench06. ].
     x := x - check1.
   ].
   x := x + check1.
@@ -300,6 +322,28 @@ runBench: loops num1: n check1: check1
 !
 
 
+"bench03Check(int n)"
+bench03Check
+| n x isPrime i |
+  n := self.
+  x := 1. "2 is prime"
+  3 to: n by: 2 do: [:j |
+    isPrime := true.
+    i := 3.
+    [(i * i) <= j and: [ isPrime = true]] whileTrue: [
+        ((j rem: i) = 0) ifTrue: [
+            isPrime := false.
+        ].
+        i := i + 2.
+    ].
+    (isPrime = true) ifTrue: [
+        x := x + 1.
+    ].
+  ].
+  ^x
+!
+
+
 "getCheck(int bench, num_t n)"
 getCheck: n
   | bench check1 |
@@ -308,12 +352,23 @@ getCheck: n
 
   "Smalltalk compact."  "TEST..."
   check1 := 0.
-  (bench = 0) ifTrue: [ check1 := 10528 ].
+  (bench = 0) ifTrue: [
+      (n = 1000000) ifTrue: [ check1 := 10528 ] ifFalse: [ check1 := ((n / 2) * (n + 1)) bitAnd: 65535 ]
+  ].
   (bench = 1) ifTrue: [ check1 := (n + 1) quo: 2 ].
   (bench = 2) ifTrue: [ check1 := (n + 1) quo: 2 ].
-  (bench = 3) ifTrue: [ check1 := 41538 ].
-  (bench = 4) ifTrue: [ check1 := 1227283347 ].
-  (bench = 5) ifTrue: [ check1 := 17376 ].
+  (bench = 3) ifTrue: [
+      (n = -500000) ifTrue: [ check1 := 41538 ] ifFalse: [ check1 := n bench03Check ]
+  ].
+  (bench = 4) ifTrue: [
+      (n = 1000000) ifTrue: [ check1 := 1227283347 ] ifFalse: [ check1 := n bench04 ]
+  ].
+  (bench = 5) ifTrue: [ 
+      (n = 5000) ifTrue: [ check1 := 17376 ] ifFalse: [ check1 := n bench05 ]
+  ].
+  (bench = 6) ifTrue: [
+      (n = 1000000) ifTrue: [ check1 := 314159165 ] ifFalse: [ check1 := n bench06 ]
+   ].
 
   (check1 = 0) ifTrue: [
      Transcript showCr: 'Error: Unknown benchmark ', bench printString.
@@ -466,9 +521,9 @@ print_info
 measureBench: n check1: check1
   | bench delta_ms max_ms cali_ms loops tMeas0 tMeas tEsti throughput x t_delta loops_p_sec scale_fact prg_language |
   bench := self.
-  delta_ms := 100.
+  cali_ms := gState_cali_ms.
+  delta_ms := gState_delta_ms.
   max_ms := 10000.
-  cali_ms := 101. "g_cali_ms"
   prg_language := Smalltalk.
   
   loops := 1.
@@ -592,6 +647,8 @@ main: argc args: argv
   (argc >= 1) ifTrue: [ bench1 := (argv at: 1) asInteger ].
   (argc >= 2) ifTrue: [ bench2 := (argv at: 2) asInteger ].
   (argc >= 3) ifTrue: [ n := (argv at: 3) asInteger ].
+  (argc >= 4) ifTrue: [ gState_cali_ms := (argv at: 4) asInteger ].
+  (argc >= 5) ifTrue: [ gState_delta_ms := (argv at: 5) asInteger ].
   
   rc := bench1 start_bench: bench2 num1: n.
   

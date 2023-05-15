@@ -32,13 +32,21 @@
      DEFINT a-z
      prgLanguage$ = "Basic"
      prgVersion$ = "0.08"
-     REM Settings for bwbasic
-     basicver$ = "bwbasic ?"
      startTs = 0
-     DEF FNgetTs = TIMER - startTs
-     startTs = FNgetTs
-     DEF FNconvMs!(ts) = ts * 1000.0
      maxBench = 6
+     bwbasic = 0: REM 1 for bwbasic, 0 for Locomotive Basic
+     IF TIMER > 0 THEN bwbasic = 1: GOTO 1000: REM TIMER variable set -> assume bwbasic
+     REM Settings for Locomotive Basic
+     basicver$ = "Locomotive Basic 1.1"
+     DEF FNgetTs(fac!) = TIME - startTs
+     DEF FNconvMs!(ts) = ts * 10.0 / 3.0: REM time conversion factor for ms, usually 300 Hz
+     startTs = FNgetTs
+     GOTO 6000: REM main
+     REM Settings for bwbasic
+1000 basicver$ = "bwbasic ?"
+     DEF FNgetTs = TIMER - startTs
+     DEF FNconvMs!(ts) = ts * 1000.0
+     startTs = FNgetTs
      GOTO 6000: REM main
      REM
      REM
@@ -204,7 +212,7 @@
      REM getCheck(bench, n): check
 2300 check = -1
      IF bench = 0 THEN check = ((n / 2) * (n + 1)) MOD 65536
-     IF bench = 1 OR bench = 2 THEN check = (n + 1) / 2
+     IF bench = 1 OR bench = 2 THEN check = INT((n + 1) / 2)
      IF bench = 3 THEN IF n = 500000 THEN check = 41538 ELSE GOSUB 2280: check = x
      IF bench = 4 THEN IF n = 1000000 THEN check = 1227283347 ELSE GOSUB 2150: check = x
      IF bench = 5 THEN IF n = 5000 THEN check = 17376 ELSE GOSUB 2200: check = x
@@ -269,9 +277,8 @@
      RETURN
      REM
      REM
-     REM measureBench(bench1, bench2, n, check, caliMs): throughput!
-4000 deltaMs = 100
-     maxMs = 10000
+     REM measureBench(bench1, bench2, n, check, caliMs, deltaMs): throughput!
+4000 maxMs = 10000
      loops = 1
      tEsti! = 0
      throughput! = 0
@@ -291,7 +298,7 @@
        PRINT USING "######.###";loopsPsec!;
        PRINT "/s (time="; USING "#####.###"; tMeas!;
        PRINT " ms, loops="; USING "#######"; loops;
-       PRINT ", delta="; USING "#####.###"; tDelta!; " ms)"
+       PRINT ", delta="; USING "#####.###"; tDelta!;: PRINT " ms)"
        IF x = -1 then throughput! = -1:goto 4100
        IF tMeas! > maxMs THEN PRINT "Benchmark"; bench; "("; prgLanguage$; "): Time already >"; maxMs; " ms. No measurement possible.": throughput! = -loopsPsec!: IF throughput! = 0 THEN throughput! = -1: goto 4100 ELSE 4100
        IF tEsti! > 0 AND tDelta! < deltaMs THEN throughput! = loopsPsec!: GOSUB 3800: GOTO 4100
@@ -309,7 +316,7 @@
      nSave = n
      FOR bench = bench1 TO bench2
        n = nSave
-       IF bench = 3 THEN n = INT(n / 2): DIM sieve1(250001) ELSE IF bench = 5 THEN DIM line1(1251): n = INT(n / 200)
+       IF bench = 3 THEN n = INT(n / 2): DIM sieve1(n / 2 + 1) ELSE IF bench = 5 THEN n = INT(n / 200): DIM line1(n / 4)
        GOSUB 2300: REM getCheck
        throughput! = -1
        IF check > 0 THEN GOSUB 4000: REM measureBench
@@ -323,16 +330,19 @@
 6000 bench1 = 0: REM first benchmark to test
      bench2 = 5: REM last benchmark to test
      n = 1000000: REM maximum number
+     IF bwbasic = 0 THEN n = 10000: REM reduce n for Locomotive BASIC
      caliMs = 1001
+     deltaMs = 100
      IF COMMAND$(1) <> "" THEN bench1 = VAL(COMMAND$(1))
      IF COMMAND$(2) <> "" THEN bench2 = VAL(COMMAND$(2))
      IF COMMAND$(3) <> "" THEN n = VAL(COMMAND$(3))
      IF COMMAND$(4) <> "" THEN caliMs = VAL(COMMAND$(4))
+     IF COMMAND$(5) <> "" THEN deltaMs = VAL(COMMAND$(5))
      GOSUB 5480
      tMeas! = FNconvMs!(FNgetTs)
      PRINT "Total elapsed time:"; tMeas!; "ms"
      REM VARS
-     SYSTEM
+     REM SYSTEM
      REM system or quit to exit bwbasic
      END
      REM end
