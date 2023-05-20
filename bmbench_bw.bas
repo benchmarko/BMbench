@@ -29,23 +29,23 @@
      REM
      REM
      CLEAR
-     DEFINT a-z
      prgLanguage$ = "Basic"
      prgVersion$ = "0.08"
      startTs = 0
      maxBench = 6
+     DEF FNmod1(x,q) = x - INT(x / q) * q: REM x MOD q
      bwbasic = 0: REM 1 for bwbasic, 0 for Locomotive Basic
      IF TIMER > 0 THEN bwbasic = 1: GOTO 1000: REM TIMER variable set -> assume bwbasic
      REM Settings for Locomotive Basic
      basicver$ = "Locomotive Basic 1.1"
-     DEF FNgetTs(fac!) = TIME - startTs
-     DEF FNconvMs!(ts) = ts * 10.0 / 3.0: REM time conversion factor for ms, usually 300 Hz
+     DEF FNgetTs = TIME - startTs
+     DEF FNconvMs(ts) = ts * 10.0 / 3.0: REM time conversion factor for ms, usually 300 Hz
      startTs = FNgetTs
      GOTO 6000: REM main
      REM Settings for bwbasic
 1000 basicver$ = "bwbasic ?"
      DEF FNgetTs = TIMER - startTs
-     DEF FNconvMs!(ts) = ts * 1000.0
+     DEF FNconvMs(ts) = ts * 1000.0
      startTs = FNgetTs
      GOTO 6000: REM main
      REM
@@ -65,23 +65,23 @@
      FOR j = nmod TO 1 STEP -1
        x = x + j
      NEXT j
-     x = x MOD 65536
+     x = FNmod1(x, 65536)
      RETURN
      REM
      REM
      REM bench01(n): x
 1840 x = 0
-     sum = 0
+     sum% = 0
      FOR i = 1 TO n
-       sum = sum + i
-       IF sum >= n THEN sum = sum - n: x = x + 1
+       sum% = sum% + i
+       IF sum% >= n THEN sum% = sum% - n: x = x + 1
      NEXT i
      RETURN
      REM
      REM
      REM bench02(n): x (Floating Point)
 2040 x = 0
-     sum! = 0
+     sum! = 0.0
      FOR i = 1 TO n
        sum! = sum! + i
        IF sum! >= n THEN sum! = sum! - n: x = x + 1
@@ -148,7 +148,7 @@
        prev1 = line1(1)
        FOR j = 2 TO min1
          num1 = line1(j)
-         line1(j) = (line1(j) + prev1) AND 65535
+         line1(j) = FNmod1(line1(j) + prev1, 65536)
          prev1 = num1
        NEXT j
        line1(1) = i
@@ -158,26 +158,26 @@
      FOR j = 0 TO k - 1
        REM x = (x + 2 * line1(j) * line1(j)) MOD 65536
        xHelp = line1(j)
-       xHelp = (2.0 * (xHelp * xHelp)) MOD 65536
-       x = (x + xHelp) AND 65535
+       xHelp = FNmod1(2.0 * (xHelp * xHelp), 65536)
+       x = FNmod1(x + xHelp, 65536)
      NEXT j
      REM x = (x + line1(k) * line1(k)) AND 65535
      xHelp = line1(k)
-     xHelp = (xHelp * xHelp) MOD 65536
-     x = (x + xHelp) AND 65535
+     xHelp = FNmod1(xHelp * xHelp, 65536)
+     x = FNmod1(x + xHelp, 65536)
      n = b05nSave
      RETURN
      REM
      REM
      REM
      REM bench06(n): x
-2240 sum! = 0.0
-     flip! = -1.0
+2240 sum = 0.0
+     flip = -1.0
      FOR i = 1 TO n
-       flip! = flip! * -1.0
-       sum! = sum! + flip! / (2 * i - 1)
+       flip = flip * -1.0
+       sum = sum + flip / (2 * i - 1)
      NEXT i
-     x = ((sum! * 4.0) * 100000000)
+     x = ((sum * 4.0) * 100000000)
      RETURN
      REM
      REM
@@ -211,7 +211,7 @@
      REM
      REM getCheck(bench, n): check
 2300 check = -1
-     IF bench = 0 THEN check = ((n / 2) * (n + 1)) MOD 65536
+     IF bench = 0 THEN check = FNmod1((n / 2) * (n + 1), 65536)
      IF bench = 1 OR bench = 2 THEN check = INT((n + 1) / 2)
      IF bench = 3 THEN IF n = 500000 THEN check = 41538 ELSE GOSUB 2280: check = x
      IF bench = 4 THEN IF n = 1000000 THEN check = 1227283347 ELSE GOSUB 2150: check = x
@@ -232,29 +232,60 @@
      RETURN
      REM
      REM
-     REM correctTime(t0, t1, gtsMeasCnt, gtsPrecCnt): t1Ms!
-2380 t1Ms! = FNconvMs!(t1)
-     IF gtsMeasCnt < gtsPrecCnt THEN t0MsTmp! = FNconvMs!(t0) + gtsPrecMs! * ((gtsPrecCnt - gtsMeasCnt) * 1.0 / gtsPrecCnt) : IF t0MsTmp! < t1Ms! THEN t1Ms! = t0MsTmp!
+     REM correctTime(t0, t1, gtsMeasCnt, gtsPrecCnt): t1Ms
+2380 t1Ms = FNconvMs(t1)
+     IF gtsMeasCnt < gtsPrecCnt THEN t0MsTmp = FNconvMs(t0) + gtsPrecMs * ((gtsPrecCnt - gtsMeasCnt) * 1.0 / gtsPrecCnt) : IF t0MsTmp < t1Ms THEN t1Ms = t0MsTmp
      RETURN
      REM
      REM
-     REM determineTsPrecision(): {global gtsPrecCnt, gtsPrecMs!}
+     REM determineTsPrecision(): {global gtsPrecCnt, gtsPrecMs}
 2400 GOSUB 2320: REM getPrecMs
      t0tmp = t1
      GOSUB 2320: REM getPrecMs
      t1tmp = t1
-     gtsPrecMs! = FNconvMs!(t1tmp) - FNconvMs!(t0tmp)
+     gtsPrecMs = FNconvMs(t1tmp) - FNconvMs(t0tmp)
      gtsPrecCnt = gtsMeasCnt
      REM do it again
      t0tmp = t1tmp
      GOSUB 2320: REM getPrecMs
      t1tmp = t1
-     IF gtsMeasCnt > gtsPrecCnt THEN gtsPrecCnt = gtsMeasCnt: gtsPrecMs! = FNconvMs!(t1tmp) - FNconvMs!(t0tmp)
+     IF gtsMeasCnt > gtsPrecCnt THEN gtsPrecCnt = gtsMeasCnt: gtsPrecMs = FNconvMs(t1tmp) - FNconvMs(t0tmp)
+     RETURN
+     REM
+     REM
+     REM checkbitsInt()
+2800 num% = 1
+     lastNum% = 0
+     bits = 0
+     ON ERROR GOTO 2950
+     WHILE ((((num% - 1) \ 2) AND 32767) = lastNum%) AND (bits < 101)
+     lastNum% = num%
+     num% = num% * 2
+     num% = num% + 1
+     bits = bits + 1
+     WEND
+2900 ON ERROR GOTO 0
+     RETURN
+2950 RESUME 2900
+     REM
+     REM checkbitsFloat()
+3000 num! = 1
+     lastNum! = 0
+     bits = 0
+     WHILE (((num! - 1) / 2) = lastNum!) AND (bits < 101)
+       lastNum! = num!
+       num! = num! * 2
+       num! = num! + 1
+       bits = bits + 1
+     WEND
      RETURN
      REM
      REM
      REM printInfo(): void
-3400 PRINT "BM Bench v"; prgVersion$; " ("; prgLanguage$; ") -- (tsMs:"; gtsPrecMs!; "tsCnt:"; gtsPrecCnt; ") -- "; basicver$
+3400 GOSUB 2800
+     intBits = bits
+     GOSUB 3000
+     PRINT "BM Bench v"; prgVersion$; " ("; prgLanguage$; ") -- (int:"; intBits; "float:"; bits; "tsMs:"; gtsPrecMs; "tsCnt:"; gtsPrecCnt; ") -- "; basicver$
      PRINT "(c) Marco Vieth, 2002-2023"
      RETURN
      REM
@@ -263,7 +294,7 @@
 3500 PRINT: PRINT "Throughput for all benchmarks (loops per sec):"
      PRINT "BMR ("; prgLanguage$; ") :";
      FOR bench = bench1 TO bench2
-       PRINT USING "#######.### "; benchres!(bench);
+       PRINT USING "#######.### "; benchres(bench);
      NEXT bench
      PRINT
      RETURN
@@ -271,40 +302,40 @@
      REM
      REM printLine1(): void
 3800 PRINT "Benchmark"; bench; "("; prgLanguage$; "):";
-     PRINT ROUND(loopsPsec!, 3); : REM loops per sec
-     PRINT "/s (time="; ROUND(tMeas!, 3); "ms, loops="; loops;
-     PRINT ", delta="; ROUND(tDelta!, 3); "ms)"
+     PRINT ROUND(loopsPsec, 3); : REM loops per sec
+     PRINT "/s (time="; ROUND(tMeas, 3); "ms, loops="; loops;
+     PRINT ", delta="; ROUND(tDelta, 3); "ms)"
      RETURN
      REM
      REM
-     REM measureBench(bench1, bench2, n, check, caliMs, deltaMs): throughput!
+     REM measureBench(bench1, bench2, n, check, caliMs, deltaMs): throughput
 4000 maxMs = 10000
      loops = 1
-     tEsti! = 0
-     throughput! = 0
+     tEsti = 0
+     throughput = 0
      PRINT "Calibrating benchmark"; bench; "with loops ="; loops; ", n ="; n; ", check ="; check
-     WHILE throughput! = 0
+     WHILE throughput = 0
        GOSUB 2320: REM getPrecMs
        t0m = t1
        GOSUB 2260: REM run_bench
        GOSUB 2320: REM getPrecMs
        GOSUB 2380: REM correctTime
-       tMeas! = t1Ms! - FNconvMs!(t0m)
-       tDelta! = tEsti! - tMeas!
-       if tDelta! < 0 THEN tDelta! = -tDelta!
-       REM  xx IF tEsti! > tMeas! THEN tDelta! = tEsti! - tMeas! ELSE tDelta! = tMeas! - tEsti!
-       loopsPsec! = 0
-       IF tMeas! > 0 THEN loopsPsec! = (loops * 1000) / tMeas!
-       PRINT USING "######.###";loopsPsec!;
-       PRINT "/s (time="; USING "#####.###"; tMeas!;
+       tMeas = t1Ms - FNconvMs(t0m)
+       tDelta = tEsti - tMeas
+       if tDelta < 0 THEN tDelta = -tDelta
+       REM  xx IF tEsti > tMeas THEN tDelta = tEsti - tMeas ELSE tDelta = tMeas - tEsti
+       loopsPsec = 0
+       IF tMeas > 0 THEN loopsPsec = (loops * 1000) / tMeas
+       PRINT USING "######.###";loopsPsec;
+       PRINT "/s (time="; USING "#####.###"; tMeas;
        PRINT " ms, loops="; USING "#######"; loops;
-       PRINT ", delta="; USING "#####.###"; tDelta!;: PRINT " ms)"
-       IF x = -1 then throughput! = -1:goto 4100
-       IF tMeas! > maxMs THEN PRINT "Benchmark"; bench; "("; prgLanguage$; "): Time already >"; maxMs; " ms. No measurement possible.": throughput! = -loopsPsec!: IF throughput! = 0 THEN throughput! = -1: goto 4100 ELSE 4100
-       IF tEsti! > 0 AND tDelta! < deltaMs THEN throughput! = loopsPsec!: GOSUB 3800: GOTO 4100
-       IF tMeas! = 0 THEN scaleFact = 50 ELSE if tMeas! < caliMs THEN scaleFact = int((caliMs + 100) / tMeas!) + 1 ELSE scaleFact = 2
+       PRINT ", delta="; USING "#####.###"; tDelta;: PRINT " ms)"
+       IF x = -1 then throughput = -1:goto 4100
+       IF tMeas > maxMs THEN PRINT "Benchmark"; bench; "("; prgLanguage$; "): Time already >"; maxMs; " ms. No measurement possible.": throughput = -loopsPsec: IF throughput = 0 THEN throughput = -1: goto 4100 ELSE 4100
+       IF tEsti > 0 AND tDelta < deltaMs THEN throughput = loopsPsec: GOSUB 3800: GOTO 4100
+       IF tMeas = 0 THEN scaleFact = 50 ELSE if tMeas < caliMs THEN scaleFact = int((caliMs + 100) / tMeas) + 1 ELSE scaleFact = 2
        loops = loops * scaleFact
-       tEsti! = tMeas! * scaleFact
+       tEsti = tMeas * scaleFact
 4100 WEND
      RETURN
      REM
@@ -312,15 +343,15 @@
      REM startBench(bench1, bench2, n): void
 5480 GOSUB 2400: REM determineTsPrecision
      GOSUB 3400: REM printInfo
-     DIM benchres!(maxBench): REM benchmark timing results
+     DIM benchres(maxBench): REM benchmark timing results
      nSave = n
      FOR bench = bench1 TO bench2
        n = nSave
        IF bench = 3 THEN n = INT(n / 2): DIM sieve1(n / 2 + 1) ELSE IF bench = 5 THEN n = INT(n / 200): DIM line1(n / 4)
        GOSUB 2300: REM getCheck
-       throughput! = -1
+       throughput = -1
        IF check > 0 THEN GOSUB 4000: REM measureBench
-       benchres!(bench) = throughput!
+       benchres(bench) = throughput
      NEXT bench
      GOSUB 3500: REM printResult
      RETURN
@@ -339,8 +370,8 @@
      IF COMMAND$(4) <> "" THEN caliMs = VAL(COMMAND$(4))
      IF COMMAND$(5) <> "" THEN deltaMs = VAL(COMMAND$(5))
      GOSUB 5480
-     tMeas! = FNconvMs!(FNgetTs)
-     PRINT "Total elapsed time:"; tMeas!; "ms"
+     tMeas = FNconvMs(FNgetTs)
+     PRINT "Total elapsed time:"; tMeas; "ms"
      REM VARS
      REM SYSTEM
      REM system or quit to exit bwbasic
