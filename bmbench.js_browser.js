@@ -55,6 +55,7 @@ function onStopButtonClick(frm) { // eslint-disable-line no-unused-vars
 
 function onClearButtonClick(frm) { // eslint-disable-line no-unused-vars
 	frm.outputArea.value = "";
+	setDisabled("clearButton", true);
 }
 
 
@@ -63,6 +64,7 @@ function onLoad() {
 		console.log("DEBUG: onLoad"); // eslint-disable-line no-console
 	}
 	setDisabled("stopButton", true);
+	setDisabled("clearButton", true);
 }
 
 window.onload = onLoad;
