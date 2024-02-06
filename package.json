@@ -1,8 +1,8 @@
 {
   "name": "bmbench",
-  "version": "0.8.11",
+  "version": "0.8.12",
   "description": "BM Benchmarks",
-  "main": "bmbench.js",
+  "main": "bmbench.ts",
   "directories": {
     "test": "test"
   },
@@ -11,7 +11,8 @@
   },
   "devDependencies": {
     "gh-pages": "^3.2.3",
-    "qunit": "^2.19.1"
+    "qunit": "^2.19.1",
+    "typescript": "^4.8.2"
   },
   "scripts": {
     "clean": "rm -rf dist/*",
