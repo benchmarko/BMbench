@@ -19,15 +19,15 @@
 
 <form action="">
   <table>
-    <tr><td>bench1</td> <td><input type="text" size="4" name="bench1" value="0" /></td></tr>
-    <tr><td>bench2</td> <td><input type="text" size="4" name="bench2" value="5" /></td></tr>
-    <tr><td>n</td>      <td><input type="text" size="8" name="n" value="1000000" /></td></tr>
+    <tr><td><label for="bench1Input" title="First Benchmark">first bench</label></td> <td><input id="bench1Input" type="number" min="0" max="6" size="4" name="bench1" value="0" title="First Benchmark" /></td></tr>
+    <tr><td><label for="bench2Input" title="Last Benchmark">last bench</label></td> <td><input id="bench2Input" type="number" min="0" max="6" size="4" name="bench2" value="5" title="Last Benchmark" /></td></tr>
+    <tr><td><label for="nInput" title="n">n</label></td>      <td><input id="nInput" type="text" size="8" name="n" value="1000000" title="Problem size" /></td></tr>
   </table>
-  <input type="button" value="Start" onclick="onStartButtonClick(this.form, 0)" id="startButton" name="startButton" />
-  <input type="button" value="Stop" onclick="onStopButtonClick(this.form)" id="stopButton" name="stopButton" />
-  <input type="button" value="Clear" onclick="onClearButtonClick(this.form)" id="clearButton" name="clearButton" />
+  <input type="button" value="Start" onclick="onStartButtonClick(this.form, 0)" id="startButton" name="startButton" title="Start Benchmarks" />
+  <input type="button" value="Stop" onclick="onStopButtonClick(this.form)" id="stopButton" name="stopButton" title="Stop Benchmarks" />
+  <input type="button" value="Clear" onclick="onClearButtonClick(this.form)" id="clearButton" name="clearButton" title="Clear Output" />
   <br>
-  <textarea id="outputArea" name="outputArea" placeholder="Press 'Run'" cols="84" rows="20"></textarea>
+  <textarea id="outputArea" name="outputArea" placeholder="Press 'Start'" cols="84" rows="20"></textarea>
 </form>
 
 <br />
