@@ -843,6 +843,10 @@ if (typeof window === "undefined") { // are we outside of a browser in a standal
 }
 else {
     gState.fnLog = console.log; // eslint-disable-line no-console
+    if (window.Deno) {
+        //console.log("Deno!", window.Deno.args);
+        main(window.Deno.args);
+    }
 }
 if (typeof module !== "undefined" && module.exports) {
     module.exports = startBench;

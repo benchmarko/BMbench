@@ -19,6 +19,7 @@
 // 02.12.2022 0.072 bench05 improved
 // 05.02.2023 0.073 use Array.fill, if available; removed myint
 // 19.02.2023 0.08  bench05 optimized
+// 28.04.2024 0.081 adapted for deno
 //
 // Usage:
 // bmbench([bench1], [bench2], [n])  (from HTML)
@@ -1040,6 +1041,10 @@ if (typeof window === "undefined") { // are we outside of a browser in a standal
 	}
 } else {
 	gState.fnLog = console.log; // eslint-disable-line no-console
+	if (window.Deno) {
+		//console.log("Deno!", window.Deno.args);
+		main(window.Deno.args);
+	}
 }
 
 
