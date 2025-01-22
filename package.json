@@ -1,6 +1,6 @@
 {
   "name": "bmbench",
-  "version": "0.8.14",
+  "version": "0.8.15",
   "description": "BM Benchmarks",
   "main": "bmbench.ts",
   "directories": {

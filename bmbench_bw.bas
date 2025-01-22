@@ -98,14 +98,8 @@
      m = 3
      x = 1
      WHILE m * m <= n
-       IF sieve1(i) = 1 THEN 2070
-       x = x + 1
-       j = INT((m * m - 3) / 2)
-       WHILE j < nHalf
-         sieve1(j) = 1
-         j = j + m
-       WEND
-2100   i = i + 1
+       IF sieve1(i) = 0 THEN x = x + 1: j = INT((m * m - 3) / 2): WHILE j < nHalf: sieve1(j) = 1: j = j + m: WEND
+       i = i + 1
        m = m + 2
      WEND
      REM count remaining primes
